@@ -71,6 +71,24 @@ abstract final class SwipConfidenceColors {
   static const likely = SwipColors.warning;
   static const unknown = SwipColors.ink500;
   static const conflict = SwipColors.danger;
+
+  /// The same four, for Ink surfaces — the dashboard hero, the virtual card,
+  /// the coin balance.
+  ///
+  /// The set above is tuned for white and collapses on black: [verified] is
+  /// 2.2:1 on [SwipColors.ink900]. These are named constants rather than a
+  /// computed lift because lerping the light colours toward white does clear
+  /// AA but desaturates them — verified lands on a sage #7AB69B and stops
+  /// reading as *green*, which is the one thing that colour is carrying. These
+  /// hold their hue and clear AAA (~7.2:1 to ~10:1 on ink900).
+  ///
+  /// The rule generalises: any semantic colour placed on [SwipColors.ink900]
+  /// needs an on-ink counterpart. Give `success` and `danger` the same
+  /// treatment when they first appear on a black card.
+  static const verifiedOnInk = Color(0xFF34C77B);
+  static const likelyOnInk = Color(0xFFE0A22B);
+  static const unknownOnInk = Color(0xFFA1A1A1);
+  static const conflictOnInk = Color(0xFFF2685E);
 }
 
 // ─────────────────────────────────────────────────────────────── type

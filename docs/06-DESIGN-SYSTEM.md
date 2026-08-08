@@ -124,7 +124,29 @@ verified   #0E7A4A   captured live this session, or ≥5 agreeing captures
 likely     #A66A00   inferred — heuristic or single report
 unknown    #5C5C5C   no data. Say so. Never guess in grey and hope
 conflict   #B3261E   sources disagree — show both
+
+── Confidence ON INK (surface/inverse only) ─────────
+verified-onInk   #34C77B   ~10.0:1 on #0A0A0A
+likely-onInk     #E0A22B   ~9.8:1
+unknown-onInk    #A1A1A1   ~8.2:1
+conflict-onInk   #F2685E   ~7.2:1
 ```
+
+> **Why the second confidence set exists.** The four above are tuned for white. On Ink they
+> collapse: `verified` #0E7A4A on #0A0A0A is **2.2 : 1**, and the `S-01` hero is an InkCard.
+>
+> `ConfidencePill` already handled this with an `onInk` flag that lerped the colour toward
+> white, so it was never a live AA bug in the app. But a lerp buys contrast by spending
+> saturation — verified came out #7AB69B, a sage that passes at 6.8 : 1 and no longer reads
+> as *green*. Since the whole point of the confidence colour is that green means something,
+> these are named tokens instead: same job, hue intact, AAA rather than AA.
+>
+> **The rule generalises.** Any semantic colour placed on `surfaceInverse` needs an on-ink
+> counterpart. `success` and `danger` hit the same wall the moment they appear on a black
+> card — give them named tokens too, rather than nudging opacity.
+>
+> All three token homes now agree: this file, the Figma collection, and `swip_tokens.dart`.
+> See [11-FIGMA §3](11-FIGMA.md#3-confidence-colour-on-ink).
 
 **Confidence colour is not decoration.** In a finance app, a number shown with unearned
 certainty is a defect. Every MCC in SWIP carries its confidence colour and label wherever it

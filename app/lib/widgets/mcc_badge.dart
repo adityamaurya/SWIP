@@ -66,15 +66,20 @@ class ConfidencePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (color, label) = switch (confidence) {
-      MccConfidence.verified => (SwipConfidenceColors.verified, 'Verified'),
-      MccConfidence.likely => (SwipConfidenceColors.likely, 'Likely'),
-      MccConfidence.unknown => (SwipConfidenceColors.unknown, 'Unknown'),
-      MccConfidence.conflict => (SwipConfidenceColors.conflict, 'Conflicting'),
+    // On Ink the light-surface greens and ambers drop below AA, so each has a
+    // named counterpart. Lerping toward white would also clear AA, but it
+    // desaturates — verified lands on a sage that stops reading as *green*.
+    final (color, label) = switch ((confidence, onInk)) {
+      (MccConfidence.verified, false) => (SwipConfidenceColors.verified, 'Verified'),
+      (MccConfidence.verified, true) => (SwipConfidenceColors.verifiedOnInk, 'Verified'),
+      (MccConfidence.likely, false) => (SwipConfidenceColors.likely, 'Likely'),
+      (MccConfidence.likely, true) => (SwipConfidenceColors.likelyOnInk, 'Likely'),
+      (MccConfidence.unknown, false) => (SwipConfidenceColors.unknown, 'Unknown'),
+      (MccConfidence.unknown, true) => (SwipConfidenceColors.unknownOnInk, 'Unknown'),
+      (MccConfidence.conflict, false) => (SwipConfidenceColors.conflict, 'Conflicting'),
+      (MccConfidence.conflict, true) => (SwipConfidenceColors.conflictOnInk, 'Conflicting'),
     };
-
-    // On Ink the semantic greens and ambers drop below AA, so lift them.
-    final fg = onInk ? Color.lerp(color, SwipColors.white, 0.45)! : color;
+    final fg = color;
 
     final text = switch ((compact, captureCount)) {
       (true, _) => label,
