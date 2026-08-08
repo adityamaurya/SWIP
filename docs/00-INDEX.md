@@ -81,3 +81,12 @@ Three smaller things are also outstanding, all recorded in
 [CHANGELOG § Open](CHANGELOG.md#open): the Figma screen set is unfinished (plan limit), the
 Dart token changes are uncompiled (no Flutter toolchain in the build environment), and
 Inter's `tnum` needs enabling by hand on the `MCC` text style.
+
+---
+
+## Added after the first round
+
+| # | Document | What it answers |
+|---|---|---|
+| **13** | [13-PLAY-STORE-LAUNCH](13-PLAY-STORE-LAUNCH.md) | Getting on the Play Store: every step, real costs, real waiting times |
+| **14** | [14-VISUAL-DIRECTION-FOIL](14-VISUAL-DIRECTION-FOIL.md) | The dark "Foil" redesign — proposed, awaiting sign-off |
