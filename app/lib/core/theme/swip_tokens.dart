@@ -1,0 +1,272 @@
+import 'package:flutter/widgets.dart';
+
+/// SWIP design tokens.
+///
+/// The single source of truth for colour, type, space, radius, elevation and
+/// motion. Mirrors `docs/06-DESIGN-SYSTEM.md` and the Figma variable
+/// collection; if you change a value here, change it in both other places or
+/// they drift apart within a sprint.
+///
+/// Nothing in `features/` may hard-code a colour, size or duration. If a value
+/// is missing, add it here.
+library;
+
+// ─────────────────────────────────────────────────────────────── colour
+
+/// Brand and surface colours.
+///
+/// THE GOLD RULE: gold on black, always; gold on white, never as text.
+/// [SwipColors.gold500] is 2.3:1 on white — it fails WCAG AA for text. On light
+/// surfaces gold may appear only as a fill (with [ink900] on top), as a 2–3px
+/// indicator, or as an icon ≥24px. For gold-flavoured *text* on light, use
+/// [goldInk], which is 6.2:1.
+abstract final class SwipColors {
+  // Brand — gold
+  static const gold50 = Color(0xFFFBF6E6);
+  static const gold100 = Color(0xFFF7E7B4);
+  static const gold300 = Color(0xFFE8C766);
+  static const gold500 = Color(0xFFC9A227); // THE brand gold
+  static const gold700 = Color(0xFF8A6620);
+  static const goldInk = Color(0xFF7A5E12); // gold-flavoured TEXT on light
+  static const gold900 = Color(0xFF4A3610);
+
+  // Brand — ink
+  static const ink900 = Color(0xFF0A0A0A); // SWIP Ink
+  static const ink700 = Color(0xFF2E2E2E);
+  static const ink500 = Color(0xFF5C5C5C);
+  static const ink300 = Color(0xFF8E8E8E); // ≥18px only (3.5:1)
+  static const ink200 = Color(0xFFC9C9C9);
+  static const ink100 = Color(0xFFE4E4E7);
+  static const ink50 = Color(0xFFF4F4F5);
+
+  // Surface — light (the default; see A-06)
+  static const surface = Color(0xFFFFFFFF);
+  static const surfaceSubdued = Color(0xFFFAFAFA);
+  static const surfaceSunken = Color(0xFFF4F4F5);
+  static const surfaceInverse = ink900;
+  static const border = Color(0xFFE4E4E7);
+  static const borderStrong = Color(0xFFC9C9C9);
+
+  // Semantic
+  static const success = Color(0xFF0E7A4A);
+  static const successBg = Color(0xFFE9F6F0);
+  static const warning = Color(0xFFA66A00);
+  static const warningBg = Color(0xFFFDF3E3);
+  static const danger = Color(0xFFB3261E);
+  static const dangerBg = Color(0xFFFCEBEA);
+  static const info = Color(0xFF1A5FB4);
+  static const infoBg = Color(0xFFEAF1FB);
+
+  static const white = Color(0xFFFFFFFF);
+}
+
+/// Confidence colours.
+///
+/// Not decoration. In a finance app a number shown with unearned certainty is a
+/// defect, so every MCC carries its confidence wherever it appears — and always
+/// as a dot *and* a word, never colour alone (roughly 1 in 12 men has a colour
+/// vision deficiency, and this audience skews heavily male).
+abstract final class SwipConfidenceColors {
+  static const verified = SwipColors.success;
+  static const likely = SwipColors.warning;
+  static const unknown = SwipColors.ink500;
+  static const conflict = SwipColors.danger;
+}
+
+// ─────────────────────────────────────────────────────────────── type
+
+abstract final class SwipType {
+  static const family = 'Inter';
+
+  /// Tabular figures. Applied to every numeral in the app without exception:
+  /// MCCs stacked in a ledger must align on the digit or the column reads as
+  /// noise — and that column is the single most important thing on screen.
+  static const tabular = <FontFeature>[FontFeature.tabularFigures()];
+
+  static const display = TextStyle(
+      fontFamily: family,
+      fontSize: 40,
+      height: 44 / 40,
+      fontWeight: FontWeight.w700,
+      letterSpacing: -0.8,
+      fontFeatures: tabular);
+
+  /// The MCC number itself.
+  static const mcc = TextStyle(
+      fontFamily: family,
+      fontSize: 34,
+      height: 38 / 34,
+      fontWeight: FontWeight.w700,
+      letterSpacing: -0.34,
+      fontFeatures: tabular);
+
+  static const titleL = TextStyle(
+      fontFamily: family,
+      fontSize: 28,
+      height: 34 / 28,
+      fontWeight: FontWeight.w600,
+      letterSpacing: -0.28);
+
+  static const titleM = TextStyle(
+      fontFamily: family,
+      fontSize: 22,
+      height: 28 / 22,
+      fontWeight: FontWeight.w600);
+
+  static const titleS = TextStyle(
+      fontFamily: family,
+      fontSize: 18,
+      height: 24 / 18,
+      fontWeight: FontWeight.w600);
+
+  static const bodyL = TextStyle(
+      fontFamily: family,
+      fontSize: 17,
+      height: 24 / 17,
+      fontWeight: FontWeight.w400);
+
+  static const bodyM = TextStyle(
+      fontFamily: family,
+      fontSize: 15,
+      height: 22 / 15,
+      fontWeight: FontWeight.w400);
+
+  static const bodyS = TextStyle(
+      fontFamily: family,
+      fontSize: 13,
+      height: 18 / 13,
+      fontWeight: FontWeight.w400);
+
+  static const label = TextStyle(
+      fontFamily: family,
+      fontSize: 13,
+      height: 16 / 13,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0.26);
+
+  /// Publication chips: NATIONAL / INTL / RUPAY.
+  static const labelS = TextStyle(
+      fontFamily: family,
+      fontSize: 11,
+      height: 14 / 11,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0.44);
+
+  /// VPAs, terminal IDs, raw TLV.
+  static const mono = TextStyle(
+      fontFamily: family,
+      fontSize: 15,
+      height: 20 / 15,
+      fontWeight: FontWeight.w500,
+      fontFeatures: tabular);
+}
+
+// ─────────────────────────────────────────────────────────── space & shape
+
+abstract final class SwipSpace {
+  static const xxs = 2.0;
+  static const xs = 4.0;
+  static const sm = 8.0;
+  static const md = 12.0;
+  static const lg = 16.0;
+  static const xl = 20.0;
+  static const xxl = 24.0;
+  static const xxxl = 32.0;
+  static const huge = 40.0;
+  static const giant = 56.0;
+  static const colossal = 72.0;
+
+  /// Screen gutter.
+  static const gutter = xl;
+
+  /// Card padding.
+  static const card = lg;
+
+  /// Gap between sections.
+  static const section = xxl;
+}
+
+abstract final class SwipRadius {
+  static const chip = Radius.circular(8);
+  static const input = Radius.circular(12);
+  static const card = Radius.circular(16);
+  static const sheet = Radius.circular(24);
+  static const pill = Radius.circular(999);
+
+  static const chipAll = BorderRadius.all(chip);
+  static const inputAll = BorderRadius.all(input);
+  static const cardAll = BorderRadius.all(card);
+  static const pillAll = BorderRadius.all(pill);
+  static const sheetTop =
+      BorderRadius.only(topLeft: sheet, topRight: sheet);
+}
+
+/// Elevation.
+///
+/// The light theme leans on borders and uses shadow sparingly — Material's
+/// default elevation ramp looks cheap on white. [e1] is the default for cards
+/// and rows and is a *border*, not a shadow.
+abstract final class SwipElevation {
+  static const List<BoxShadow> e0 = [];
+
+  static const List<BoxShadow> e2 = [
+    BoxShadow(
+        color: Color(0x0F0A0A0A), blurRadius: 2, offset: Offset(0, 1)),
+  ];
+
+  static const List<BoxShadow> e3 = [
+    BoxShadow(
+        color: Color(0x1A0A0A0A), blurRadius: 24, offset: Offset(0, 8)),
+  ];
+
+  static const List<BoxShadow> e4 = [
+    BoxShadow(
+        color: Color(0x290A0A0A), blurRadius: 48, offset: Offset(0, 16)),
+  ];
+
+  /// The default card/row treatment: a hairline, no shadow.
+  static Border get e1 => Border.all(color: SwipColors.border, width: 1);
+}
+
+// ─────────────────────────────────────────────────────────────── motion
+
+abstract final class SwipMotion {
+  static const micro = Duration(milliseconds: 120);
+  static const standard = Duration(milliseconds: 200);
+  static const emphasized = Duration(milliseconds: 320);
+
+  /// The capture reveal.
+  static const capture = Duration(milliseconds: 480);
+
+  /// The signature foil sweep. Splash, verified capture, coin transfer —
+  /// and nowhere else. Using it anywhere else destroys it.
+  static const foilSweep = Duration(milliseconds: 900);
+
+  static const standardCurve = Cubic(0.2, 0, 0, 1);
+  static const emphasizedCurve = Cubic(0.05, 0.7, 0.1, 1);
+  static const captureCurve = Cubic(0.16, 1, 0.3, 1);
+}
+
+/// The gold-foil gradient, matching `brand/generate.mjs`.
+///
+/// Use with a shader that spans the whole text run — per-glyph gradients
+/// shatter the foil into unrelated shards, which is the single most common way
+/// a foil treatment goes wrong.
+abstract final class SwipGradients {
+  static const foil = LinearGradient(
+    begin: Alignment.bottomLeft,
+    end: Alignment.topRight,
+    colors: [
+      Color(0xFF6E4F14),
+      Color(0xFFA67C22),
+      Color(0xFFD8B252),
+      Color(0xFFF6E4A6),
+      Color(0xFFFFF7DB),
+      Color(0xFFE3C46B),
+      Color(0xFFB98F2C),
+      Color(0xFF8A6620),
+      Color(0xFF5E430F),
+    ],
+    stops: [0.0, 0.14, 0.33, 0.47, 0.53, 0.62, 0.78, 0.90, 1.0],
+  );
+}

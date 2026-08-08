@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SWIP Listen — HCE AID registration (Capture Vector 2).
+
+  category="payment"
+  ─────────────────
+  The AIDs below are the real payment AIDs, so Android routes them under the
+  "payment" category, which means:
+
+    • SWIP appears in Settings > Tap & pay alongside any wallet app, and
+    • when another app (Google Wallet) is the default, SWIP will NOT receive
+      these APDUs unless it is in the foreground and has called
+      CardEmulation.setPreferredService().
+
+  That foreground-preferred call is made in MainActivity while S-03 (Tap POS) is
+  on screen and released when it leaves — see MainActivity.kt. This is the
+  correct mechanism and it is also the honest one: SWIP only competes for the
+  NFC field while the user is deliberately looking at the Tap screen.
+
+  requireDeviceUnlock="true"
+  ──────────────────────────
+  Not required for a service that cannot pay, but set anyway. A capture writes
+  to the user's ledger, and a ledger that can be written to through a locked
+  phone in someone else's hand is a privacy problem, not a feature.
+
+  NOTE FOR REVIEW: this service holds no PAN, generates no cryptogram, and
+  answers no GENERATE AC. It terminates every exchange with SW=6985 after
+  reading the terminal's PDOL response. See SwipListenService.kt.
+-->
+<host-apdu-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/swip_hce_description"
+    android:requireDeviceUnlock="true"
+    android:apduServiceBanner="@drawable/swip_hce_banner">
+
+    <aid-group
+        android:category="payment"
+        android:description="@string/swip_hce_aid_group">
+
+        <!-- Visa -->
+        <aid-filter android:name="A0000000031010" />
+        <!-- Mastercard -->
+        <aid-filter android:name="A0000000041010" />
+        <!-- RuPay -->
+        <aid-filter android:name="A0000005241010" />
+        <!-- American Express -->
+        <aid-filter android:name="A00000002501" />
+        <!-- JCB -->
+        <aid-filter android:name="A0000000651010" />
+        <!-- UnionPay -->
+        <aid-filter android:name="A000000333010101" />
+
+    </aid-group>
+</host-apdu-service>

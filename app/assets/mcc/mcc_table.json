@@ -1,0 +1,2137 @@
+{
+ "$schema": "https://swip.in/schema/mcc-table-1.json",
+ "version": 1,
+ "generatedAt": "2026-08-08",
+ "source": "ISO 18245:2023 ranges; Visa / Mastercard published category names",
+ "caveats": [
+  "rupay publications are not populated in v1 — the list was not verifiable.",
+  "Networks publish overlapping but non-identical lists; Mastercard alone carries ~879 codes.",
+  "This is a curated working set, not the complete table."
+ ],
+ "codes": [
+  {
+   "code": "0742",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Veterinary Services"
+    }
+   ]
+  },
+  {
+   "code": "1520",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "General Contractors — Residential and Commercial"
+    }
+   ]
+  },
+  {
+   "code": "1711",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Heating, Plumbing and Air Conditioning Contractors"
+    }
+   ]
+  },
+  {
+   "code": "1731",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Electrical Contractors"
+    }
+   ]
+  },
+  {
+   "code": "1799",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Special Trade Contractors"
+    }
+   ]
+  },
+  {
+   "code": "2741",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Miscellaneous Publishing and Printing"
+    }
+   ]
+  },
+  {
+   "code": "4011",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Railroads"
+    }
+   ]
+  },
+  {
+   "code": "4111",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Local and Suburban Commuter Passenger Transportation"
+    },
+    {
+     "publication": "national",
+     "name": "Local and Suburban Commuter Passenger Transportation"
+    }
+   ]
+  },
+  {
+   "code": "4112",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Passenger Railways"
+    }
+   ]
+  },
+  {
+   "code": "4119",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Ambulance Services"
+    }
+   ]
+  },
+  {
+   "code": "4121",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Taxicabs and Limousines"
+    },
+    {
+     "publication": "national",
+     "name": "Taxicabs and Limousines"
+    }
+   ]
+  },
+  {
+   "code": "4131",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Bus Lines"
+    },
+    {
+     "publication": "national",
+     "name": "Bus Lines"
+    }
+   ]
+  },
+  {
+   "code": "4214",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Motor Freight Carriers and Trucking"
+    },
+    {
+     "publication": "national",
+     "name": "Motor Freight Carriers and Trucking"
+    }
+   ]
+  },
+  {
+   "code": "4215",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Courier Services"
+    },
+    {
+     "publication": "national",
+     "name": "Courier Services"
+    }
+   ]
+  },
+  {
+   "code": "4225",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Public Warehousing and Storage"
+    }
+   ]
+  },
+  {
+   "code": "4411",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Steamship and Cruise Lines"
+    }
+   ]
+  },
+  {
+   "code": "4457",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Boat Rentals and Leases"
+    }
+   ]
+  },
+  {
+   "code": "4511",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Airlines and Air Carriers"
+    },
+    {
+     "publication": "national",
+     "name": "Airlines and Air Carriers"
+    }
+   ]
+  },
+  {
+   "code": "4582",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Airports, Flying Fields and Airport Terminals"
+    }
+   ]
+  },
+  {
+   "code": "4722",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Travel Agencies and Tour Operators"
+    },
+    {
+     "publication": "national",
+     "name": "Travel Agencies and Tour Operators"
+    }
+   ]
+  },
+  {
+   "code": "4784",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Tolls and Bridge Fees"
+    },
+    {
+     "publication": "national",
+     "name": "Tolls and Bridge Fees"
+    }
+   ]
+  },
+  {
+   "code": "4789",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Transportation Services (Not Elsewhere Classified)"
+    }
+   ]
+  },
+  {
+   "code": "4812",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Telecommunication Equipment and Telephone Sales"
+    }
+   ]
+  },
+  {
+   "code": "4814",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Telecommunication Services"
+    },
+    {
+     "publication": "national",
+     "name": "Telecommunication Services"
+    }
+   ]
+  },
+  {
+   "code": "4816",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Computer Network / Information Services"
+    },
+    {
+     "publication": "national",
+     "name": "Computer Network / Information Services"
+    }
+   ]
+  },
+  {
+   "code": "4821",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Telegraph Services"
+    }
+   ]
+  },
+  {
+   "code": "4829",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Money Transfer"
+    },
+    {
+     "publication": "national",
+     "name": "Money Transfer"
+    }
+   ]
+  },
+  {
+   "code": "4899",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Cable, Satellite and Other Pay Television and Radio"
+    },
+    {
+     "publication": "national",
+     "name": "Cable, Satellite and Other Pay Television and Radio"
+    }
+   ]
+  },
+  {
+   "code": "4900",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Utilities — Electric, Gas, Water, Sanitary"
+    },
+    {
+     "publication": "national",
+     "name": "Utilities — Electric, Gas, Water, Sanitary"
+    }
+   ]
+  },
+  {
+   "code": "5013",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Motor Vehicle Supplies and New Parts"
+    }
+   ]
+  },
+  {
+   "code": "5039",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Construction Materials"
+    }
+   ]
+  },
+  {
+   "code": "5044",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Photographic and Photocopy Equipment"
+    }
+   ]
+  },
+  {
+   "code": "5045",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Computers, Peripherals and Software"
+    }
+   ]
+  },
+  {
+   "code": "5047",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Medical, Dental and Hospital Equipment"
+    }
+   ]
+  },
+  {
+   "code": "5065",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Electrical Parts and Equipment"
+    }
+   ]
+  },
+  {
+   "code": "5072",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Hardware Equipment and Supplies"
+    }
+   ]
+  },
+  {
+   "code": "5085",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Industrial Supplies"
+    }
+   ]
+  },
+  {
+   "code": "5111",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Stationery, Office Supplies and Writing Paper"
+    }
+   ]
+  },
+  {
+   "code": "5122",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Drugs, Drug Proprietaries and Druggist Sundries"
+    },
+    {
+     "publication": "national",
+     "name": "Drugs, Drug Proprietaries and Druggist Sundries"
+    }
+   ]
+  },
+  {
+   "code": "5131",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Piece Goods, Notions and Other Dry Goods"
+    }
+   ]
+  },
+  {
+   "code": "5169",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Chemicals and Allied Products"
+    }
+   ]
+  },
+  {
+   "code": "5172",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Petroleum and Petroleum Products"
+    }
+   ]
+  },
+  {
+   "code": "5192",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Books, Periodicals and Newspapers"
+    },
+    {
+     "publication": "national",
+     "name": "Books, Periodicals and Newspapers"
+    }
+   ]
+  },
+  {
+   "code": "5193",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Florists' Supplies, Nursery Stock and Flowers"
+    }
+   ]
+  },
+  {
+   "code": "5198",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Paints, Varnishes and Supplies"
+    }
+   ]
+  },
+  {
+   "code": "5199",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Nondurable Goods"
+    }
+   ]
+  },
+  {
+   "code": "5200",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Home Supply Warehouse Stores"
+    }
+   ]
+  },
+  {
+   "code": "5211",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Lumber and Building Materials Stores"
+    }
+   ]
+  },
+  {
+   "code": "5231",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Glass, Paint and Wallpaper Stores"
+    }
+   ]
+  },
+  {
+   "code": "5251",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Hardware Stores"
+    }
+   ]
+  },
+  {
+   "code": "5261",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Nurseries, Lawn and Garden Supply Stores"
+    }
+   ]
+  },
+  {
+   "code": "5300",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Wholesale Clubs"
+    }
+   ]
+  },
+  {
+   "code": "5309",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Duty Free Stores"
+    }
+   ]
+  },
+  {
+   "code": "5310",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Discount Stores"
+    }
+   ]
+  },
+  {
+   "code": "5311",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Department Stores"
+    },
+    {
+     "publication": "national",
+     "name": "Department Stores"
+    }
+   ]
+  },
+  {
+   "code": "5331",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Variety Stores"
+    }
+   ]
+  },
+  {
+   "code": "5399",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Miscellaneous General Merchandise"
+    }
+   ]
+  },
+  {
+   "code": "5411",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Grocery Stores and Supermarkets"
+    },
+    {
+     "publication": "national",
+     "name": "Grocery Stores and Supermarkets"
+    }
+   ]
+  },
+  {
+   "code": "5441",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Candy, Nut and Confectionery Stores"
+    }
+   ]
+  },
+  {
+   "code": "5451",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Dairy Products Stores"
+    }
+   ]
+  },
+  {
+   "code": "5462",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Bakeries"
+    },
+    {
+     "publication": "national",
+     "name": "Bakeries"
+    }
+   ]
+  },
+  {
+   "code": "5499",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Miscellaneous Food Stores — Convenience and Specialty"
+    },
+    {
+     "publication": "national",
+     "name": "Miscellaneous Food Stores — Convenience and Specialty"
+    }
+   ]
+  },
+  {
+   "code": "5511",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Car and Truck Dealers — Sales and Service"
+    }
+   ]
+  },
+  {
+   "code": "5532",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Automotive Tire Stores"
+    }
+   ]
+  },
+  {
+   "code": "5533",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Automotive Parts and Accessories Stores"
+    }
+   ]
+  },
+  {
+   "code": "5541",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Service Stations"
+    },
+    {
+     "publication": "national",
+     "name": "Service Stations"
+    }
+   ]
+  },
+  {
+   "code": "5542",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Automated Fuel Dispensers"
+    },
+    {
+     "publication": "national",
+     "name": "Automated Fuel Dispensers"
+    }
+   ]
+  },
+  {
+   "code": "5571",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Motorcycle Shops and Dealers"
+    }
+   ]
+  },
+  {
+   "code": "5599",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Miscellaneous Automotive and Farm Equipment Dealers"
+    }
+   ]
+  },
+  {
+   "code": "5611",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Men's and Boys' Clothing and Accessories Stores"
+    }
+   ]
+  },
+  {
+   "code": "5621",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Women's Ready-to-Wear Stores"
+    }
+   ]
+  },
+  {
+   "code": "5631",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Women's Accessory and Specialty Shops"
+    }
+   ]
+  },
+  {
+   "code": "5641",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Children's and Infants' Wear Stores"
+    }
+   ]
+  },
+  {
+   "code": "5651",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Family Clothing Stores"
+    },
+    {
+     "publication": "national",
+     "name": "Family Clothing Stores"
+    }
+   ]
+  },
+  {
+   "code": "5655",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Sports and Riding Apparel Stores"
+    }
+   ]
+  },
+  {
+   "code": "5661",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Shoe Stores"
+    }
+   ]
+  },
+  {
+   "code": "5691",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Men's and Women's Clothing Stores"
+    }
+   ]
+  },
+  {
+   "code": "5699",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Miscellaneous Apparel and Accessory Shops"
+    }
+   ]
+  },
+  {
+   "code": "5712",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Furniture and Home Furnishings Stores"
+    }
+   ]
+  },
+  {
+   "code": "5722",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Household Appliance Stores"
+    }
+   ]
+  },
+  {
+   "code": "5732",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Electronics Stores"
+    },
+    {
+     "publication": "national",
+     "name": "Electronics Stores"
+    }
+   ]
+  },
+  {
+   "code": "5733",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Music Stores — Instruments and Sheet Music"
+    }
+   ]
+  },
+  {
+   "code": "5734",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Computer Software Stores"
+    }
+   ]
+  },
+  {
+   "code": "5811",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Caterers"
+    }
+   ]
+  },
+  {
+   "code": "5812",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Eating Places and Restaurants"
+    },
+    {
+     "publication": "national",
+     "name": "Eating Places and Restaurants"
+    }
+   ]
+  },
+  {
+   "code": "5813",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Drinking Places — Bars, Taverns, Nightclubs"
+    },
+    {
+     "publication": "national",
+     "name": "Drinking Places — Bars, Taverns, Nightclubs"
+    }
+   ]
+  },
+  {
+   "code": "5814",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Fast Food Restaurants"
+    },
+    {
+     "publication": "national",
+     "name": "Fast Food Restaurants"
+    }
+   ]
+  },
+  {
+   "code": "5815",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Digital Goods — Books, Movies, Music"
+    }
+   ]
+  },
+  {
+   "code": "5816",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Digital Goods — Games"
+    }
+   ]
+  },
+  {
+   "code": "5817",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Digital Goods — Applications (Excludes Games)"
+    }
+   ]
+  },
+  {
+   "code": "5818",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Digital Goods — Large Digital Goods Merchant"
+    }
+   ]
+  },
+  {
+   "code": "5912",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Drug Stores and Pharmacies"
+    },
+    {
+     "publication": "national",
+     "name": "Drug Stores and Pharmacies"
+    }
+   ]
+  },
+  {
+   "code": "5921",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Package Stores — Beer, Wine and Liquor"
+    }
+   ]
+  },
+  {
+   "code": "5931",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Used Merchandise and Secondhand Stores"
+    }
+   ]
+  },
+  {
+   "code": "5940",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Bicycle Shops"
+    }
+   ]
+  },
+  {
+   "code": "5941",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Sporting Goods Stores"
+    },
+    {
+     "publication": "national",
+     "name": "Sporting Goods Stores"
+    }
+   ]
+  },
+  {
+   "code": "5942",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Book Stores"
+    },
+    {
+     "publication": "national",
+     "name": "Book Stores"
+    }
+   ]
+  },
+  {
+   "code": "5943",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Stationery and Office Supply Stores"
+    }
+   ]
+  },
+  {
+   "code": "5944",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Jewellery, Watch and Silverware Stores"
+    },
+    {
+     "publication": "national",
+     "name": "Jewellery, Watch and Silverware Stores"
+    }
+   ]
+  },
+  {
+   "code": "5945",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Hobby, Toy and Game Shops"
+    }
+   ]
+  },
+  {
+   "code": "5946",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Camera and Photographic Supply Stores"
+    }
+   ]
+  },
+  {
+   "code": "5947",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Gift, Card, Novelty and Souvenir Shops"
+    }
+   ]
+  },
+  {
+   "code": "5948",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Luggage and Leather Goods Stores"
+    }
+   ]
+  },
+  {
+   "code": "5949",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Sewing, Needlework and Fabric Stores"
+    }
+   ]
+  },
+  {
+   "code": "5964",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Direct Marketing — Catalog Merchant"
+    }
+   ]
+  },
+  {
+   "code": "5965",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Direct Marketing — Catalog and Retail Merchant"
+    }
+   ]
+  },
+  {
+   "code": "5967",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Direct Marketing — Inbound Teleservices"
+    }
+   ]
+  },
+  {
+   "code": "5968",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Direct Marketing — Continuity / Subscription"
+    }
+   ]
+  },
+  {
+   "code": "5969",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Direct Marketing — Other"
+    }
+   ]
+  },
+  {
+   "code": "5970",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Artist's Supply and Craft Shops"
+    }
+   ]
+  },
+  {
+   "code": "5977",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Cosmetic Stores"
+    }
+   ]
+  },
+  {
+   "code": "5983",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Fuel Dealers"
+    }
+   ]
+  },
+  {
+   "code": "5992",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Florists"
+    }
+   ]
+  },
+  {
+   "code": "5994",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "News Dealers and Newsstands"
+    }
+   ]
+  },
+  {
+   "code": "5995",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Pet Shops, Pet Food and Supplies"
+    }
+   ]
+  },
+  {
+   "code": "5999",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Miscellaneous and Specialty Retail Stores"
+    },
+    {
+     "publication": "national",
+     "name": "Miscellaneous and Specialty Retail Stores"
+    }
+   ]
+  },
+  {
+   "code": "6010",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Financial Institutions — Manual Cash Disbursements"
+    }
+   ]
+  },
+  {
+   "code": "6011",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Financial Institutions — Automated Cash Disbursements (ATM)"
+    },
+    {
+     "publication": "national",
+     "name": "Financial Institutions — Automated Cash Disbursements (ATM)"
+    }
+   ]
+  },
+  {
+   "code": "6012",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Financial Institutions — Merchandise and Services"
+    }
+   ]
+  },
+  {
+   "code": "6051",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Non-Financial Institutions — Foreign Currency, Money Orders, Quasi Cash"
+    },
+    {
+     "publication": "national",
+     "name": "Non-Financial Institutions — Foreign Currency, Money Orders, Quasi Cash"
+    }
+   ]
+  },
+  {
+   "code": "6211",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Security Brokers and Dealers"
+    }
+   ]
+  },
+  {
+   "code": "6300",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Insurance Sales, Underwriting and Premiums"
+    },
+    {
+     "publication": "national",
+     "name": "Insurance Sales, Underwriting and Premiums"
+    }
+   ]
+  },
+  {
+   "code": "6381",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Insurance Premiums"
+    }
+   ]
+  },
+  {
+   "code": "6399",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Insurance — Not Elsewhere Classified"
+    }
+   ]
+  },
+  {
+   "code": "6513",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Real Estate Agents and Managers — Rentals"
+    },
+    {
+     "publication": "national",
+     "name": "Real Estate Agents and Managers — Rentals"
+    }
+   ]
+  },
+  {
+   "code": "6540",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Non-Financial Institutions — Stored Value Card Purchase / Load"
+    },
+    {
+     "publication": "national",
+     "name": "Non-Financial Institutions — Stored Value Card Purchase / Load"
+    }
+   ]
+  },
+  {
+   "code": "7011",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Lodging — Hotels, Motels and Resorts"
+    },
+    {
+     "publication": "national",
+     "name": "Lodging — Hotels, Motels and Resorts"
+    }
+   ]
+  },
+  {
+   "code": "7012",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Timeshares"
+    }
+   ]
+  },
+  {
+   "code": "7032",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Sporting and Recreational Camps"
+    }
+   ]
+  },
+  {
+   "code": "7210",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Laundry, Cleaning and Garment Services"
+    }
+   ]
+  },
+  {
+   "code": "7216",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Dry Cleaners"
+    }
+   ]
+  },
+  {
+   "code": "7221",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Photographic Studios"
+    }
+   ]
+  },
+  {
+   "code": "7230",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Beauty and Barber Shops"
+    },
+    {
+     "publication": "national",
+     "name": "Beauty and Barber Shops"
+    }
+   ]
+  },
+  {
+   "code": "7273",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Dating Services"
+    }
+   ]
+  },
+  {
+   "code": "7276",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Tax Preparation Services"
+    }
+   ]
+  },
+  {
+   "code": "7298",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Health and Beauty Spas"
+    },
+    {
+     "publication": "national",
+     "name": "Health and Beauty Spas"
+    }
+   ]
+  },
+  {
+   "code": "7299",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Miscellaneous Personal Services"
+    },
+    {
+     "publication": "national",
+     "name": "Miscellaneous Personal Services"
+    }
+   ]
+  },
+  {
+   "code": "7311",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Advertising Services"
+    },
+    {
+     "publication": "national",
+     "name": "Advertising Services"
+    }
+   ]
+  },
+  {
+   "code": "7333",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Commercial Photography, Art and Graphics"
+    }
+   ]
+  },
+  {
+   "code": "7338",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Quick Copy, Reproduction and Blueprinting"
+    }
+   ]
+  },
+  {
+   "code": "7342",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Exterminating and Disinfecting Services"
+    }
+   ]
+  },
+  {
+   "code": "7349",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Cleaning, Maintenance and Janitorial Services"
+    }
+   ]
+  },
+  {
+   "code": "7361",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Employment Agencies and Temporary Help"
+    }
+   ]
+  },
+  {
+   "code": "7372",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Computer Programming and Data Processing"
+    },
+    {
+     "publication": "national",
+     "name": "Computer Programming and Data Processing"
+    }
+   ]
+  },
+  {
+   "code": "7375",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Information Retrieval Services"
+    }
+   ]
+  },
+  {
+   "code": "7379",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Computer Maintenance and Repair"
+    }
+   ]
+  },
+  {
+   "code": "7392",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Management, Consulting and Public Relations"
+    }
+   ]
+  },
+  {
+   "code": "7393",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Detective, Protective and Security Services"
+    }
+   ]
+  },
+  {
+   "code": "7399",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Business Services — Not Elsewhere Classified"
+    }
+   ]
+  },
+  {
+   "code": "7511",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Truck Stop"
+    }
+   ]
+  },
+  {
+   "code": "7512",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Automobile Rental Agency"
+    },
+    {
+     "publication": "national",
+     "name": "Automobile Rental Agency"
+    }
+   ]
+  },
+  {
+   "code": "7513",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Truck and Utility Trailer Rentals"
+    }
+   ]
+  },
+  {
+   "code": "7523",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Parking Lots, Meters and Garages"
+    },
+    {
+     "publication": "national",
+     "name": "Parking Lots, Meters and Garages"
+    }
+   ]
+  },
+  {
+   "code": "7531",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Automotive Body Repair Shops"
+    }
+   ]
+  },
+  {
+   "code": "7538",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Automotive Service Shops"
+    }
+   ]
+  },
+  {
+   "code": "7542",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Car Washes"
+    }
+   ]
+  },
+  {
+   "code": "7549",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Towing Services"
+    }
+   ]
+  },
+  {
+   "code": "7622",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Electronics Repair Shops"
+    }
+   ]
+  },
+  {
+   "code": "7629",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Electrical and Small Appliance Repair"
+    }
+   ]
+  },
+  {
+   "code": "7631",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Watch, Clock and Jewellery Repair"
+    }
+   ]
+  },
+  {
+   "code": "7699",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Miscellaneous Repair Shops"
+    }
+   ]
+  },
+  {
+   "code": "7829",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Motion Picture and Video Tape Production"
+    }
+   ]
+  },
+  {
+   "code": "7832",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Motion Picture Theatres"
+    },
+    {
+     "publication": "national",
+     "name": "Motion Picture Theatres"
+    }
+   ]
+  },
+  {
+   "code": "7841",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Video Tape Rental Stores"
+    }
+   ]
+  },
+  {
+   "code": "7911",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Dance Halls, Studios and Schools"
+    }
+   ]
+  },
+  {
+   "code": "7922",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Theatrical Producers and Ticket Agencies"
+    }
+   ]
+  },
+  {
+   "code": "7929",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Bands, Orchestras and Miscellaneous Entertainers"
+    }
+   ]
+  },
+  {
+   "code": "7932",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Billiard and Pool Establishments"
+    }
+   ]
+  },
+  {
+   "code": "7933",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Bowling Alleys"
+    }
+   ]
+  },
+  {
+   "code": "7941",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Commercial Sports and Professional Sports Clubs"
+    }
+   ]
+  },
+  {
+   "code": "7991",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Tourist Attractions and Exhibits"
+    }
+   ]
+  },
+  {
+   "code": "7992",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Golf Courses — Public"
+    }
+   ]
+  },
+  {
+   "code": "7994",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Video Game Arcades and Establishments"
+    }
+   ]
+  },
+  {
+   "code": "7995",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Betting, Casino Gaming Chips and Lottery Tickets"
+    },
+    {
+     "publication": "national",
+     "name": "Betting, Casino Gaming Chips and Lottery Tickets"
+    }
+   ]
+  },
+  {
+   "code": "7996",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Amusement Parks, Carnivals and Circuses"
+    }
+   ]
+  },
+  {
+   "code": "7997",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Membership Clubs, Country Clubs and Private Golf Courses"
+    }
+   ]
+  },
+  {
+   "code": "7998",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Aquariums, Seaquariums and Zoos"
+    }
+   ]
+  },
+  {
+   "code": "7999",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Recreation Services — Not Elsewhere Classified"
+    }
+   ]
+  },
+  {
+   "code": "8011",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Doctors and Physicians"
+    },
+    {
+     "publication": "national",
+     "name": "Doctors and Physicians"
+    }
+   ]
+  },
+  {
+   "code": "8021",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Dentists and Orthodontists"
+    }
+   ]
+  },
+  {
+   "code": "8041",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Chiropractors"
+    }
+   ]
+  },
+  {
+   "code": "8042",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Optometrists and Ophthalmologists"
+    }
+   ]
+  },
+  {
+   "code": "8043",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Opticians, Optical Goods and Eyeglasses"
+    }
+   ]
+  },
+  {
+   "code": "8050",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Nursing and Personal Care Facilities"
+    }
+   ]
+  },
+  {
+   "code": "8062",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Hospitals"
+    },
+    {
+     "publication": "national",
+     "name": "Hospitals"
+    }
+   ]
+  },
+  {
+   "code": "8071",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Medical and Dental Laboratories"
+    }
+   ]
+  },
+  {
+   "code": "8099",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Medical Services and Health Practitioners"
+    },
+    {
+     "publication": "national",
+     "name": "Medical Services and Health Practitioners"
+    }
+   ]
+  },
+  {
+   "code": "8111",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Legal Services and Attorneys"
+    }
+   ]
+  },
+  {
+   "code": "8211",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Elementary and Secondary Schools"
+    },
+    {
+     "publication": "national",
+     "name": "Elementary and Secondary Schools"
+    }
+   ]
+  },
+  {
+   "code": "8220",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Colleges, Universities and Professional Schools"
+    },
+    {
+     "publication": "national",
+     "name": "Colleges, Universities and Professional Schools"
+    }
+   ]
+  },
+  {
+   "code": "8241",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Correspondence Schools"
+    }
+   ]
+  },
+  {
+   "code": "8244",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Business and Secretarial Schools"
+    }
+   ]
+  },
+  {
+   "code": "8249",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Vocational and Trade Schools"
+    }
+   ]
+  },
+  {
+   "code": "8299",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Schools and Educational Services"
+    },
+    {
+     "publication": "national",
+     "name": "Schools and Educational Services"
+    }
+   ]
+  },
+  {
+   "code": "8351",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Child Care Services"
+    }
+   ]
+  },
+  {
+   "code": "8398",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Charitable and Social Service Organisations"
+    },
+    {
+     "publication": "national",
+     "name": "Charitable and Social Service Organisations"
+    }
+   ]
+  },
+  {
+   "code": "8641",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Civic, Social and Fraternal Associations"
+    }
+   ]
+  },
+  {
+   "code": "8651",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Political Organisations"
+    }
+   ]
+  },
+  {
+   "code": "8661",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Religious Organisations"
+    }
+   ]
+  },
+  {
+   "code": "8675",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Automobile Associations"
+    }
+   ]
+  },
+  {
+   "code": "8699",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Membership Organisations"
+    }
+   ]
+  },
+  {
+   "code": "8734",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Testing Laboratories"
+    }
+   ]
+  },
+  {
+   "code": "8911",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Architectural, Engineering and Surveying Services"
+    }
+   ]
+  },
+  {
+   "code": "8931",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Accounting, Auditing and Bookkeeping Services"
+    }
+   ]
+  },
+  {
+   "code": "8999",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Professional Services"
+    }
+   ]
+  },
+  {
+   "code": "9211",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Court Costs, Including Alimony and Child Support"
+    }
+   ]
+  },
+  {
+   "code": "9222",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Fines"
+    }
+   ]
+  },
+  {
+   "code": "9223",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Bail and Bond Payments"
+    }
+   ]
+  },
+  {
+   "code": "9311",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Tax Payments"
+    },
+    {
+     "publication": "national",
+     "name": "Tax Payments"
+    }
+   ]
+  },
+  {
+   "code": "9399",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Government Services"
+    }
+   ]
+  },
+  {
+   "code": "9402",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Postal Services — Government Only"
+    }
+   ]
+  },
+  {
+   "code": "9405",
+   "definitions": [
+    {
+     "publication": "international",
+     "name": "Intra-Government Purchases"
+    }
+   ]
+  }
+ ]
+}

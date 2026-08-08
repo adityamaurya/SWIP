@@ -1,0 +1,23 @@
+# Flutter / Dart
+app/.dart_tool/
+app/.flutter-plugins*
+app/build/
+app/.packages
+app/pubspec.lock
+app/ios/Pods/
+app/ios/.symlinks/
+app/android/.gradle/
+app/android/local.properties
+app/**/*.iml
+
+# Fonts are fetched, not committed — see app/tool/fetch_fonts.sh
+app/assets/fonts/*.ttf
+
+# Generated brand rasters (SVGs are the source; PNGs are previews)
+brand/*.png
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+node_modules/

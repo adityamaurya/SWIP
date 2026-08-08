@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="SWIP">
+  <title>SWIP monogram</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#161616"/>
+      <stop offset="1" stop-color="#000000"/>
+    </linearGradient>
+    <linearGradient id="foil" gradientUnits="userSpaceOnUse"
+                    x1="0" y1="140" x2="92" y2="20">
+      <stop offset="0" stop-color="#6E4F14"/>
+      <stop offset="0.14" stop-color="#A67C22"/>
+      <stop offset="0.33" stop-color="#D8B252"/>
+      <stop offset="0.47" stop-color="#F6E4A6"/>
+      <stop offset="0.53" stop-color="#FFF7DB"/>
+      <stop offset="0.62" stop-color="#E3C46B"/>
+      <stop offset="0.78" stop-color="#B98F2C"/>
+      <stop offset="0.9" stop-color="#8A6620"/>
+      <stop offset="1" stop-color="#5E430F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <g transform="translate(299,80) scale(5.4) translate(0,80) skewX(-12) translate(0,-80)">
+    <g fill="url(#foil)">
+      <polygon points="26,20 92,20 92,48 28,48 28,94 0,94 0,46"/>
+      <rect x="0" y="66" width="92" height="28"/>
+      <polygon points="64,66 92,66 92,114 66,140 0,140 0,112 64,112"/>
+    </g>
+  </g>
+</svg>
