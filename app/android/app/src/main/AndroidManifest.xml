@@ -20,6 +20,21 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <!--
+      F-40 — where a capture happened.
+
+      COARSE only, and requested at the moment the user turns the feature on in
+      Settings rather than at install. It is off by default: SWIP works
+      completely without it, and a location prompt on first run from an app that
+      has not yet shown you anything useful is how permissions get denied
+      permanently.
+
+      The fix is reduced to a 6-character geohash (~1.2 km) before storage, so
+      the ledger — which the user exports to their own Drive — never contains
+      the coordinates of their front door.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!--
       DELIBERATELY ABSENT, and this is a design decision, not an oversight:
 
         READ_SMS / RECEIVE_SMS — Google Play restricts these to default SMS
@@ -28,9 +43,11 @@
         bank SMS carries a narration, not an MCC. SWIP asks the user instead
         (S-13). See docs/03-RESEARCH §8.
 
-        ACCESS_FINE_LOCATION — the merchant graph uses a 5-character geohash
-        (~4.9km) derived only when the user opts in, which coarse location
-        already satisfies. Fine location would buy nothing and cost trust.
+        ACCESS_FINE_LOCATION — a geohash at this precision is satisfied by
+        coarse location. Fine location would buy nothing and cost trust.
+
+        ACCESS_BACKGROUND_LOCATION — SWIP only ever asks where you are at the
+        instant you capture something, while you are looking at the screen.
     -->
 
     <application
@@ -79,11 +96,28 @@
                 <data android:scheme="upi" android:host="pay" />
             </intent-filter>
 
-            <!-- S-08: accept a shared payment link from any app's share sheet. -->
-            <intent-filter>
+            <!--
+              Share-to-SWIP — `S-24`, and the answer to `F-41`.
+
+              Checkout apps that build their UPI list from an allowlist will
+              never show SWIP however it registers (docs/20-FEEDBACK-ROUND-2).
+              But every one of those screens has a copy or share action, and the
+              share sheet is a list nobody curates. One extra tap, works
+              everywhere, no permission.
+
+                text/plain — a payment link or a upi:// string
+                image/*    — a screenshot of a payment screen; SWIP reads the
+                             QR out of the picture
+            -->
+            <intent-filter android:label="@string/swip_share_label">
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter android:label="@string/swip_share_label">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
             </intent-filter>
         </activity>
 

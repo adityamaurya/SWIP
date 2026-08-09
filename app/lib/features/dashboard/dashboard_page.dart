@@ -132,7 +132,8 @@ class _DashboardPageState extends State<DashboardPage> {
         _LastCaptureHero(
           event: last,
           mcc: widget.mccFor(last.mcc),
-          verdict: widget.homeMarket?.verdictFor(last.countryCode),
+          verdict: widget.homeMarket?.verdictFor(last.countryCode,
+              deviceCountry: last.placeCountry),
           height: _bandHeight,
           onTap: () => widget.onOpenEvent?.call(last),
         )
@@ -266,7 +267,8 @@ class _DashboardPageState extends State<DashboardPage> {
               event: rows[i],
               mcc: widget.mccFor(rows[i].mcc),
               timeFormat: widget.timeFormat,
-              verdict: widget.homeMarket?.verdictFor(rows[i].countryCode),
+              verdict: widget.homeMarket?.verdictFor(rows[i].countryCode,
+                  deviceCountry: rows[i].placeCountry),
               onTap: () => widget.onOpenEvent?.call(rows[i]),
               onToggleTimeFormat: widget.onToggleTimeFormat,
             ),

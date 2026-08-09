@@ -27,7 +27,10 @@ class SwipDatabase {
   static SwipDatabase? _instance;
 
   static const _fileName = 'swip.db';
-  static const _version = 1;
+  /// v2 adds the F-40 location columns. Never edit [_create] for a change
+  /// like this — bump the version and add a numbered block to [_upgrade], or
+  /// fresh installs and existing ones diverge.
+  static const _version = 2;
 
   static Future<SwipDatabase> open() async {
     if (_instance != null) return _instance!;
@@ -68,7 +71,10 @@ class SwipDatabase {
         acquirer      TEXT,
         raw_payload   TEXT,
         corrects_id   TEXT,
-        synced_at     INTEGER
+        synced_at     INTEGER,
+        geohash       TEXT,               -- F-40, 6 chars, ~1.2km. Never raw
+        place_label   TEXT,               -- "Bandra, IN", best-effort
+        place_country TEXT                -- where YOU were, not the merchant
       )
     ''');
 
@@ -104,10 +110,21 @@ class SwipDatabase {
     ''');
   }
 
-  /// No migrations yet — v1 is the first schema. When one is needed, add a
-  /// numbered block here and bump [_version]; never edit [_create], or
-  /// existing installs and fresh installs will diverge.
-  static Future<void> _upgrade(Database db, int from, int to) async {}
+  /// Numbered, additive, and never destructive: an existing ledger on
+  /// someone's phone is the only copy of it that exists.
+  static Future<void> _upgrade(Database db, int from, int to) async {
+    // v1 → v2: F-40. Nullable columns, so every row already stored stays
+    // valid and simply has no location — which is the truth about it.
+    if (from < 2) {
+      for (final column in const [
+        'geohash TEXT',
+        'place_label TEXT',
+        'place_country TEXT',
+      ]) {
+        await db.execute('ALTER TABLE captures ADD COLUMN $column');
+      }
+    }
+  }
 
   // ── captures ────────────────────────────────────────────────────────
 
@@ -261,6 +278,9 @@ class SwipDatabase {
         'raw_payload': e.rawPayload,
         'corrects_id': e.correctsId,
         'synced_at': e.syncedAt?.toUtc().millisecondsSinceEpoch,
+        'geohash': e.geohash,
+        'place_label': e.placeLabel,
+        'place_country': e.placeCountry,
       };
 
   static CaptureEvent _fromRow(Map<String, Object?> r) => CaptureEvent(
@@ -282,6 +302,9 @@ class SwipDatabase {
         acquirer: r['acquirer'] as String?,
         rawPayload: r['raw_payload'] as String?,
         correctsId: r['corrects_id'] as String?,
+        geohash: r['geohash'] as String?,
+        placeLabel: r['place_label'] as String?,
+        placeCountry: r['place_country'] as String?,
         syncedAt: r['synced_at'] == null
             ? null
             : DateTime.fromMillisecondsSinceEpoch(r['synced_at'] as int,

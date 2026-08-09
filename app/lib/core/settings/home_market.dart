@@ -30,15 +30,26 @@ class HomeMarket {
 
   static const fallback = HomeMarket(countryCode: 'IN', currency: 'INR');
 
-  /// The verdict for one capture. `null` when the capture carried no country,
+  /// The verdict for one capture. `null` when nothing said where it happened,
   /// which is common and must not be rendered as "domestic" by default —
   /// assuming home is how a foreign transaction fee arrives as a surprise.
-  MarketVerdict? verdictFor(String? captureCountry) {
-    final c = captureCountry?.trim().toUpperCase();
-    if (c == null || c.isEmpty || c == 'XX') return null;
+  ///
+  /// [deviceCountry] wins when both are present. `F-14` asks for a comparison
+  /// against *where you are now*, and the two genuinely differ: a QR issued to
+  /// a merchant registered in Singapore, scanned by you in Mumbai, carries
+  /// `SG` in its payload while you are standing in India.
+  MarketVerdict? verdictFor(String? captureCountry, {String? deviceCountry}) {
+    final c = (_clean(deviceCountry) ?? _clean(captureCountry));
+    if (c == null) return null;
     return c == countryCode
         ? MarketVerdict.domestic
         : MarketVerdict.international;
+  }
+
+  static String? _clean(String? v) {
+    final c = v?.trim().toUpperCase();
+    if (c == null || c.length != 2 || c == 'XX') return null;
+    return c;
   }
 
   @override

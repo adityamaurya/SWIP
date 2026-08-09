@@ -166,7 +166,21 @@ class LedgerRow extends StatelessWidget {
                 ),
               ),
             ],
-            if (event.acquirer != null) ...[
+            // `F-40`. Where beats who-processed-it for recall — "the Bandra
+            // one" is how a person actually finds a past capture — so the place
+            // takes the slot when both exist.
+            if (event.placeLabel != null) ...[
+              const SizedBox(width: SwipSpace.sm),
+              Flexible(
+                child: Text(
+                  event.placeLabel!,
+                  style:
+                      SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ] else if (event.acquirer != null) ...[
               const SizedBox(width: SwipSpace.sm),
               // The payment company, kept visibly separate from the merchant.
               Flexible(

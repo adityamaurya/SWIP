@@ -84,20 +84,43 @@ fi
 # so Vector 2 never ships on iOS — but Vector 1 (QR) needs a camera usage
 # string or iOS kills the app on first scan with no explanation.
 PLIST=ios/Runner/Info.plist
-if [ -f "$PLIST" ] && ! grep -q NSCameraUsageDescription "$PLIST"; then
-  echo "▸ Adding the iOS camera usage description…"
-  /usr/libexec/PlistBuddy -c \
-    "Add :NSCameraUsageDescription string 'SWIP uses the camera to read payment QR codes so it can show you the merchant category before you pay. Nothing is recorded or uploaded.'" \
-    "$PLIST" 2>/dev/null || \
+if [ -f "$PLIST" ]; then
+  echo "▸ Adding the iOS usage descriptions…"
   python3 - "$PLIST" <<'PY'
-import sys, re, pathlib
-p = pathlib.Path(sys.argv[1]); s = p.read_text()
-entry = ("\t<key>NSCameraUsageDescription</key>\n"
-         "\t<string>SWIP uses the camera to read payment QR codes so it can "
-         "show you the merchant category before you pay. Nothing is recorded "
-         "or uploaded.</string>\n")
-s = s.replace("</dict>\n</plist>", entry + "</dict>\n</plist>", 1)
-p.write_text(s)
+import sys, pathlib
+
+p = pathlib.Path(sys.argv[1])
+s = p.read_text()
+
+# Every string iOS demands before it will let the app touch a capability.
+# A missing one is not a warning — iOS kills the app on first use with no
+# explanation the user could act on.
+entries = {
+    "NSCameraUsageDescription":
+        "SWIP uses the camera to read payment QR codes so it can show you the "
+        "merchant category before you pay. Nothing is recorded or uploaded.",
+    # F-40. Coarse, opt-in, and reduced to a ~1 km cell before storage — the
+    # wording says so, because this prompt is where trust is won or lost.
+    "NSLocationWhenInUseUsageDescription":
+        "SWIP can note roughly where a capture happened, so your ledger reads "
+        "“the Bandra one” rather than a bare date. It is stored as a "
+        "~1 km area, never exact coordinates, and only while you are using the "
+        "app. Categories work exactly the same without it.",
+}
+
+added = []
+for key, value in entries.items():
+    if f"<key>{key}</key>" in s:
+        continue
+    entry = f"\t<key>{key}</key>\n\t<string>{value}</string>\n"
+    s = s.replace("</dict>\n</plist>", entry + "</dict>\n</plist>", 1)
+    added.append(key)
+
+if added:
+    p.write_text(s)
+    print("  added: " + ", ".join(added))
+else:
+    print("  already present")
 PY
 fi
 

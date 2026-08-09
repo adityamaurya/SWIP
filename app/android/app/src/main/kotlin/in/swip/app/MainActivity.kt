@@ -52,9 +52,25 @@ class MainActivity : FlutterFragmentActivity() {
      */
     private var pendingUpi: String? = null
 
+    /**
+     * Something shared *into* SWIP from another app's share sheet.
+     *
+     * This is the answer to the checkout apps that build their UPI list from an
+     * allowlist rather than by asking Android: SWIP cannot get onto that list,
+     * but every one of those screens has a copy or share action, and the share
+     * sheet is a list nobody curates. One extra tap, works everywhere.
+     *
+     * Two shapes, both held until Dart asks:
+     *   text  → the shared string, resolved exactly like a scanned payload
+     *   image → a path in cacheDir, for reading a QR out of a screenshot
+     */
+    private var pendingShareKind: String? = null
+    private var pendingShareValue: String? = null
+
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
         capturePaymentIntent(intent)
+        captureSharedPayload(intent)
     }
 
     /** `launchMode="singleTop"`, so a second checkout arrives here. */
@@ -62,12 +78,62 @@ class MainActivity : FlutterFragmentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         capturePaymentIntent(intent)
+        captureSharedPayload(intent)
     }
 
     private fun capturePaymentIntent(intent: Intent?) {
         val data = intent?.data ?: return
         if (data.scheme?.lowercase() != "upi") return
         pendingUpi = data.toString()
+    }
+
+    /**
+     * Pull whatever arrived on an ACTION_SEND.
+     *
+     * The image branch copies the stream into our own cache rather than holding
+     * the `content://` URI: the grant that came with the intent is scoped to
+     * this Activity instance and dies on rotation, which would turn "share a
+     * screenshot" into an intermittent failure that only reproduces on other
+     * people's phones.
+     */
+    private fun captureSharedPayload(intent: Intent?) {
+        if (intent == null) return
+        if (intent.action != Intent.ACTION_SEND) return
+
+        val type = intent.type.orEmpty()
+
+        if (type.startsWith("text/")) {
+            val text = intent.getStringExtra(Intent.EXTRA_TEXT)?.trim()
+            if (!text.isNullOrEmpty()) {
+                pendingShareKind = "text"
+                pendingShareValue = text
+            }
+            return
+        }
+
+        if (type.startsWith("image/")) {
+            val uri: android.net.Uri? =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM, android.net.Uri::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM)
+                }
+            if (uri == null) return
+
+            runCatching {
+                val target = java.io.File(cacheDir, "shared_qr_${System.currentTimeMillis()}.img")
+                contentResolver.openInputStream(uri)?.use { input ->
+                    target.outputStream().use { output -> input.copyTo(output) }
+                }
+                target
+            }.onSuccess { file ->
+                if (file.exists() && file.length() > 0) {
+                    pendingShareKind = "image"
+                    pendingShareValue = file.absolutePath
+                }
+            }
+        }
     }
 
     override fun configureFlutterEngine(engine: FlutterEngine) {
@@ -114,6 +180,20 @@ class MainActivity : FlutterFragmentActivity() {
                     "consumeUpiIntent" -> {
                         result.success(pendingUpi)
                         pendingUpi = null
+                    }
+
+                    // Share-to-SWIP. Same read-once contract as the UPI intent:
+                    // returning it clears it, so a rotation cannot replay the
+                    // same share as a second capture.
+                    "consumeSharedPayload" -> {
+                        val kind = pendingShareKind
+                        val value = pendingShareValue
+                        result.success(
+                            if (kind == null || value == null) null
+                            else mapOf("kind" to kind, "value" to value)
+                        )
+                        pendingShareKind = null
+                        pendingShareValue = null
                     }
 
                     // Hand the payment on to a real UPI app.

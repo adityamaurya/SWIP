@@ -83,7 +83,8 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                           event: event,
                           mcc: repo?.lookup(event.mcc),
                           timeFormat: widget.timeFormat,
-                          verdict: home?.verdictFor(event.countryCode),
+                          verdict: home?.verdictFor(event.countryCode,
+                              deviceCountry: event.placeCountry),
                           onToggleTimeFormat: widget.onToggleTime,
                         ),
                     };

@@ -28,6 +28,12 @@ dependencies:
   # Capture
   mobile_scanner: ^5.1.1   # QR — Vector 1
 
+  # F-40 — where a capture happened. Opt-in, coarse only, and the raw fix never
+  # leaves the device: it is reduced to a 6-character geohash (~1.2 km) before
+  # anything is stored. See core/location/capture_location.dart.
+  geolocator: ^13.0.1
+  geocoding: ^3.0.0        # coarse fix -> "Bandra, IN", for the ledger to read
+
   # Presentation
   flutter_svg: ^2.0.10+1   # brand marks
   intl: ^0.19.0            # dates, currency

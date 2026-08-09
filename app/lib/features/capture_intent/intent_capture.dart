@@ -129,7 +129,8 @@ class _IntentCaptureListenerState extends ConsumerState<IntentCaptureListener>
           mcc: repo.lookup(event.mcc),
           sourceLabel: 'Pay-by-app · ${resolved.sourceLabel}',
           rawPayload: uri,
-          verdict: home?.verdictFor(resolved.countryCode),
+          verdict: home?.verdictFor(resolved.countryCode,
+              deviceCountry: event.placeCountry),
           payeeKind: resolved.payeeKind,
           // Without this, the payload sniffer would call a Swiggy or PVR
           // checkout "a personal UPI code, not a shop" — it is plainly a shop,

@@ -198,6 +198,29 @@ class CaptureSheet extends StatelessWidget {
               ),
             ],
 
+            // `F-40` — where you were, discreetly. Read off the event rather
+            // than passed in by each vector, so it appears everywhere the
+            // moment location is switched on and nowhere when it is not.
+            if (event.placeLabel != null) ...[
+              const SizedBox(height: SwipSpace.xs),
+              Row(
+                children: [
+                  const Icon(Icons.place_outlined,
+                      size: 14, color: SwipColors.textTertiary),
+                  const SizedBox(width: SwipSpace.sm),
+                  Expanded(
+                    child: Text(
+                      event.placeLabel!,
+                      style: SwipType.bodyS
+                          .copyWith(color: SwipColors.textTertiary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+
             if (known) ...[
               const SizedBox(height: SwipSpace.md),
               Row(children: [

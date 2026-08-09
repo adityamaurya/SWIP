@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/location/capture_location.dart';
 import '../../core/onboarding/primers.dart';
 import '../../core/settings/home_market.dart';
 import '../../core/theme/swip_tokens.dart';
@@ -26,6 +27,7 @@ class SettingsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final count = ref.watch(captureCountProvider).valueOrNull ?? 0;
     final home = ref.watch(homeMarketProvider).valueOrNull;
+    final locationOn = ref.watch(locationEnabledProvider).valueOrNull ?? false;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -52,6 +54,24 @@ class SettingsPage extends ConsumerWidget {
               builder: (_) =>
                   HomeMarketPage(initial: home, isOnboarding: false),
             )),
+          ),
+
+          // `F-40`. Off by default and asked for here, not at first run. An app
+          // that wants your location before it has shown you anything useful
+          // gets denied for ever — and SWIP is completely usable without it.
+          SwitchListTile(
+            secondary: const Icon(Icons.place_outlined),
+            value: locationOn,
+            title: const Text('Remember where a capture happened'),
+            subtitle: Text(
+              locationOn
+                  ? 'Stored as a ~1 km area, never exact coordinates'
+                  : 'Off. Categories work exactly the same without it',
+              style: SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
+            ),
+            activeThumbColor: SwipColors.gold500,
+            activeTrackColor: SwipColors.gold900,
+            onChanged: (want) => _setLocation(context, ref, want),
           ),
 
           const Divider(height: SwipSpace.xxl),
@@ -135,6 +155,34 @@ class SettingsPage extends ConsumerWidget {
         child: Text(s.toUpperCase(),
             style: SwipType.labelS.copyWith(color: SwipColors.textTertiary)),
       );
+
+  /// `F-40`. Turning it on asks for the permission as part of the same gesture.
+  ///
+  /// The toggle reflects what the system actually granted, not what we asked
+  /// for: a switch that stays on after the user tapped "Deny" is a lie, and it
+  /// is the kind of lie that gets noticed.
+  Future<void> _setLocation(
+      BuildContext context, WidgetRef ref, bool want) async {
+    final service = await ref.read(locationServiceProvider.future);
+
+    if (!want) {
+      await service.disable();
+      ref.read(locationRevisionProvider.notifier).state++;
+      return;
+    }
+
+    final granted = await service.enable();
+    ref.read(locationRevisionProvider.notifier).state++;
+
+    if (!granted && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+          'Location stayed off — Android did not grant it. You can allow it '
+          'in your phone\'s app settings.',
+        ),
+      ));
+    }
+  }
 
   Future<void> _export(BuildContext context, WidgetRef ref) async {
     final db = await ref.read(databaseProvider.future);

@@ -87,7 +87,8 @@ class _LinkPageState extends ConsumerState<LinkPage> {
           mcc: repo.lookup(event.mcc),
           sourceLabel: resolved.sourceLabel,
           rawPayload: raw,
-          verdict: home?.verdictFor(resolved.countryCode),
+          verdict: home?.verdictFor(resolved.countryCode,
+              deviceCountry: event.placeCountry),
           payeeKind: resolved.payeeKind,
           details: {
             if (resolved.acquirer != null)

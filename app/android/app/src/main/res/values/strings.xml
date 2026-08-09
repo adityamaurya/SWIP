@@ -17,4 +17,11 @@
       list has to understand this one does not pay.
     -->
     <string name="swip_intent_label">SWIP · read category</string>
+
+    <!--
+      Shown in Android's share sheet. This is the row a person hunts for after
+      hitting "share" on a checkout screen, so it says what will happen rather
+      than just naming the app.
+    -->
+    <string name="swip_share_label">SWIP · check the category</string>
 </resources>

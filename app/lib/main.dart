@@ -14,6 +14,7 @@ import 'features/capture_intent/intent_capture.dart';
 import 'features/capture_link/link_page.dart';
 import 'features/capture_nfc/tap_page.dart';
 import 'features/capture_qr/scan_page.dart';
+import 'features/capture_share/share_capture.dart';
 import 'features/dashboard/dashboard_page.dart';
 import 'features/ledger/ledger_page.dart';
 import 'features/onboarding/home_market_page.dart';
@@ -37,7 +38,12 @@ class SwipApp extends StatelessWidget {
         // Foil is the only look. Reverses A-06 — see
         // docs/14-VISUAL-DIRECTION-FOIL.md.
         themeMode: ThemeMode.dark,
-        home: const IntentCaptureListener(child: SwipShell()),
+        // Two ways a capture can arrive from outside SWIP: a merchant's
+        // pay-by-app intent (Vector 7) and the share sheet (S-24). Both can
+        // cold-start the app, so both wrap the shell rather than a screen.
+        home: const IntentCaptureListener(
+          child: ShareCaptureListener(child: SwipShell()),
+        ),
       );
 }
 
@@ -160,7 +166,8 @@ class _SwipShellState extends ConsumerState<SwipShell>
           mcc: repo.lookup(event.mcc),
           sourceLabel: resolved.sourceLabel,
           rawPayload: raw,
-          verdict: home?.verdictFor(resolved.countryCode),
+          verdict: home?.verdictFor(resolved.countryCode,
+              deviceCountry: event.placeCountry),
           payeeKind: resolved.payeeKind,
           details: {
             if (resolved.acquirer != null)

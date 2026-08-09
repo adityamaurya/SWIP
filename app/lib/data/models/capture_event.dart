@@ -72,6 +72,9 @@ class CaptureEvent {
     this.rawPayload,
     this.correctsId,
     this.syncedAt,
+    this.geohash,
+    this.placeLabel,
+    this.placeCountry,
   });
 
   final String id;
@@ -124,6 +127,22 @@ class CaptureEvent {
 
   /// Null until contributed to the graph. Sync is opt-in and off by default.
   final DateTime? syncedAt;
+
+  /// `F-40`. A 6-character geohash — a cell of roughly 1.2 km × 0.6 km — and
+  /// never the raw fix. The ledger is exported to the user's own Drive, so a
+  /// file of exact coordinates for every shop they have paid at is not
+  /// something SWIP is willing to create. Null unless location is switched on.
+  final String? geohash;
+
+  /// "Bandra, IN". Best-effort, cosmetic, and frequently null offline.
+  final String? placeLabel;
+
+  /// Where **you** were, ISO alpha-2. Distinct from [countryCode], which is the
+  /// merchant's registration: when the two disagree, that is a fact worth
+  /// showing rather than a conflict to resolve.
+  final String? placeCountry;
+
+  bool get hasLocation => geohash != null;
 
   bool get isSynced => syncedAt != null;
   bool get hasMcc => mcc != null && mcc!.length == 4;
@@ -182,6 +201,9 @@ class CaptureEvent {
         rawPayload: rawPayload,
         correctsId: correctsId,
         syncedAt: syncedAt ?? this.syncedAt,
+        geohash: geohash,
+        placeLabel: placeLabel,
+        placeCountry: placeCountry,
       );
 
   Map<String, Object?> toRow() => {
@@ -202,6 +224,9 @@ class CaptureEvent {
         'raw_payload': rawPayload,
         'corrects_id': correctsId,
         'synced_at': syncedAt?.toUtc().millisecondsSinceEpoch,
+        'geohash': geohash,
+        'place_label': placeLabel,
+        'place_country': placeCountry,
       };
 
   factory CaptureEvent.fromRow(Map<String, Object?> r) => CaptureEvent(
@@ -223,6 +248,9 @@ class CaptureEvent {
         acquirer: r['acquirer'] as String?,
         rawPayload: r['raw_payload'] as String?,
         correctsId: r['corrects_id'] as String?,
+        geohash: r['geohash'] as String?,
+        placeLabel: r['place_label'] as String?,
+        placeCountry: r['place_country'] as String?,
         syncedAt: r['synced_at'] == null
             ? null
             : DateTime.fromMillisecondsSinceEpoch(r['synced_at']! as int,

@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/location/capture_location.dart';
 import '../models/capture_event.dart';
 import '../models/mcc.dart';
 import '../sources/swip_database.dart';
@@ -14,10 +15,15 @@ import 'mcc_repository.dart';
 /// funnels through [record] so the ledger can never disagree with itself about
 /// what happened, and so the merchant graph is fed exactly once per capture.
 class CaptureRepository {
-  CaptureRepository(this._db, this._mcc);
+  CaptureRepository(this._db, this._mcc, this._location);
 
   final SwipDatabase _db;
   final MccTable _mcc;
+
+  /// `F-40`. Held here rather than called from each capture screen so that
+  /// "captured with every capture" is structurally true — a new vector added
+  /// later gets location without anyone remembering to wire it.
+  final LocationService _location;
 
   static final _rand = Random.secure();
 
@@ -39,6 +45,11 @@ class CaptureRepository {
     String? acquirer,
     String? rawPayload,
   }) async {
+    // Fetched before the row is built, and never allowed to fail the capture:
+    // `current()` returns null for a refused permission, a disabled service, or
+    // a timeout indoors, and all three mean "no location", not "no capture".
+    final where = await _location.current();
+
     var code = mcc;
     var confidence = vector.isLiveCapture
         ? MccConfidence.verified
@@ -74,6 +85,9 @@ class CaptureRepository {
       terminalId: terminalId,
       acquirer: acquirer,
       rawPayload: rawPayload,
+      geohash: where?.geohash,
+      placeLabel: where?.label,
+      placeCountry: where?.countryCode,
     );
 
     await _db.insertCapture(event);
@@ -138,7 +152,8 @@ final mccTableProvider = FutureProvider<MccTable>((ref) async {
 final captureRepositoryProvider = FutureProvider<CaptureRepository>((ref) async {
   final db = await ref.watch(databaseProvider.future);
   final mcc = await ref.watch(mccTableProvider.future);
-  return CaptureRepository(db, mcc);
+  final location = await ref.watch(locationServiceProvider.future);
+  return CaptureRepository(db, mcc, location);
 });
 
 /// Bumped after every write so the dashboard and ledger refetch.
