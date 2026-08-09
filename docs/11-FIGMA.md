@@ -135,8 +135,14 @@ capture tiles, and the `RECENT` header.
 | `S-05`–`S-07` | Capture / MCC / Merchant detail |
 | v2 | `S-18` `S-19` `S-21` |
 
-To resume, either wait for the limit to reset or upgrade the plan at the link Figma
-returns. The remaining work is scripted the same way as everything above.
+**The limit does not reset on a timer.** Six read-only probes an hour apart — including one
+deliberately fired just after UTC midnight, when a daily quota would roll over — all
+returned the same error. Treat it as a hard cap on the Starter plan, not a throttle to wait
+out. Finishing the file needs a Figma plan upgrade.
+
+The remaining work is scripted exactly like everything above, so it resumes in minutes once
+there is quota. Nothing else in the project depends on it: the Flutter app, the token
+files, and the HTML previews need no Figma quota at all.
 
 ---
 
