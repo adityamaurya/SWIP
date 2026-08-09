@@ -38,12 +38,23 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // ── EMVCo primitives ──────────────────────────────────────────────────
 
-/** One TLV: 2-digit tag, 2-digit length, value. Length is in CHARACTERS. */
+/**
+ * One TLV: 2-digit tag, 2-digit length, value.
+ *
+ * **Length is in BYTES, not characters.** This is the single most important
+ * line in the file. `ラーメン一番` is 6 JavaScript characters but 18 UTF-8
+ * bytes; declaring `06` produces a payload no conformant parser can read,
+ * because every tag after it starts at the wrong offset — including tag 52.
+ *
+ * The first version of this generator used `v.length` and the Japanese vector
+ * failed in CI exactly as designed, just with the bug on the fixture's side
+ * rather than the parser's.
+ */
 function tlv(tag, value) {
   const v = String(value);
-  const len = String(v.length).padStart(2, '0');
-  if (v.length > 99) throw new Error(`value too long for tag ${tag}`);
-  return `${tag}${len}${v}`;
+  const bytes = Buffer.byteLength(v, 'utf8');
+  if (bytes > 99) throw new Error(`value too long for tag ${tag}: ${bytes}B`);
+  return `${tag}${String(bytes).padStart(2, '0')}${v}`;
 }
 
 /**
@@ -394,6 +405,62 @@ add({
   expectAcquirer: 'Razorpay',
 });
 
+// ── self-check ────────────────────────────────────────────────────────
+//
+// Byte-walk every EMVCo payload exactly the way the Dart parser does, and
+// assert it yields what the vector claims. A fixture is only useful if it is
+// correct; an incorrect one tunes the parser against payloads no terminal
+// emits. This catches that at generation time rather than in CI.
+
+function byteWalk(payload) {
+  const buf = Buffer.from(payload, 'utf8');
+  const fields = {};
+  let i = 0;
+  while (i + 4 <= buf.length) {
+    const tag = buf.subarray(i, i + 2).toString('ascii');
+    const lenStr = buf.subarray(i + 2, i + 4).toString('ascii');
+    if (!/^\d{2}$/.test(tag) || !/^\d{2}$/.test(lenStr)) {
+      throw new Error(`malformed TLV header at byte ${i}: "${tag}${lenStr}"`);
+    }
+    const len = parseInt(lenStr, 10);
+    const start = i + 4;
+    const end = start + len;
+    if (end > buf.length) {
+      throw new Error(`tag ${tag} length ${len} overruns payload at byte ${i}`);
+    }
+    fields[tag] = buf.subarray(start, end).toString('utf8');
+    i = end;
+    if (tag === '63') break; // CRC is always last
+  }
+  return fields;
+}
+
+let checked = 0;
+for (const v of vectors) {
+  if (!v.payload.startsWith('0002')) continue; // UPI / URLs are not TLV
+  const fields = byteWalk(v.payload);
+
+  // CRC must validate over everything up to and including "6304".
+  if (!v.id.includes('bad-crc')) {
+    const body = v.payload.slice(0, v.payload.length - 4);
+    const expected = crc16(body);
+    const actual = v.payload.slice(-4);
+    if (expected !== actual) {
+      throw new Error(`${v.id}: CRC mismatch — computed ${expected}, payload has ${actual}`);
+    }
+  }
+
+  const got = fields['52'] ?? null;
+  const want = v.expectMcc;
+  const normalised = got === '0000' ? null : got;
+  if (!v.id.includes('bad-crc') && normalised !== want) {
+    throw new Error(
+      `${v.id}: byte-walk found MCC ${got ?? 'none'}, vector expects ${want ?? 'none'}`,
+    );
+  }
+  checked++;
+}
+
 // ── emit ──────────────────────────────────────────────────────────────
 
 const out = {
@@ -411,6 +478,7 @@ mkdirSync(dirname(dest), { recursive: true });
 writeFileSync(dest, JSON.stringify(out, null, 2) + '\n');
 
 console.log(`✓ ${vectors.length} vectors → test/fixtures/qr_corpus.json`);
+console.log(`✓ ${checked} EMVCo payloads byte-walked and CRC-verified`);
 for (const v of vectors) {
   console.log(
     `  ${v.id.padEnd(30)} ${String(v.expectMcc ?? '—').padEnd(6)} ${v.scheme}`,

@@ -100,7 +100,7 @@
       "country": "JP",
       "scheme": "JPQR",
       "note": "Non-ASCII merchant name in tag 59. This is the vector that breaks string-index TLV walkers: multi-byte characters make every subsequent tag offset wrong, including tag 52.",
-      "payload": "00020101021126350014JP.OR.PAYMENTS011300000000000015204581253033925802JP5906ラーメン一番6005TOKYO630455E8",
+      "payload": "00020101021126350014JP.OR.PAYMENTS011300000000000015204581253033925802JP5918ラーメン一番6005TOKYO6304F5F3",
       "expectMcc": "5812",
       "expectCountry": "JP",
       "expectCurrency": "JPY"
