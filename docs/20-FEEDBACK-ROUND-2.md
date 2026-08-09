@@ -154,19 +154,77 @@ ledger when you are *recalling*.
 | `F-16` | Abroad shows International + country | ✅ badge on the sheet, chip on the row |
 | `F-06` | All / Hide uncategorised | ✅ [`ledger_page.dart`](../app/lib/features/ledger/ledger_page.dart) |
 | `F-07` | Collapsed rows as a dotted break | ✅ tap the break to expand |
-| `F-40` | Geolocation on every capture | 📋 **deliberately deferred** — see below |
+| `F-40` | Geolocation on every capture | ✅ **built** — see below |
 
-### Why `F-40` is not in this build
+### `F-40` — built, and here is the shape of it
 
-Geolocation needs a native plugin, a permission prompt, and manifest changes.
-`F-14`/`F-16` do not: the country is already in the payload — EMVCo tag `58`,
-and UPI is `IN` by definition — so **domestic vs international works today with
-no new permission at all.** Adding a location prompt on top would buy precision
-(*which city* abroad) at the cost of the most sensitive permission Android has,
-and it would risk a build that is currently green.
+Deferred from the first pass of this round, then built on its own once the rest
+was green. Code:
+[`capture_location.dart`](../app/lib/core/location/capture_location.dart).
 
-It is worth doing, on its own, once the rest is stable. Flagging it rather than
-quietly dropping it.
+**The privacy shape is the design, not a footnote.** Your ledger is exported to
+your own Drive, so it travels. A file holding the exact coordinates of every
+shop you have ever paid at is not something this app is willing to create.
+
+| Decision | Why |
+|---|---|
+| **Off by default** | The permission is requested the moment you flip the switch in Settings — not at first run. An app that wants your location before it has shown you anything useful gets denied for ever |
+| **Coarse only** | `ACCESS_COARSE_LOCATION` is the only permission added. No fine, no background |
+| **The raw fix never reaches storage** | Reduced to a **6-character geohash** — a cell of roughly 1.2 km × 0.6 km — before the row is built |
+| **The toggle reflects reality** | Tap Deny at the system prompt and the switch goes back off and says so. A switch that stays on after a denial is a lie, and it is the kind that gets noticed |
+| **It can never fail a capture** | Refused permission, location services off, no fix indoors within 8 s — all three mean "no location", none of them means "no capture" |
+
+Fetched inside
+[`CaptureRepository.record`](../app/lib/data/repositories/capture_repository.dart)
+rather than at each capture screen, so *"captured with every capture"* is
+structurally true: a vector added next year gets location without anyone
+remembering to wire it.
+
+The geohash is hand-written rather than a dependency — thirty lines, no platform
+surface, and one fewer package in the supply chain of an app whose whole pitch
+is that it does not send your spending anywhere. Pinned against Niemeyer's
+reference vector in
+[`geohash_test.dart`](../app/test/geohash_test.dart), including the precision,
+so a future *"let us make it more accurate"* fails loudly.
+
+**A side effect that improves `F-14`.** The device's country now beats the
+payload's when deciding domestic vs international. That is what the original ask
+actually said — *"comparing where you are now against your home country"* — and
+the two genuinely differ: a QR issued to a Singapore-registered merchant and
+scanned by you in Mumbai carries `SG` in its payload while you are standing in
+India. Your card cares where you are.
+
+Schema `v1 → v2`, additive and nullable, so a ledger already on a phone survives
+untouched and simply has no location for its older rows — which is the truth
+about them.
+
+---
+
+## `S-24` — share-to-SWIP, built
+
+The answer to `F-41`, and the thing that survives the Swiggy finding.
+Code: [`share_capture.dart`](../app/lib/features/capture_share/share_capture.dart).
+
+**It was half-built already, and that was the bug.** The `text/plain` share
+filter had been in
+[the manifest](../app/android/app/src/main/AndroidManifest.xml) since the first
+commit with nothing behind it — SWIP appeared in your share sheet and did
+nothing when you picked it. Exactly the same class of failure as Tap and Link:
+registered, never wired.
+
+| Share this | SWIP does |
+|---|---|
+| **Text** — a payment link, or a `upi://pay?…` string copied off a checkout | Resolves it through the same `CaptureResolver` as a scan, so the two can never describe one merchant differently |
+| **Image** — a screenshot of a payment screen | Reads the QR out of the picture |
+
+If a screenshot has no readable code — which is exactly what a Swiggy payment
+screen looks like, since it shows a list of apps rather than a QR — SWIP says
+so and points at the screen's own *copy link* action instead. **A share target
+that silently goes nowhere is worse than not having one.**
+
+Why this works when Vector 7 did not: the share sheet is the one list nobody
+curates. No merchant, no PSP, no SDK vendor holds a veto over it. One extra tap
+that works everywhere beats zero taps that work nowhere.
 
 ---
 
@@ -190,8 +248,7 @@ It restarts the instant you come back to Home.
 | ID | Item | Why not yet |
 |---|---|---|
 | `F-24` | Learn and group uncategorised merchants | Needs volume before there is a pattern |
-| `F-40` | Geolocation | Above |
 | `F-43` | The "trusted apps" listing you spotted | Waiting on a screenshot of where |
-| — | Share-to-SWIP target | Now promoted: it is the answer to `F-41` |
+| — | ~~Share-to-SWIP target~~ | ✅ **built** — `S-24`, above |
 | — | Launcher icon still the Flutter placeholder | Needs PNG renders from the brand generator |
 | — | 50-terminal `9F15` field test | Only you can run it |

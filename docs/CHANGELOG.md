@@ -276,6 +276,57 @@ Full write-up: [20-FEEDBACK-ROUND-2](20-FEEDBACK-ROUND-2.md).
 
 ---
 
+## Prompt 18 — 09 Aug 2026 · The two things Vector 7 left open
+
+> *"build the share-to-SWIP target and F-40 geolocation"*
+
+### Screens changed
+
+| ID | Screen | Change | Serves |
+|---|---|---|---|
+| `S-24` | Share-to-SWIP | **New.** Text or image arriving from any app's share sheet becomes a capture | `F-41` |
+| `S-12` | Settings | Location toggle — off by default, asks for the permission as you flip it | `F-40` |
+| `S-04.1` · capture sheet | Ledger row and sheet | Place shown discreetly where one exists | `F-40` |
+
+### Element changes
+
+| Where | Before | After | Why |
+|---|---|---|---|
+| Share sheet | SWIP listed, and did nothing when picked | Text and images both handled end to end | The `text/plain` filter had been in the manifest since the first commit with nothing behind it — the same registered-but-never-wired failure as Tap and Link |
+| Shared screenshot with no QR | — | *"No payment code in that picture"*, pointing at the screen's own copy-link action | A share target that silently goes nowhere is worse than not having one. A Swiggy payment screen is exactly this case: it shows a list of apps, not a code |
+| Domestic/International | Decided from the payload's country | **Device country wins** when both exist | What `F-14` actually asked for. A QR issued to a Singapore-registered merchant and scanned in Mumbai carries `SG` while you are standing in India |
+| Ledger row line 3 | payment company | **place**, falling back to payment company | "The Bandra one" is how a person finds a past capture |
+
+### Code
+
+| File | Change |
+|---|---|
+| [`share_capture.dart`](../app/lib/features/capture_share/share_capture.dart) | **New.** `S-24`, both shapes, resolved through the same `CaptureResolver` as a scan |
+| [`capture_location.dart`](../app/lib/core/location/capture_location.dart) | **New.** Opt-in coarse fix, reduced to a 6-character geohash before storage. Geohash hand-written — thirty lines, no platform surface, one fewer package in the supply chain |
+| [`geohash_test.dart`](../app/test/geohash_test.dart) | **New.** Pinned against Niemeyer's reference vector, precision included |
+| `MainActivity.kt` · `AndroidManifest.xml` · `strings.xml` | `ACTION_SEND` for text and images; `ACCESS_COARSE_LOCATION`; share-sheet label |
+| `swip_database.dart` | Schema **v1 → v2**, additive and nullable, so a ledger already on a phone survives untouched |
+| `capture_repository.dart` | Location fetched in `record()`, so "with every capture" is structurally true rather than remembered |
+| `bootstrap.sh` | iOS usage strings generalised; location string added |
+
+### A correction made during the work
+
+The first version of `geohash_test.dart` asserted that two points 200 m apart
+land in the **same** cell. That is false — geohash cells are a fixed grid and
+two close points either side of a boundary differ in the last character.
+Verifying the algorithm against the reference vector surfaced it before the
+push. The test now asserts the property the privacy claim actually rests on:
+they share the first five characters, so the cell cannot identify a building.
+
+### Open
+
+- `F-43` — the "trusted apps" listing spotted on the phone. Waiting on a screenshot of where.
+- `F-24` — learning and grouping uncategorised merchants. Needs volume first.
+- Launcher icon is still the Flutter placeholder.
+- The 50-terminal `9F15` field test. Only the user can run it.
+
+---
+
 <!--
 Template for the next entry:
 
