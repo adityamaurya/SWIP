@@ -95,6 +95,38 @@ p.write_text(s)
 PY
 fi
 
+# ── 4b. Align the Android package with the Kotlin sources ───────────────
+#
+# `flutter create --org in.swip --project-name swip` produces an applicationId
+# of `in.swip.swip`, but SWIP's Kotlin sources declare `package in.swip.app`.
+# The manifest refers to `.MainActivity` and `.SwipListenService` relatively,
+# so a mismatch resolves to classes that do not exist — the APK builds and then
+# dies with ClassNotFoundException the moment it launches. Pin both to the
+# package the sources actually use.
+echo "▸ Aligning the Android package to in.swip.app…"
+for f in android/app/build.gradle.kts android/app/build.gradle; do
+  [ -f "$f" ] || continue
+  sed -i \
+    -e 's/in\.swip\.swip/in.swip.app/g' \
+    -e 's/"com\.example\.swip"/"in.swip.app"/g' \
+    "$f"
+done
+
+# ── 4c. The round launcher icon ─────────────────────────────────────────
+#
+# The manifest declares android:roundIcon, but `flutter create` only ships
+# ic_launcher. Without ic_launcher_round the resource linker fails outright:
+#   AAPT: error: resource mipmap/ic_launcher_round not found
+# Derive it from the square icon so the build is self-sufficient.
+#
+# TODO: replace both with renders of brand/swip-appicon.svg. These are the
+# Flutter placeholder, not SWIP's mark.
+echo "▸ Deriving the round launcher icon…"
+for dir in android/app/src/main/res/mipmap-*; do
+  [ -f "$dir/ic_launcher.png" ] || continue
+  cp "$dir/ic_launcher.png" "$dir/ic_launcher_round.png"
+done
+
 # ── 5. Remove the scaffold's placeholder test ───────────────────────────
 # `flutter create` writes test/widget_test.dart referencing a `MyApp` class
 # that does not exist in this project, so it fails analysis every run. SWIP's
