@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The banner Android shows beside SWIP in Settings → Tap & pay.
+
+  Android requires 260x96dp. This is a placeholder: an Ink field with a gold
+  bar standing in for the wordmark.
+
+  TODO: replace with a render of brand/swip-wordmark.svg at 260x96. A vector
+  drawable cannot carry text, so the real banner needs to be exported as a PNG
+  from the brand generator.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="260dp"
+    android:height="96dp"
+    android:viewportWidth="260"
+    android:viewportHeight="96">
+
+    <!-- Ink field -->
+    <path
+        android:fillColor="#0A0A0A"
+        android:pathData="M0,0 h260 v96 h-260 z" />
+
+    <!-- Gold bar, slanted 12° to echo the wordmark -->
+    <path
+        android:fillColor="#C9A227"
+        android:pathData="M30,58 l10,-20 h70 l-10,20 z" />
+</vector>

@@ -208,7 +208,7 @@ class SwipListenService : HostApduService() {
             // 61 <len> [ 4F <len> AID | 87 01 priority ]
             val aidBytes = aid.hexToBytes()
             val inner = byteArrayOf(0x4F, aidBytes.size.toByte()) + aidBytes +
-                byteArrayOf(0x87, 0x01, (idx + 1).toByte())
+                byteArrayOf(0x87.toByte(), 0x01, (idx + 1).toByte())
             (byteArrayOf(0x61, inner.size.toByte()) + inner).toList()
         }.toByteArray()
 
@@ -232,7 +232,7 @@ class SwipListenService : HostApduService() {
 
         val label = "SWIP".toByteArray(Charsets.US_ASCII)
         val proprietary = tlv(0x50, label) +          // Application Label
-            byteArrayOf(0x87, 0x01, 0x01) +            // Priority Indicator
+            byteArrayOf(0x87.toByte(), 0x01, 0x01) +            // Priority Indicator
             tlv(0x9F38, pdol)                          // PDOL
         val body = tlv(0x84, aid) + tlv(0xA5, proprietary)
         return tlv(0x6F, body)

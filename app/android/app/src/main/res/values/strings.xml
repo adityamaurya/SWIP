@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SWIP</string>
+
+    <!--
+      Shown in Android's "Tap &amp; pay" settings screen, where SWIP appears
+      alongside real wallets. The wording is deliberate: a user comparing this
+      list must be able to tell at a glance that SWIP does not pay for anything.
+    -->
+    <string name="swip_hce_description">SWIP reads a terminal\'s merchant category and stops. It cannot make a payment.</string>
+
+    <string name="swip_hce_aid_group">Merchant category reader — no payment is made</string>
+</resources>

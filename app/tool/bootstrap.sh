@@ -68,9 +68,15 @@ if [ -d "$BACKUP/main/kotlin" ]; then
   rm -rf android/app/src/main/kotlin
   cp -R "$BACKUP/main/kotlin" android/app/src/main/kotlin
 fi
-if [ -d "$BACKUP/main/res/xml" ]; then
-  mkdir -p android/app/src/main/res/xml
-  cp -R "$BACKUP/main/res/xml/." android/app/src/main/res/xml/
+# Restore the whole res/ tree, not just res/xml. SWIP owns values/strings.xml
+# (the Tap & pay description) and drawable/swip_hce_banner.xml as well as
+# xml/apduservice.xml, and apduservice.xml references the other two — so
+# restoring only xml/ leaves the manifest pointing at resources that do not
+# exist and AAPT fails. The copy is additive, so the styles and mipmaps that
+# `flutter create` generates survive alongside.
+if [ -d "$BACKUP/main/res" ]; then
+  mkdir -p android/app/src/main/res
+  cp -R "$BACKUP/main/res/." android/app/src/main/res/
 fi
 
 # ── 4. iOS: the tap vector is Android-only, but the camera is not ───────
