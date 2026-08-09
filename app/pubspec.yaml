@@ -54,18 +54,10 @@ flutter:
     - assets/mcc/
     - assets/brand/
 
-  # Inter is not vendored in git (licence-clean, keeps the repo small).
-  # Run `bash tool/fetch_fonts.sh` once before the first build — see
-  # docs/09-BUILD-AND-RUN.md. Without it the build fails with a missing-asset
-  # error, which is intentional: a silently wrong typeface is worse.
+  # Inter, vendored. The variable font covers every weight in one file, so
+  # `fontWeight` maps onto the wght axis and there is nothing to fetch before
+  # a first build. SIL Open Font Licence 1.1 — see assets/fonts/OFL.txt.
   fonts:
     - family: Inter
       fonts:
-        - asset: assets/fonts/Inter-Regular.ttf
-          weight: 400
-        - asset: assets/fonts/Inter-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/Inter-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/Inter-Bold.ttf
-          weight: 700
+        - asset: assets/fonts/Inter.ttf

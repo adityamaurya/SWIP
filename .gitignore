@@ -21,3 +21,6 @@ brand/*.png
 .idea/
 .vscode/
 node_modules/
+
+# Copied from brand/ by app/tool/bootstrap.sh — brand/ is the source of truth.
+app/assets/brand/

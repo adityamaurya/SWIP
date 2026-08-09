@@ -1,3 +1,6 @@
+/// SWIP design tokens — see the class docs below.
+library;
+
 import 'package:flutter/widgets.dart';
 
 /// SWIP design tokens.
@@ -9,7 +12,6 @@ import 'package:flutter/widgets.dart';
 ///
 /// Nothing in `features/` may hard-code a colour, size or duration. If a value
 /// is missing, add it here.
-library;
 
 // ─────────────────────────────────────────────────────────────── colour
 

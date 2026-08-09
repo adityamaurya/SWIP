@@ -191,10 +191,6 @@ abstract final class SwipTheme {
                 : SwipColors.surfaceRaised2),
       ),
 
-      pageTransitionsTheme: const PageTransitionsTheme(builders: {
-        TargetPlatform.android: ZoomPageTransitionsBuilder(),
-        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-      }),
     );
   }
 
