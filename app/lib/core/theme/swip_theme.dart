@@ -3,147 +3,214 @@ import 'package:flutter/services.dart';
 
 import 'swip_tokens.dart';
 
-/// The SWIP theme.
+/// The SWIP theme — "Foil".
 ///
-/// Ideation `A-07`: build on an established design system rather than invent
-/// one. The substrate is **Material 3** — not so SWIP looks like Google (it must
-/// not), but because M3 gives us, correct and free: touch targets, focus and
-/// pressed states, text scaling, RTL, TalkBack/VoiceOver semantics and native
-/// scroll physics. Those take a year to get right and nobody notices them until
-/// they are wrong.
+/// Dark everywhere. Material 3 is the substrate (touch targets, focus and
+/// pressed states, text scaling, RTL, TalkBack/VoiceOver semantics, platform
+/// scroll physics) and every visible surface of it is overridden. What survives
+/// from M3 is *behaviour*, not appearance — those are the things that take a
+/// year to get right and that nobody notices until they are wrong.
 ///
-/// Then every visible role is overridden. What survives from Material is
-/// behaviour, not appearance.
+/// See `docs/14-VISUAL-DIRECTION-FOIL.md`.
 abstract final class SwipTheme {
-  static ThemeData light() {
-    const scheme = ColorScheme.light(
-      primary: SwipColors.ink900,
-      onPrimary: SwipColors.white,
-      primaryContainer: SwipColors.gold500,
-      onPrimaryContainer: SwipColors.ink900,
-      secondary: SwipColors.gold500,
-      onSecondary: SwipColors.ink900,
+  /// The only theme. [light] is kept as an alias so nothing breaks, but it
+  /// returns the same dark theme — SWIP has one look.
+  static ThemeData dark() {
+    const scheme = ColorScheme.dark(
+      primary: SwipColors.gold500,
+      onPrimary: Color(0xFF14100A),
+      primaryContainer: SwipColors.gold900,
+      onPrimaryContainer: SwipColors.gold100,
+      secondary: SwipColors.gold300,
+      onSecondary: Color(0xFF14100A),
       surface: SwipColors.surface,
-      onSurface: SwipColors.ink900,
-      surfaceContainerLowest: SwipColors.surface,
-      surfaceContainerLow: SwipColors.surfaceSubdued,
-      surfaceContainer: SwipColors.surfaceSunken,
-      onSurfaceVariant: SwipColors.ink500,
-      outline: SwipColors.border,
-      outlineVariant: SwipColors.ink100,
-      error: SwipColors.danger,
-      onError: SwipColors.white,
-      inverseSurface: SwipColors.ink900,
-      onInverseSurface: SwipColors.white,
+      onSurface: SwipColors.textPrimary,
+      surfaceContainerHighest: SwipColors.surfaceRaised2,
+      onSurfaceVariant: SwipColors.textSecondary,
+      outline: SwipColors.hairline,
+      outlineVariant: SwipColors.hairline,
+      error: SwipColors.dangerOnInk,
+      onError: Color(0xFF14100A),
     );
 
-    return ThemeData(
+    final base = ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
+      scaffoldBackgroundColor: SwipColors.bg,
+      canvasColor: SwipColors.bg,
       fontFamily: SwipType.family,
-      scaffoldBackgroundColor: SwipColors.surface,
       splashFactory: InkSparkle.splashFactory,
+    );
 
-      textTheme: const TextTheme(
-        displayLarge: SwipType.display,
-        headlineLarge: SwipType.titleL,
-        headlineMedium: SwipType.titleM,
-        titleLarge: SwipType.titleM,
-        titleMedium: SwipType.titleS,
-        bodyLarge: SwipType.bodyL,
-        bodyMedium: SwipType.bodyM,
-        bodySmall: SwipType.bodyS,
-        labelLarge: SwipType.label,
-        labelSmall: SwipType.labelS,
-      ),
+    return base.copyWith(
+      textTheme: _text(base.textTheme),
 
       appBarTheme: const AppBarTheme(
-        backgroundColor: SwipColors.surface,
+        backgroundColor: SwipColors.bg,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
-        titleTextStyle: SwipType.titleM,
-        foregroundColor: SwipColors.ink900,
-        systemOverlayStyle: SystemUiOverlayStyle.dark,
+        iconTheme: IconThemeData(color: SwipColors.textPrimary),
+        titleTextStyle: TextStyle(
+          fontFamily: SwipType.family,
+          fontSize: 22,
+          height: 28 / 22,
+          fontWeight: FontWeight.w600,
+          color: SwipColors.textPrimary,
+        ),
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+          systemNavigationBarColor: SwipColors.bg,
+          systemNavigationBarIconBrightness: Brightness.light,
+        ),
       ),
 
-      cardTheme: CardTheme(
-        color: SwipColors.surface,
+      // Borders first, shadows barely. A shadow on near-black is invisible;
+      // what separates surfaces here is a 1px hairline and a lift in value.
+      cardTheme: CardThemeData(
+        color: SwipColors.surfaceRaised,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: SwipRadius.cardAll,
-          side: const BorderSide(color: SwipColors.border),
+          side: const BorderSide(color: SwipColors.hairline, width: 1),
         ),
       ),
 
       dividerTheme: const DividerThemeData(
-        color: SwipColors.ink100,
+        color: SwipColors.hairline,
         thickness: 1,
         space: 1,
       ),
 
-      // Gold fill with Ink text. Per the gold rule, gold is never the *text*
-      // colour on a light surface — only ever the fill beneath Ink.
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: SwipColors.surfaceRaised,
+        surfaceTintColor: Colors.transparent,
+        showDragHandle: true,
+        dragHandleColor: SwipColors.borderStrong,
+        shape: RoundedRectangleBorder(borderRadius: SwipRadius.sheetTop),
+      ),
+
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: SwipColors.gold500,
-          foregroundColor: SwipColors.ink900,
-          textStyle: SwipType.label,
-          minimumSize: const Size(64, 52),
+          foregroundColor: const Color(0xFF14100A),
+          minimumSize: const Size(0, 52),
           shape: const RoundedRectangleBorder(borderRadius: SwipRadius.inputAll),
+          textStyle: SwipType.label.copyWith(fontSize: 15),
         ),
       ),
 
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: SwipColors.ink900,
-          textStyle: SwipType.label,
-          minimumSize: const Size(64, 52),
+          foregroundColor: SwipColors.textPrimary,
+          minimumSize: const Size(0, 52),
           side: const BorderSide(color: SwipColors.borderStrong),
           shape: const RoundedRectangleBorder(borderRadius: SwipRadius.inputAll),
+          textStyle: SwipType.label.copyWith(fontSize: 15),
         ),
       ),
 
-      bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: SwipColors.surface,
-        surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: SwipRadius.sheetTop),
-        showDragHandle: true,
-        dragHandleColor: SwipColors.ink200,
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: SwipColors.gold300,
+          minimumSize: const Size(0, 48),
+          textStyle: SwipType.label,
+        ),
       ),
+
+      iconTheme: const IconThemeData(color: SwipColors.textSecondary, size: 24),
 
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: SwipColors.surfaceSunken,
-        border: OutlineInputBorder(
-          borderRadius: SwipRadius.inputAll,
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: const OutlineInputBorder(
-          borderRadius: SwipRadius.inputAll,
-          borderSide: BorderSide(color: SwipColors.gold500, width: 2),
-        ),
+        fillColor: SwipColors.surfaceRaised2,
+        hintStyle: SwipType.bodyM.copyWith(color: SwipColors.textTertiary),
         contentPadding: const EdgeInsets.symmetric(
             horizontal: SwipSpace.lg, vertical: SwipSpace.lg),
-        hintStyle: SwipType.bodyM.copyWith(color: SwipColors.ink300),
+        border: OutlineInputBorder(
+          borderRadius: SwipRadius.inputAll,
+          borderSide: const BorderSide(color: SwipColors.hairline),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: SwipRadius.inputAll,
+          borderSide: const BorderSide(color: SwipColors.hairline),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: SwipRadius.inputAll,
+          borderSide: const BorderSide(color: SwipColors.gold500, width: 2),
+        ),
       ),
 
-      // 48dp minimum touch targets, everywhere, enforced by the framework.
-      materialTapTargetSize: MaterialTapTargetSize.padded,
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: SwipColors.surface,
+        surfaceTintColor: Colors.transparent,
+        indicatorColor: SwipColors.gold900,
+        height: 68,
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (s) => SwipType.labelS.copyWith(
+            color: s.contains(WidgetState.selected)
+                ? SwipColors.gold300
+                : SwipColors.textTertiary,
+          ),
+        ),
+        iconTheme: WidgetStateProperty.resolveWith(
+          (s) => IconThemeData(
+            size: 24,
+            color: s.contains(WidgetState.selected)
+                ? SwipColors.gold300
+                : SwipColors.textTertiary,
+          ),
+        ),
+      ),
+
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: SwipColors.surfaceRaised2,
+        contentTextStyle: SwipType.bodyM.copyWith(color: SwipColors.textPrimary),
+        behavior: SnackBarBehavior.floating,
+        shape: const RoundedRectangleBorder(borderRadius: SwipRadius.inputAll),
+      ),
+
+      listTileTheme: const ListTileThemeData(
+        iconColor: SwipColors.textSecondary,
+        textColor: SwipColors.textPrimary,
+        minVerticalPadding: SwipSpace.md,
+      ),
+
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((s) =>
+            s.contains(WidgetState.selected)
+                ? const Color(0xFF14100A)
+                : SwipColors.textSecondary),
+        trackColor: WidgetStateProperty.resolveWith((s) =>
+            s.contains(WidgetState.selected)
+                ? SwipColors.gold500
+                : SwipColors.surfaceRaised2),
+      ),
 
       pageTransitionsTheme: const PageTransitionsTheme(builders: {
         TargetPlatform.android: ZoomPageTransitionsBuilder(),
-        // Cupertino transitions on iOS so back-swipe and physics feel native.
         TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
       }),
     );
   }
 
-  /// Dark theme is scaffolded but **off by default** per ideation `A-06` — you
-  /// asked for a light interior. Two themes double the QA surface and there is
-  /// one designer, so this ships in v1.2, not v1.
-  static ThemeData dark() => light();
+  /// Deprecated alias. SWIP is dark-only; this returns [dark].
+  static ThemeData light() => dark();
+
+  static TextTheme _text(TextTheme base) => base.copyWith(
+        displayLarge: SwipType.display.copyWith(color: SwipColors.textPrimary),
+        headlineLarge: SwipType.titleL.copyWith(color: SwipColors.textPrimary),
+        headlineMedium: SwipType.titleM.copyWith(color: SwipColors.textPrimary),
+        titleLarge: SwipType.titleM.copyWith(color: SwipColors.textPrimary),
+        titleMedium: SwipType.titleS.copyWith(color: SwipColors.textPrimary),
+        bodyLarge: SwipType.bodyL.copyWith(color: SwipColors.textPrimary),
+        bodyMedium: SwipType.bodyM.copyWith(color: SwipColors.textPrimary),
+        bodySmall: SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
+        labelLarge: SwipType.label.copyWith(color: SwipColors.textPrimary),
+        labelSmall: SwipType.labelS.copyWith(color: SwipColors.textSecondary),
+      );
 }

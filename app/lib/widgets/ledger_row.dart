@@ -113,7 +113,7 @@ class LedgerRow extends StatelessWidget {
               (event.isUnclassified
                   ? 'Unclassified — personal handle'
                   : 'Unknown category'),
-          style: SwipType.bodyM.copyWith(color: SwipColors.ink900),
+          style: SwipType.bodyM.copyWith(color: SwipColors.textPrimary),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
@@ -133,7 +133,7 @@ class LedgerRow extends StatelessWidget {
                 behavior: HitTestBehavior.opaque,
                 child: Text(
                   merchant,
-                  style: SwipType.bodyS.copyWith(color: SwipColors.ink500),
+                  style: SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -142,13 +142,13 @@ class LedgerRow extends StatelessWidget {
             const SizedBox(width: SwipSpace.xs),
             Text(
               _vectorGlyph(event.vector),
-              style: SwipType.bodyS.copyWith(color: SwipColors.ink300),
+              style: SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
               semanticsLabel: event.vector.longLabel,
             ),
             if (!event.isSynced) ...[
               const SizedBox(width: SwipSpace.xs),
               const Icon(Icons.bolt_outlined,
-                  size: 12, color: SwipColors.ink300),
+                  size: 12, color: SwipColors.textTertiary),
             ],
           ],
         ),
@@ -177,14 +177,14 @@ class LedgerRow extends StatelessWidget {
             children: [
               Text(
                 cell.primary,
-                style: SwipType.label.copyWith(color: SwipColors.ink900),
+                style: SwipType.label.copyWith(color: SwipColors.textPrimary),
                 maxLines: 1,
                 textAlign: TextAlign.right,
               ),
               if (cell.secondary != null)
                 Text(
                   cell.secondary!,
-                  style: SwipType.bodyS.copyWith(color: SwipColors.ink500),
+                  style: SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
                   maxLines: 1,
                   textAlign: TextAlign.right,
                 ),

@@ -28,7 +28,7 @@ class MccBadge extends StatelessWidget {
 
     return Text(
       code ?? '—',
-      style: style.copyWith(color: SwipColors.goldInk),
+      style: style.copyWith(color: SwipColors.gold500),
       // Never softWrap, never ellipsis: four digits always fit, and if they
       // ever did not that is a layout bug to fix, not to hide.
       softWrap: false,
@@ -52,7 +52,6 @@ class ConfidencePill extends StatelessWidget {
     super.key,
     this.captureCount,
     this.compact = false,
-    this.onInk = false,
   });
 
   final MccConfidence confidence;
@@ -61,25 +60,19 @@ class ConfidencePill extends StatelessWidget {
   final int? captureCount;
   final bool compact;
 
-  /// Set on the black hero card, where the light-surface colours would vanish.
-  final bool onInk;
-
   @override
   Widget build(BuildContext context) {
-    // On Ink the light-surface greens and ambers drop below AA, so each has a
-    // named counterpart. Lerping toward white would also clear AA, but it
-    // desaturates — verified lands on a sage that stops reading as *green*.
-    final (color, label) = switch ((confidence, onInk)) {
-      (MccConfidence.verified, false) => (SwipConfidenceColors.verified, 'Verified'),
-      (MccConfidence.verified, true) => (SwipConfidenceColors.verifiedOnInk, 'Verified'),
-      (MccConfidence.likely, false) => (SwipConfidenceColors.likely, 'Likely'),
-      (MccConfidence.likely, true) => (SwipConfidenceColors.likelyOnInk, 'Likely'),
-      (MccConfidence.unknown, false) => (SwipConfidenceColors.unknown, 'Unknown'),
-      (MccConfidence.unknown, true) => (SwipConfidenceColors.unknownOnInk, 'Unknown'),
-      (MccConfidence.conflict, false) => (SwipConfidenceColors.conflict, 'Conflicting'),
-      (MccConfidence.conflict, true) => (SwipConfidenceColors.conflictOnInk, 'Conflicting'),
+    // Every surface in SWIP is now Ink, so the on-ink set is the only set.
+    // The light-surface greens and ambers are 2-3:1 here and would vanish.
+    // These are named constants rather than a lerp toward white, because
+    // lerping clears AA by removing saturation — verified lands on a sage
+    // that stops reading as *green*, which is the one thing colour carries.
+    final (fg, label) = switch (confidence) {
+      MccConfidence.verified => (SwipConfidenceColors.verifiedOnInk, 'Verified'),
+      MccConfidence.likely => (SwipConfidenceColors.likelyOnInk, 'Likely'),
+      MccConfidence.unknown => (SwipConfidenceColors.unknownOnInk, 'Unknown'),
+      MccConfidence.conflict => (SwipConfidenceColors.conflictOnInk, 'Conflicting'),
     };
-    final fg = color;
 
     final text = switch ((compact, captureCount)) {
       (true, _) => label,
@@ -112,10 +105,9 @@ class ConfidencePill extends StatelessWidget {
 /// be published in more than one place, so this renders a set and always in the
 /// same order — a chip row that reorders itself is unreadable at a glance.
 class PublicationChips extends StatelessWidget {
-  const PublicationChips(this.publications, {super.key, this.onInk = false});
+  const PublicationChips(this.publications, {super.key});
 
   final Set<MccPublication> publications;
-  final bool onInk;
 
   static const _order = [
     MccPublication.national,
@@ -138,23 +130,22 @@ class PublicationChips extends StatelessWidget {
   }
 
   Widget _chip(MccPublication p) {
+    // Chips are outlines, never fills — three filled chips in a ledger row
+    // would out-shout the MCC, and the MCC is the point of the screen.
     final (border, text) = switch (p) {
-      MccPublication.national => (SwipColors.ink200, SwipColors.ink700),
-      MccPublication.international => (SwipColors.info, SwipColors.info),
-      MccPublication.rupay => (SwipColors.gold700, SwipColors.goldInk),
+      MccPublication.national => (SwipColors.borderStrong, SwipColors.textSecondary),
+      MccPublication.international => (SwipColors.infoOnInk, SwipColors.infoOnInk),
+      MccPublication.rupay => (SwipColors.gold700, SwipColors.gold300),
     };
-
-    final b = onInk ? SwipColors.ink500 : border;
-    final t = onInk ? SwipColors.ink200 : text;
 
     return Container(
       padding: const EdgeInsets.symmetric(
           horizontal: SwipSpace.sm - 2, vertical: 2),
       decoration: BoxDecoration(
         borderRadius: SwipRadius.chipAll,
-        border: Border.all(color: b, width: 1),
+        border: Border.all(color: border, width: 1),
       ),
-      child: Text(p.label, style: SwipType.labelS.copyWith(color: t)),
+      child: Text(p.label, style: SwipType.labelS.copyWith(color: text)),
     );
   }
 }

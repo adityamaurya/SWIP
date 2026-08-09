@@ -104,7 +104,7 @@ class DashboardPage extends StatelessWidget {
             IconButton(
               onPressed: onOpenSettings,
               icon: const Icon(Icons.settings_outlined),
-              color: SwipColors.ink500,
+              color: SwipColors.textSecondary,
               tooltip: 'Settings',
             ),
           ],
@@ -153,15 +153,15 @@ class DashboardPage extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('RECENT',
-                style: SwipType.label.copyWith(color: SwipColors.ink500)),
+                style: SwipType.label.copyWith(color: SwipColors.textSecondary)),
             if (recent.length > _recentCount)
               GestureDetector(
                 onTap: onOpenLedger,
                 child: Row(children: [
                   Text('See all',
-                      style: SwipType.label.copyWith(color: SwipColors.ink900)),
+                      style: SwipType.label.copyWith(color: SwipColors.textPrimary)),
                   const Icon(Icons.chevron_right_rounded,
-                      size: 18, color: SwipColors.ink900),
+                      size: 18, color: SwipColors.textPrimary),
                 ]),
               ),
           ],
@@ -216,7 +216,7 @@ class _LastCaptureHero extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('LAST CAPTURE',
-                    style: SwipType.labelS.copyWith(color: SwipColors.ink300)),
+                    style: SwipType.labelS.copyWith(color: SwipColors.textTertiary)),
                 const SizedBox(height: SwipSpace.md),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -230,7 +230,7 @@ class _LastCaptureHero extends StatelessWidget {
                           : 'Category ${event.mcc!.split('').join(' ')}',
                     ),
                     const Spacer(),
-                    ConfidencePill(event.confidence, onInk: true),
+                    ConfidencePill(event.confidence),
                   ],
                 ),
                 const SizedBox(height: SwipSpace.xs),
@@ -239,7 +239,7 @@ class _LastCaptureHero extends StatelessWidget {
                       (event.isUnclassified
                           ? 'Unclassified — personal handle'
                           : 'Unknown category'),
-                  style: SwipType.bodyL.copyWith(color: SwipColors.white),
+                  style: SwipType.bodyL.copyWith(color: SwipColors.textPrimary),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -252,7 +252,7 @@ class _LastCaptureHero extends StatelessWidget {
                           event.merchantName,
                           event.merchantCity,
                         ].whereType<String>().join(' · '),
-                        style: SwipType.bodyS.copyWith(color: SwipColors.ink300),
+                        style: SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -260,13 +260,13 @@ class _LastCaptureHero extends StatelessWidget {
                     Text(
                       '${event.vector.shortLabel} · '
                       '${SwipTime.relative(event.capturedAt)}',
-                      style: SwipType.bodyS.copyWith(color: SwipColors.ink300),
+                      style: SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
                     ),
                   ],
                 ),
                 if (mcc != null && mcc!.publications.isNotEmpty) ...[
                   const SizedBox(height: SwipSpace.md),
-                  PublicationChips(mcc!.publications, onInk: true),
+                  PublicationChips(mcc!.publications),
                 ],
               ],
             ),
@@ -296,15 +296,15 @@ class _FirstRunHero extends StatelessWidget {
             Text(
               'Scan any payment QR and SWIP shows its category code — '
               'the four digits that decide your rewards.',
-              style: SwipType.bodyM.copyWith(color: SwipColors.ink500),
+              style: SwipType.bodyM.copyWith(color: SwipColors.textSecondary),
             ),
             const SizedBox(height: SwipSpace.lg),
             Row(children: [
               const Icon(Icons.arrow_downward_rounded,
-                  size: 18, color: SwipColors.goldInk),
+                  size: 18, color: SwipColors.gold500),
               const SizedBox(width: SwipSpace.sm),
               Text('Start with Scan',
-                  style: SwipType.label.copyWith(color: SwipColors.goldInk)),
+                  style: SwipType.label.copyWith(color: SwipColors.gold500)),
             ]),
           ],
         ),
@@ -328,7 +328,7 @@ class _CaptureTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = enabled ? SwipColors.ink900 : SwipColors.ink300;
+    final fg = enabled ? SwipColors.textPrimary : SwipColors.textTertiary;
 
     return Semantics(
       button: true,
@@ -350,11 +350,11 @@ class _CaptureTile extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, size: 26, color: enabled ? SwipColors.goldInk : fg),
+                Icon(icon, size: 26, color: enabled ? SwipColors.gold500 : fg),
                 const SizedBox(height: SwipSpace.sm),
                 Text(label, style: SwipType.label.copyWith(color: fg)),
                 Text(sublabel,
-                    style: SwipType.bodyS.copyWith(color: SwipColors.ink300)),
+                    style: SwipType.bodyS.copyWith(color: SwipColors.textTertiary)),
               ],
             ),
           ),

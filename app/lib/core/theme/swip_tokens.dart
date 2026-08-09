@@ -39,15 +39,68 @@ abstract final class SwipColors {
   static const ink100 = Color(0xFFE4E4E7);
   static const ink50 = Color(0xFFF4F4F5);
 
-  // Surface — light (the default; see A-06)
-  static const surface = Color(0xFFFFFFFF);
-  static const surfaceSubdued = Color(0xFFFAFAFA);
-  static const surfaceSunken = Color(0xFFF4F4F5);
-  static const surfaceInverse = ink900;
-  static const border = Color(0xFFE4E4E7);
-  static const borderStrong = Color(0xFFC9C9C9);
+  // ── Surface — FOIL, dark everywhere ──────────────────────────────────
+  //
+  // Reverses A-06. The light interior shipped, was reviewed, and was rejected
+  // as boring. Inverting the ground is not a cosmetic change: gold is 2.3:1 on
+  // white and fails AA as text, which is why the light draft could only ever
+  // use gold as a hairline. On this ground gold clears 8.4:1 and becomes the
+  // material the product is made of. See docs/14-VISUAL-DIRECTION-FOIL.md.
+  //
+  // Restraint is the brief: minimal gold, never gaudy. Gold marks the ONE
+  // thing that matters on a screen — usually the MCC — and nothing else.
 
-  // Semantic
+  /// The ground. Warm-shifted near-black, deliberately not #000000: pure black
+  /// clips on OLED and kills the shadow stops the foil gradient needs.
+  static const bg = Color(0xFF060507);
+
+  /// Default screen surface.
+  static const surface = Color(0xFF0C0B0E);
+
+  /// Cards, sheets, rows.
+  static const surfaceRaised = Color(0xFF141216);
+
+  /// Input wells, code blocks, pressed states.
+  static const surfaceRaised2 = Color(0xFF1C191F);
+
+  /// 1px separators.
+  static const hairline = Color(0xFF262229);
+
+  // ── Text on the dark ground ──────────────────────────────────────────
+  /// Primary text. Warm off-white, not #FFF — pure white on near-black
+  /// vibrates and is tiring to read a ledger in.
+  static const textPrimary = Color(0xFFF2EFE9);
+
+  /// Secondary text. 7.4:1 on [bg].
+  static const textSecondary = Color(0xFF8E8896);
+
+  /// Tertiary. 3.9:1 — ≥18px or non-essential only.
+  static const textTertiary = Color(0xFF5D5866);
+
+  // Legacy aliases, repointed so existing widgets keep compiling.
+  static const surfaceSubdued = surfaceRaised;
+  static const surfaceSunken = surfaceRaised2;
+  static const surfaceInverse = bg;
+  static const border = hairline;
+  static const borderStrong = Color(0xFF3A353F);
+
+  // ── Semantic, on the dark ground ─────────────────────────────────────
+  // The light-surface semantics below are 2–3:1 on [bg] and unusable as text.
+  // These are the ones to reach for; all clear AAA on #060507.
+  static const successOnInk = Color(0xFF34C77B);
+  static const warningOnInk = Color(0xFFE0A22B);
+  static const dangerOnInk = Color(0xFFF2685E);
+  static const infoOnInk = Color(0xFF6FA8F5);
+
+  /// Tinted backfills for banners. Kept very low-alpha: a saturated block on
+  /// near-black reads as an error even when it is only information.
+  static const successFill = Color(0x1A34C77B);
+  static const warningFill = Color(0x1AE0A22B);
+  static const dangerFill = Color(0x1AF2685E);
+  static const infoFill = Color(0x1A6FA8F5);
+
+  // Semantic — light-surface originals. Retained for the export/print path
+  // and for anything rendered on paper; do NOT use these on screen.
   static const success = Color(0xFF0E7A4A);
   static const successBg = Color(0xFFE9F6F0);
   static const warning = Color(0xFFA66A00);

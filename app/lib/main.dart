@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/theme/swip_theme.dart';
+import 'core/theme/swip_tokens.dart';
 import 'core/utils/swip_time.dart';
-import 'data/models/capture_event.dart';
-import 'data/models/mcc.dart';
-import 'data/repositories/mcc_repository.dart';
+import 'data/repositories/capture_repository.dart';
+import 'features/capture_qr/scan_page.dart';
 import 'features/dashboard/dashboard_page.dart';
+import 'features/ledger/ledger_page.dart';
+import 'features/settings/settings_page.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,98 +24,152 @@ class SwipApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
         title: 'SWIP',
         debugShowCheckedModeBanner: false,
-        theme: SwipTheme.light(),
-        // Light only in v1, per ideation A-06.
-        themeMode: ThemeMode.light,
-        home: const _Home(),
+        theme: SwipTheme.dark(),
+        darkTheme: SwipTheme.dark(),
+        // Foil is the only look. Reverses A-06 — see
+        // docs/14-VISUAL-DIRECTION-FOIL.md.
+        themeMode: ThemeMode.dark,
+        home: const SwipShell(),
       );
 }
 
-/// Temporary shell so `flutter run` shows a populated S-01 on the first build.
+/// The app shell.
 ///
-/// Replace with the go_router shell + Riverpod-backed repositories as the other
-/// screens land — see docs/08-ARCHITECTURE.md and docs/10-ROADMAP.md. The seed
-/// captures below are illustrative only; they are stripped in release builds so
-/// a store binary can never ship fake ledger rows.
-class _Home extends ConsumerStatefulWidget {
-  const _Home();
+/// Three destinations and one action. The capture action sits in the middle of
+/// the bar because it is the thing people open SWIP to do — burying it behind a
+/// tab would cost a tap on the only interaction that matters.
+class SwipShell extends ConsumerStatefulWidget {
+  const SwipShell({super.key});
 
   @override
-  ConsumerState<_Home> createState() => _HomeState();
+  ConsumerState<SwipShell> createState() => _SwipShellState();
 }
 
-class _HomeState extends ConsumerState<_Home> {
-  TimeFormatPref _timeFormat = TimeFormatPref.absolute;
-  MccTable? _table;
+class _SwipShellState extends ConsumerState<SwipShell> {
+  int _index = 0;
 
-  @override
-  void initState() {
-    super.initState();
-    MccTable.load().then((t) {
-      if (mounted) setState(() => _table = t);
-    });
+  /// `D-07`. Global and shared by every time cell in the app, so tapping one
+  /// switches them all. Persisted in [SettingsPage].
+  TimeFormatPref _timeFormat = TimeFormatPref.absolute;
+
+  void _toggleTime() => setState(() {
+        _timeFormat = _timeFormat == TimeFormatPref.absolute
+            ? TimeFormatPref.relative
+            : TimeFormatPref.absolute;
+      });
+
+  Future<void> _openScan() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ScanPage()),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_table == null) {
-      return const Scaffold(body: SizedBox.shrink());
-    }
+    final recent = ref.watch(recentCapturesProvider);
+    final repo = ref.watch(captureRepositoryProvider);
+    final count = ref.watch(captureCountProvider).valueOrNull ?? 0;
 
-    return DashboardPage(
-      recent: _seed,
-      mccFor: (code) => code == null ? null : _table!.lookup(code),
-      timeFormat: _timeFormat,
-      // Vector 2 is Android-only: Apple permits HCE for contactless
-      // transactions in the EEA only, and India is not included.
-      // See docs/03-RESEARCH §3.5.
-      tapAvailable: Platform.isAndroid,
-      onToggleTimeFormat: () => setState(() {
-        _timeFormat = _timeFormat == TimeFormatPref.absolute
-            ? TimeFormatPref.relative
-            : TimeFormatPref.absolute;
-      }),
+    final pages = [
+      recent.when(
+        loading: () => const _Booting(),
+        error: (e, _) => _Fatal(error: '$e'),
+        data: (events) => DashboardPage(
+          recent: events,
+          mccFor: (code) => repo.valueOrNull?.lookup(code),
+          timeFormat: _timeFormat,
+          // Vector 2 is Android-only: Apple permits host card emulation for
+          // contactless transactions in the EEA only, and India is not
+          // included. The tile is dimmed and explained, never hidden.
+          tapAvailable: Platform.isAndroid,
+          onToggleTimeFormat: _toggleTime,
+          onOpenLedger: () => setState(() => _index = 1),
+          onOpenSettings: () => setState(() => _index = 2),
+          onOpenCapture: (_) => _openScan(),
+        ),
+      ),
+      LedgerPage(timeFormat: _timeFormat, onToggleTime: _toggleTime),
+      const SettingsPage(),
+    ];
+
+    return Scaffold(
+      body: IndexedStack(index: _index, children: pages),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _openScan,
+        backgroundColor: SwipColors.gold500,
+        foregroundColor: const Color(0xFF14100A),
+        icon: const Icon(Icons.qr_code_scanner_rounded),
+        label: Text('Capture', style: SwipType.label),
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _index,
+        onDestinationSelected: (i) => setState(() => _index = i),
+        destinations: [
+          const NavigationDestination(
+            icon: Icon(Icons.dashboard_outlined),
+            selectedIcon: Icon(Icons.dashboard_rounded),
+            label: 'Home',
+          ),
+          NavigationDestination(
+            icon: Badge(
+              isLabelVisible: count > 0,
+              label: Text('$count'),
+              backgroundColor: SwipColors.gold700,
+              child: const Icon(Icons.receipt_long_outlined),
+            ),
+            selectedIcon: const Icon(Icons.receipt_long_rounded),
+            label: 'Ledger',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings_rounded),
+            label: 'Settings',
+          ),
+        ],
+      ),
     );
   }
 }
 
-/// Debug-only seed data. Never rendered in a release build.
-List<CaptureEvent> get _seed {
-  const releaseMode = bool.fromEnvironment('dart.vm.product');
-  if (releaseMode) return const [];
+class _Booting extends StatelessWidget {
+  const _Booting();
 
-  final now = DateTime.now().toUtc();
-  CaptureEvent e(
-    String id,
-    String mcc,
-    CaptureVector v,
-    MccConfidence c,
-    Duration ago,
-    String merchant,
-    String? city,
-  ) =>
-      CaptureEvent(
-        id: id,
-        mcc: mcc,
-        vector: v,
-        confidence: c,
-        capturedAt: now.subtract(ago),
-        merchantName: merchant,
-        merchantCity: city,
-        countryCode: 'IN',
-        currency: 'INR',
+  @override
+  Widget build(BuildContext context) => const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(
+              color: SwipColors.gold500, strokeWidth: 2),
+        ),
       );
+}
 
-  return [
-    e('1', '5812', CaptureVector.nfc, MccConfidence.verified,
-        const Duration(hours: 2), 'Blue Tokai Coffee', 'Powai'),
-    e('2', '5541', CaptureVector.qr, MccConfidence.verified,
-        const Duration(hours: 9), 'HP Petrol Pump', 'Andheri'),
-    e('3', '6513', CaptureVector.link, MccConfidence.likely,
-        const Duration(days: 1, hours: 3), 'rzp.io/l/rentpay', null),
-    e('4', '4722', CaptureVector.qr, MccConfidence.verified,
-        const Duration(days: 1, hours: 8), 'MakeMyTrip', null),
-    e('5', '5411', CaptureVector.graph, MccConfidence.likely,
-        const Duration(days: 2), 'DMart', 'Powai'),
-  ];
+class _Fatal extends StatelessWidget {
+  const _Fatal({required this.error});
+  final String error;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(SwipSpace.xxxl),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline_rounded,
+                    size: 36, color: SwipColors.dangerOnInk),
+                const SizedBox(height: SwipSpace.lg),
+                Text('SWIP could not open its local store',
+                    textAlign: TextAlign.center,
+                    style: SwipType.titleS
+                        .copyWith(color: SwipColors.textPrimary)),
+                const SizedBox(height: SwipSpace.sm),
+                Text(error,
+                    textAlign: TextAlign.center,
+                    style: SwipType.bodyS
+                        .copyWith(color: SwipColors.textSecondary)),
+              ],
+            ),
+          ),
+        ),
+      );
 }

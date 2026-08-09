@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+#
+# SWIP — one-time project bootstrap.
+#
+# WHY THIS EXISTS
+# ---------------
+# The repository carries SWIP's own Android sources (the HCE listen service,
+# the APDU service descriptor, and a hand-written manifest) but not the
+# generated Flutter platform scaffold: no Gradle files, no Gradle wrapper, no
+# ios/ directory. Without those, `flutter run` cannot build anything.
+#
+# `flutter create` generates exactly that scaffold — but it also overwrites
+# AndroidManifest.xml, which would silently delete the NFC/HCE registration
+# that makes Vector 2 work. This script generates the scaffold and puts SWIP's
+# own files back.
+#
+# RUN IT ONCE:
+#     cd app
+#     bash tool/bootstrap.sh
+#     flutter run
+#
+# Safe to re-run. It only ever restores SWIP's files over generated ones.
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+ROOT="$(pwd)"
+BACKUP="$(mktemp -d)"
+
+echo "▸ SWIP bootstrap"
+echo "  project: $ROOT"
+
+if ! command -v flutter >/dev/null 2>&1; then
+  echo "✗ flutter is not on your PATH."
+  echo "  Install it first: https://docs.flutter.dev/get-started/install"
+  exit 1
+fi
+
+# ── 1. Preserve SWIP's own Android sources ──────────────────────────────
+echo "▸ Preserving SWIP's Android sources…"
+if [ -d android/app/src/main ]; then
+  mkdir -p "$BACKUP/main"
+  cp -R android/app/src/main/. "$BACKUP/main/"
+  echo "  saved to $BACKUP"
+fi
+
+# ── 2. Generate the missing platform scaffold ───────────────────────────
+# --org must match the package in the Kotlin sources (in.swip.app), or the
+# generated MainActivity lands in a different package and the build fails.
+echo "▸ Generating Flutter platform scaffold (android + ios)…"
+flutter create \
+  --platforms=android,ios \
+  --org in.swip \
+  --project-name swip \
+  . >/dev/null
+
+# ── 3. Restore SWIP's files over the generated ones ─────────────────────
+echo "▸ Restoring SWIP's manifest, HCE service and APDU descriptor…"
+
+# The generated MainActivity is a plain FlutterActivity; ours is the same but
+# is the one referenced by the manifest, so keep ours.
+if [ -f "$BACKUP/main/AndroidManifest.xml" ]; then
+  cp "$BACKUP/main/AndroidManifest.xml" android/app/src/main/AndroidManifest.xml
+fi
+if [ -d "$BACKUP/main/kotlin" ]; then
+  # Remove the generated package dir so a stale duplicate MainActivity in a
+  # different package cannot shadow ours.
+  rm -rf android/app/src/main/kotlin
+  cp -R "$BACKUP/main/kotlin" android/app/src/main/kotlin
+fi
+if [ -d "$BACKUP/main/res/xml" ]; then
+  mkdir -p android/app/src/main/res/xml
+  cp -R "$BACKUP/main/res/xml/." android/app/src/main/res/xml/
+fi
+
+# ── 4. iOS: the tap vector is Android-only, but the camera is not ───────
+# Apple permits host card emulation for contactless payments in the EEA only,
+# so Vector 2 never ships on iOS — but Vector 1 (QR) needs a camera usage
+# string or iOS kills the app on first scan with no explanation.
+PLIST=ios/Runner/Info.plist
+if [ -f "$PLIST" ] && ! grep -q NSCameraUsageDescription "$PLIST"; then
+  echo "▸ Adding the iOS camera usage description…"
+  /usr/libexec/PlistBuddy -c \
+    "Add :NSCameraUsageDescription string 'SWIP uses the camera to read payment QR codes so it can show you the merchant category before you pay. Nothing is recorded or uploaded.'" \
+    "$PLIST" 2>/dev/null || \
+  python3 - "$PLIST" <<'PY'
+import sys, re, pathlib
+p = pathlib.Path(sys.argv[1]); s = p.read_text()
+entry = ("\t<key>NSCameraUsageDescription</key>\n"
+         "\t<string>SWIP uses the camera to read payment QR codes so it can "
+         "show you the merchant category before you pay. Nothing is recorded "
+         "or uploaded.</string>\n")
+s = s.replace("</dict>\n</plist>", entry + "</dict>\n</plist>", 1)
+p.write_text(s)
+PY
+fi
+
+# ── 5. Dependencies ─────────────────────────────────────────────────────
+echo "▸ Fetching packages…"
+flutter pub get
+
+echo
+echo "✓ Bootstrap complete."
+echo
+echo "  Next:"
+echo "    flutter run              # plug in an Android phone, or start an emulator"
+echo "    flutter analyze          # check for compile errors"
+echo "    flutter test             # run the parser tests"
+echo
+echo "  Note: the NFC tap vector needs a PHYSICAL Android phone — an emulator"
+echo "  has no NFC radio. QR scanning works in the emulator if you point its"
+echo "  virtual camera at a QR on your screen."
