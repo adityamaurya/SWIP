@@ -91,3 +91,4 @@ Inter's `tnum` needs enabling by hand on the `MCC` text style.
 | **13** | [13-PLAY-STORE-LAUNCH](13-PLAY-STORE-LAUNCH.md) | Getting on the Play Store: every step, real costs, real waiting times |
 | **14** | [14-VISUAL-DIRECTION-FOIL](14-VISUAL-DIRECTION-FOIL.md) | The dark "Foil" redesign — proposed, awaiting sign-off |
 | **15** | [15-TRADEMARK-SWIP](15-TRADEMARK-SWIP.md) | Trademarking the name and logo in India — every step, every link, real fees |
+| **16** | [16-V2-PRD](16-V2-PRD.md) | The money side: wallet, Probe card, travel MCC, coins, float, miles — constraint then workaround |

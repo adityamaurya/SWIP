@@ -389,3 +389,30 @@ advisor position in §4.
 ## Sources
 
 [MDR economics](https://backspace-tech.medium.com/the-economics-of-acceptance-merchant-discount-rate-mdr-5926eba465d1) · [India card processing fees 2026](https://honestmoney.in/credit-cards/credit-card-processing-fees-small-business-india-upi-vs-card) · [EnKash — MDR](https://www.enkash.com/resources/blog/merchant-discount-rate-mdr-fees-calculations-insights) · [ZET — RuPay credit MDR](https://zetapp.in/blog/mdr-charges-on-rupay-credit-card) · [Finance Ministry on UPI MDR](https://www.newsonair.gov.in/finance-ministry-says-there-is-no-plan-to-levy-mdr-charge-on-upi-transactions) · [Rau's IAS — MDR](https://compass.rauias.com/economy/merchant-discount-rate/) · [Business Standard — RuPay credit on UPI](https://www.business-standard.com/finance/news/rupay-credit-card-upi-transactions-double-in-first-seven-months-of-fy25-124120301103_1.html) · [Enterslice — RBI wallet compliance](https://enterslice.com/learning/rbi/compliance-on-wallets/) · [Medianama — Draft PPI Directions 2026](https://www.medianama.com/2026/04/223-rbi-prepaid-payment-instruments-rules-wallet-limits-escrow-norms/) · [Taxguru — draft PPI rules](https://taxguru.in/rbi/rbi-issues-draft-ppi-rules-strengthen-digital-payment-security-framework.html) · [Policy Edge — PPI framework](https://www.policyedge.in/p/rbi-issues-draft-ppi-framework-with-2-lakh-wallet-limits-and-interoperability-mandate) · [Business Standard — PA escrow](https://www.business-standard.com/article/economy-policy/rbi-allows-payment-aggregators-to-maintain-additional-escrow-account-120111701470_1.html) · [Kotak MCC list](https://www.kotak.bank.in/content/dam/Kotak/gsfcfiles/credit-cards/list-of-mccs-with-respect-to-revised-fees-and-rewards_june_01_2025.pdf) · [Axis announcements](https://www.axis.bank.in/important-links/credit-card/important-announcement-on-credit-card) · [The MileLion — GrabPay](https://milelion.com/2020/07/21/rip-no-more-credit-card-points-for-grabpay-top-ups/) · [Visa Acceptance — MCC assignment](https://support.visaacceptance.com/knowledgebase/knowledgearticle/?code=KA-09260)
+
+---
+
+## ⚠️ Update — August 2026: the PPI rules are being rewritten
+
+This document was written against the **RBI Master Directions on Prepaid Payment
+Instruments, 2021**. On **22 April 2026 the RBI issued draft PPI Directions**
+(comments closed 22 May 2026) which change several things this chapter relies on:
+
+| Change | Where it bites |
+|---|---|
+| ₹2 lakh wallet ceiling, monthly transfer caps | Caps per-user float |
+| Interoperability mandated | Reduces lock-in objections |
+| Capital requirements for non-bank issuers | Raises the cost of the wallet route |
+| Escrow core-portion interest now computed **monthly**, previously fortnightly | Changes the float arithmetic in §6 |
+
+**The float chapter's conclusion still holds** — you cannot earn interest on
+customer money in a PPI escrow beyond the core portion — and the recommended
+workaround is unchanged: become a travel merchant of record, where the same
+rupees are *deferred revenue* rather than customer funds.
+
+**See [16-V2-PRD](16-V2-PRD.md) for the current position.** That document
+supersedes this one wherever they disagree.
+
+Sources: [Medianama](https://www.medianama.com/2026/04/223-rbi-prepaid-payment-instruments-rules-wallet-limits-escrow-norms/) ·
+[Lexology](https://www.lexology.com/library/detail.aspx?g=35cfed04-f062-4c1e-9e38-7294773aa014) ·
+[K&K](https://ksandk.com/newsletter/rbi-draft-ppi-directions-2026/)
