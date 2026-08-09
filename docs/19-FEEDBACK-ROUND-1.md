@@ -10,6 +10,12 @@
 
 ## ⚠️ First: a correction to what I told you about Vector 7
 
+> **⏭ This was settled on 09 Aug, and the answer was no.** You installed the
+> build, checked Swiggy, and SWIP was not in the list. Reading **B** below was
+> the right one. The whole of this section is left standing as written — see
+> [20-FEEDBACK-ROUND-2 § Vector 7 is settled](20-FEEDBACK-ROUND-2.md#-first-vector-7-is-settled-and-i-was-wrong)
+> for what it costs and what replaces it.
+
 Your screenshots change the picture, and I want to be straight about it.
 
 I said SWIP would appear in **Android's system chooser**. Looking at your
@@ -81,9 +87,9 @@ fallback works regardless of what any merchant does.
 
 | ID | What you asked | Status |
 |---|---|---|
-| `F-01` | Replace the static "last capture" hero with a **live camera viewfinder** in the same horizontal band — open the app, point at a QR, done | 📋 |
-| `F-02` | **Tap the viewfinder → full-screen** scanner, for when the code will not line up | 📋 |
-| `F-03` | Make the band a **swipeable carousel with dot indicators**: card 1 = live camera, card 2 = last capture. Camera is always the default | 📋 |
+| `F-01` | Replace the static "last capture" hero with a **live camera viewfinder** in the same horizontal band — open the app, point at a QR, done | ✅ **built** — [round 2](20-FEEDBACK-ROUND-2.md) |
+| `F-02` | **Tap the viewfinder → full-screen** scanner, for when the code will not line up | ✅ **built** — [round 2](20-FEEDBACK-ROUND-2.md) |
+| `F-03` | Make the band a **swipeable carousel with dot indicators**: card 1 = live camera, card 2 = last capture. Camera is always the default | ✅ **built** — [round 2](20-FEEDBACK-ROUND-2.md) |
 | `F-04` | Keep the recent-captures list below, unchanged | ✅ already |
 
 > **Note on `F-01`.** A permanently live camera costs battery and holds the
@@ -96,8 +102,8 @@ fallback works regardless of what any merchant does.
 | ID | What you asked | Status |
 |---|---|---|
 | `F-05` | The MCC row design is right — leave it | ✅ keep |
-| `F-06` | Filter toggle: **All / Hide uncategorised** | 📋 |
-| `F-07` | **Collapsed rows shown as a dotted break**, the way a spreadsheet shows hidden rows — so you can see something is hidden rather than it silently vanishing | 📋 |
+| `F-06` | Filter toggle: **All / Hide uncategorised** | ✅ **built** — [round 2](20-FEEDBACK-ROUND-2.md) |
+| `F-07` | **Collapsed rows shown as a dotted break**, the way a spreadsheet shows hidden rows — so you can see something is hidden rather than it silently vanishing | ✅ **built** — [round 2](20-FEEDBACK-ROUND-2.md) |
 
 ## C. NFC and links — "functional no matter what"
 
@@ -132,12 +138,12 @@ regardless. Both halves had existed for weeks; nothing joined them.
 
 | ID | What you asked | Status |
 |---|---|---|
-| `F-14` | **Domestic or international**, decided by comparing where you are now against your home country | 📋 |
-| `F-15` | **Onboarding asks home country + currency** — the baseline `F-14` compares against | 📋 |
-| `F-16` | When abroad: show **International**, the country, and the location | 📋 |
+| `F-14` | **Domestic or international**, decided by comparing where you are now against your home country | ✅ **built** — [round 2](20-FEEDBACK-ROUND-2.md) |
+| `F-15` | **Onboarding asks home country + currency** — the baseline `F-14` compares against | ✅ **built** — [round 2](20-FEEDBACK-ROUND-2.md) |
+| `F-16` | When abroad: show **International**, the country, and the location | ✅ **built** — [round 2](20-FEEDBACK-ROUND-2.md) |
 | `F-17` | **Source badge, top-right of the sheet**: QR · POS · App intent · Link · Unknown | ✅ **built** — [prompt 16](CHANGELOG.md#prompt-16--09-aug-2026--tap-and-link-become-real) |
 | `F-18` | CTA keeps its label, with **grey subtext below** confirming it is saved to the ledger | ✅ **built** — [prompt 16](CHANGELOG.md#prompt-16--09-aug-2026--tap-and-link-become-real) |
-| `F-40` | Geolocation captured with every capture, shown discreetly | 📋 |
+| `F-40` | Geolocation captured with every capture, shown discreetly | 📋 deferred with a reason — [round 2](20-FEEDBACK-ROUND-2.md) |
 
 ## E. Uncategorised captures — the honest cases
 
@@ -168,7 +174,7 @@ rather than parsed anyway, because a wrong category is worse than none.
 
 | ID | What you asked | Status |
 |---|---|---|
-| `F-25` | Appear in PVR / Amazon / Flipkart's UPI app list so the capture happens in the real flow | ⚠️ **see the correction at the top** |
+| `F-25` | Appear in PVR / Amazon / Flipkart's UPI app list so the capture happens in the real flow | ❌ **settled: SWIP does not appear** — [round 2](20-FEEDBACK-ROUND-2.md) |
 
 **If the field test shows SWIP does not appear**, the fallbacks in order of
 honesty:
@@ -194,9 +200,9 @@ Ordered by value against risk, not by the order you listed them.
 |---|---|---|
 | ~~**1**~~ ✅ | `F-08` `F-09` — NFC and links functional | You said no matter what, and they are the two vectors that exist but cannot be reached — **built**, [prompt 16](CHANGELOG.md#prompt-16--09-aug-2026--tap-and-link-become-real) |
 | ~~**2**~~ ✅ | `F-10`–`F-13`, `F-17`, `F-18`, `F-19`–`F-23` — the bottom sheet | Every vector funnels through this one screen, so it pays for itself — **built**, [prompt 16](CHANGELOG.md#prompt-16--09-aug-2026--tap-and-link-become-real) |
-| **3** ← next | `F-01`–`F-03` — camera-first dashboard | Biggest change to how the app feels |
-| **4** | `F-14`–`F-16`, `F-40` — location, home country, domestic/international | Needs a plugin; done after the build is stable |
-| **5** | `F-06` `F-07` — ledger filters | Small, and better once there is more to filter |
+| ~~**3**~~ ✅ | `F-01`–`F-03` — camera-first dashboard | Biggest change to how the app feels — **built**, [round 2](20-FEEDBACK-ROUND-2.md) |
+| ~~**4**~~ ◑ | `F-14`–`F-16`, `F-40` — location, home country, domestic/international | `F-14`–`F-16` **built** without any new permission (the country is already in the payload); `F-40` geolocation deliberately deferred — [round 2](20-FEEDBACK-ROUND-2.md) |
+| ~~**5**~~ ✅ | `F-06` `F-07` — ledger filters | **built**, [round 2](20-FEEDBACK-ROUND-2.md) |
 
 ---
 

@@ -95,3 +95,4 @@ Inter's `tnum` needs enabling by hand on the `MCC` text style.
 | **17** | [17-BUILD-ANY-APK](17-BUILD-ANY-APK.md) | **The reusable recipe: get a downloadable APK for any project, nothing installed locally** |
 | **18** | [18-INTENT-CAPTURE-AND-TAP-TO-PHONE](18-INTENT-CAPTURE-AND-TAP-TO-PHONE.md) | Pay-by-app capture, geolocation, ledger filters, and the Paris phone-to-phone question |
 | **19** | [19-FEEDBACK-ROUND-1](19-FEEDBACK-ROUND-1.md) | Every item from the first real install, ID'd `F-01`…`F-25`, with build order |
+| **20** | [20-FEEDBACK-ROUND-2](20-FEEDBACK-ROUND-2.md) | The counter test. Vector 7 settled (negative), and `F-42` — why a real merchant QR carries no MCC |

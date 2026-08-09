@@ -229,6 +229,53 @@ environment.** Run `flutter analyze`.
 
 ---
 
+## Prompt 17 — 09 Aug 2026 · The counter test
+
+> *"implement 3 & 4 & 5"* — plus two photographs from a shop counter that
+> produced the most serious defect found so far.
+
+Full write-up: [20-FEEDBACK-ROUND-2](20-FEEDBACK-ROUND-2.md).
+
+### Screens changed
+
+| ID | Screen | Change | Serves |
+|---|---|---|---|
+| `S-01` | Dashboard | **Live camera in the top band**, swipeable to the last capture, dot indicators, both cards one height | `F-01`–`F-03` |
+| `S-04` | Ledger | Hide-uncategorised toggle; hidden runs collapse to a **dotted break** that names how many | `F-06`, `F-07` |
+| `S-04.1` | Ledger row | **Merchant first, category second** — a reversal of `D-05` | `F-44` |
+| `S-23` | Home country | **New.** First-run country + currency, changeable in Settings | `F-15` |
+| `S-09` etc | Capture sheet | Domestic/International badge; registered-shop copy when the code has no category | `F-16`, `F-42` |
+
+### Element changes
+
+| Where | Before | After | Why |
+|---|---|---|---|
+| Every UPI capture | `pn` printed as the merchant | Placeholder names **rejected**; falls back to the payee handle | `pn=Paytm` put "Paytm" on five rows that were five different shops. The payment company is not the shop |
+| Uncategorised merchant QR | "Unknown category" | *"A real shop — its category was not in the code"*, with the three ways to fill it | A `paytmqr…@ptys` handle proves a registered business. That answers *"will this earn?"*, which is the actual question |
+| Sheet | PSP mixed into the merchant line | "Payment company" as its own labelled field | `F-13` |
+| Ledger row line 3 | confidence · merchant · vector | confidence · Domestic/Intl · payment company · vector | `F-16` |
+| Dashboard hero | Static, always the last capture | Card 2 of a carousel; card 1 is the camera | `F-03` |
+
+### Code
+
+| File | Change |
+|---|---|
+| [`merchant_identity.dart`](../app/lib/data/sources/merchant_identity.dart) | **New.** Who is behind a UPI handle: PSP, registered-business proof, placeholder-name rejection |
+| [`live_viewfinder.dart`](../app/lib/widgets/live_viewfinder.dart) | **New.** Gold-bracketed camera card, sweep line, three honest states |
+| [`home_market.dart`](../app/lib/core/settings/home_market.dart) | **New.** Home country/currency and the domestic-vs-international verdict |
+| [`home_market_page.dart`](../app/lib/features/onboarding/home_market_page.dart) | **New.** `S-23` |
+| [`merchant_identity_test.dart`](../app/test/merchant_identity_test.dart) | **New.** Both real handles from the photographs, pinned |
+| `dashboard_page` · `ledger_page` · `ledger_row` · `capture_sheet` · `capture_resolver` · `capture_event` · `main` | Rewired for the above |
+
+### Open
+
+- **Vector 7 is closed, negative.** SWIP does not appear in Swiggy's UPI list. The share-target fallback is promoted from contingency to plan.
+- **`F-40` geolocation deferred with a reason** — domestic/international already works from the payload's own country field, with no new permission. Location would add precision at the cost of Android's most sensitive permission.
+- `F-43` — the "trusted apps" listing spotted on the phone. Waiting on a screenshot of where.
+- The two photographed shops still have no category anywhere in their QRs. Only a terminal tap, a manual entry, or a second sticker can supply it.
+
+---
+
 <!--
 Template for the next entry:
 
