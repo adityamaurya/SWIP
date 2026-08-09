@@ -10,8 +10,10 @@ app/android/.gradle/
 app/android/local.properties
 app/**/*.iml
 
-# Fonts are fetched, not committed — see app/tool/fetch_fonts.sh
-app/assets/fonts/*.ttf
+# Inter IS committed (Google Fonts variable file, SIL OFL 1.1). The previous
+# fetch-at-build-time policy pointed at a URL that now 403s, so it could never
+# have worked. Do not re-add an ignore rule here — it silently drops the font
+# from commits and the failure only surfaces as a missing asset in CI.
 
 # Generated brand rasters (SVGs are the source; PNGs are previews)
 brand/*.png
