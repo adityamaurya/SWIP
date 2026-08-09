@@ -32,6 +32,8 @@ class CaptureSheet extends StatelessWidget {
     this.rawPayload,
     this.onPrimary,
     this.primaryLabel = 'Done',
+    this.noCategoryTitle,
+    this.noCategoryBody,
   });
 
   final CaptureEvent event;
@@ -49,10 +51,22 @@ class CaptureSheet extends StatelessWidget {
   final VoidCallback? onPrimary;
   final String primaryLabel;
 
+  /// Override the "no category" copy when the vector knows better than a
+  /// payload sniff can. A POS terminal that returned no `9F15` is a different
+  /// story from a QR with no tag 52, and calling a terminal "this code" is the
+  /// kind of small wrongness that makes a person stop believing the rest.
+  final String? noCategoryTitle;
+  final String? noCategoryBody;
+
   @override
   Widget build(BuildContext context) {
     final known = event.hasMcc;
-    final explanation = rawPayload == null
+
+    // [PayloadExplanation] reads the payload as *the code someone pointed at*.
+    // A POS tap's payload is an APDU trace — a log of the conversation, not a
+    // code — so sniffing it would label a terminal read "Just text". Only the
+    // vectors whose raw payload really is the code get explained.
+    final explanation = rawPayload == null || !_payloadIsTheCode(event.vector)
         ? null
         : PayloadExplanation.of(rawPayload!, hasMcc: known);
 
@@ -97,12 +111,15 @@ class CaptureSheet extends StatelessWidget {
             ] else ...[
               // No category — say what this is instead, in plain words.
               Text(
-                explanation?.title ?? 'No category in this code',
+                noCategoryTitle ??
+                    explanation?.title ??
+                    'No category in this code',
                 style: SwipType.titleM.copyWith(color: SwipColors.textPrimary),
               ),
               const SizedBox(height: SwipSpace.sm),
               Text(
-                explanation?.body ??
+                noCategoryBody ??
+                    explanation?.body ??
                     'This code carried no category. SWIP will fill it in if '
                         'anyone captures this merchant another way.',
                 style: SwipType.bodyM
@@ -211,6 +228,12 @@ class CaptureSheet extends StatelessWidget {
       ),
     );
   }
+
+  static bool _payloadIsTheCode(CaptureVector v) =>
+      v == CaptureVector.qr ||
+      v == CaptureVector.link ||
+      v == CaptureVector.intent ||
+      v == CaptureVector.manual;
 
   static String _vectorBadge(CaptureVector v) => switch (v) {
         CaptureVector.qr => 'QR',

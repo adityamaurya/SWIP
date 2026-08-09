@@ -136,6 +136,12 @@ class _TapPageState extends ConsumerState<TapPage> {
           mcc: repo.lookup(event.mcc),
           sourceLabel: 'POS terminal',
           rawPayload: trace,
+          noCategoryTitle: 'The terminal did not give a category',
+          noCategoryBody:
+              'SWIP asked and this machine returned nothing in the category '
+              'field. That is the shop\'s bank not filling it in — it is not '
+              'something SWIP or the cashier can change. Scanning the shop\'s '
+              'QR often works when the terminal will not.',
           // The terminal's own field names, exactly as EMV labels them. This
           // audience does not trust a number it cannot check.
           details: {

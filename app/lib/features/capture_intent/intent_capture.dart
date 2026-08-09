@@ -127,6 +127,14 @@ class _IntentCaptureListenerState extends ConsumerState<IntentCaptureListener>
           mcc: repo.lookup(event.mcc),
           sourceLabel: 'Pay-by-app · ${resolved.sourceLabel}',
           rawPayload: uri,
+          // Without this, the payload sniffer would call a Swiggy or PVR
+          // checkout "a personal UPI code, not a shop" — it is plainly a shop,
+          // it just did not put a category in the intent.
+          noCategoryTitle: 'This checkout did not send a category',
+          noCategoryBody:
+              'The app you are paying from left the category field out of the '
+              'handover. SWIP has recorded the merchant, so scanning their QR '
+              'or tapping their terminal once will fill this in everywhere.',
           primaryLabel: 'Continue to pay',
           onPrimary: () async {
             Navigator.of(ctx).pop();
