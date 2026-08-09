@@ -1,0 +1,169 @@
+{
+  "generatedBy": "tool/build_qr_corpus.mjs",
+  "note": "Constructed from EMVCo Merchant-Presented Mode structure with real CRC-16/CCITT-FALSE checksums. Not scraped from live merchants — see the header of the generator for why.",
+  "count": 18,
+  "vectors": [
+    {
+      "id": "in-upi-intent",
+      "country": "IN",
+      "scheme": "UPI intent",
+      "note": "The everyday Indian case. Category rides in the `mc` parameter.",
+      "payload": "upi://pay?pa=bluetokai@hdfcbank&pn=Blue%20Tokai%20Coffee&mc=5812&tid=TXN99&am=340.00&cu=INR",
+      "expectMcc": "5812",
+      "expectMerchant": "Blue Tokai Coffee"
+    },
+    {
+      "id": "in-upi-malformed-ampersand",
+      "country": "IN",
+      "scheme": "UPI intent",
+      "note": "Real merchant QRs routinely carry an unencoded & inside the payee name. A naive Uri.parse loses every parameter after it, including mc.",
+      "payload": "upi://pay?pa=shop@ybl&pn=Ram & Sons Traders&mc=5411&cu=INR",
+      "expectMcc": "5411"
+    },
+    {
+      "id": "in-upi-no-mcc",
+      "country": "IN",
+      "scheme": "UPI intent",
+      "note": "Person-to-person handle. No mc at all. SWIP must say so, not guess — this is the single most common QR in India.",
+      "payload": "upi://pay?pa=9820012345@ybl&pn=Aditya&cu=INR",
+      "expectMcc": null
+    },
+    {
+      "id": "in-bharatqr",
+      "country": "IN",
+      "scheme": "BharatQR (EMVCo MPM)",
+      "note": "Static merchant QR, NPCI account template in tag 26.",
+      "payload": "00020101021126370016A000000677010111011398765432101235204581253033565802IN5917BLUE TOKAI COFFEE6006MUMBAI630467BD",
+      "expectMcc": "5812",
+      "expectCountry": "IN"
+    },
+    {
+      "id": "br-pix-static",
+      "country": "BR",
+      "scheme": "PIX",
+      "note": "Brazil. Merchant account template 26 carries the PIX key (BR.GOV.BCB.PIX).",
+      "payload": "00020101021126410014BR.GOV.BCB.PIX0119cafe@padaria.com.br5204581253039865802BR5915PADARIA CENTRAL6009SAO PAULO6304862F",
+      "expectMcc": "5812",
+      "expectCountry": "BR",
+      "expectCurrency": "BRL"
+    },
+    {
+      "id": "th-promptpay",
+      "country": "TH",
+      "scheme": "PromptPay",
+      "note": "Thailand. Tag 29/30 rather than 26. Currency 764 = THB.",
+      "payload": "00020101021230370016A000000677010112011301055360000215204581453037645406120.005802TH5912COFFEE WORLD6007BANGKOK6304372C",
+      "expectMcc": "5814",
+      "expectCountry": "TH",
+      "expectCurrency": "THB"
+    },
+    {
+      "id": "id-qris",
+      "country": "ID",
+      "scheme": "QRIS",
+      "note": "Indonesia. Currency 360 = IDR.",
+      "payload": "00020101021126400014ID.CO.QRIS.WWW01189360000911000000015204541153033605802ID5912TOKO SEMBAKO6007JAKARTA630499AC",
+      "expectMcc": "5411",
+      "expectCountry": "ID",
+      "expectCurrency": "IDR"
+    },
+    {
+      "id": "sg-paynow",
+      "country": "SG",
+      "scheme": "PayNow",
+      "note": "Singapore. Currency 702 = SGD.",
+      "payload": "00020101021126320009SG.PAYNOW010120210201234567A5204581253037025802SG5915HAWKER STALL 426009SINGAPORE6304CCAB",
+      "expectMcc": "5812",
+      "expectCountry": "SG",
+      "expectCurrency": "SGD"
+    },
+    {
+      "id": "my-duitnow",
+      "country": "MY",
+      "scheme": "DuitNow",
+      "payload": "00020101021126350016A0000006770101110111601234567895204581453034585802MY5917NASI LEMAK CORNER6012KUALA LUMPUR6304C5D7",
+      "expectMcc": "5814",
+      "expectCountry": "MY",
+      "expectCurrency": "MYR"
+    },
+    {
+      "id": "vn-vietqr",
+      "country": "VN",
+      "scheme": "VietQR",
+      "payload": "00020101021138440010A0000007270126000697041501121133666688885204599953037045802VN5917CUA HANG TIEN LOI6006HA NOI630458EB",
+      "expectMcc": "5999",
+      "expectCountry": "VN",
+      "expectCurrency": "VND"
+    },
+    {
+      "id": "jp-jpqr",
+      "country": "JP",
+      "scheme": "JPQR",
+      "note": "Non-ASCII merchant name in tag 59. This is the vector that breaks string-index TLV walkers: multi-byte characters make every subsequent tag offset wrong, including tag 52.",
+      "payload": "00020101021126350014JP.OR.PAYMENTS011300000000000015204581253033925802JP5906ラーメン一番6005TOKYO630455E8",
+      "expectMcc": "5812",
+      "expectCountry": "JP",
+      "expectCurrency": "JPY"
+    },
+    {
+      "id": "gb-emvco-generic",
+      "country": "GB",
+      "scheme": "EMVCo generic",
+      "note": "Currency 826 = GBP. Dynamic QR carrying an amount.",
+      "payload": "00020101021227350014GB.CO.ACQUIRER0113MERCH00012345520459425303826540518.995802GB5911DAUNT BOOKS6006LONDON63045B33",
+      "expectMcc": "5942",
+      "expectCountry": "GB",
+      "expectCurrency": "GBP"
+    },
+    {
+      "id": "edge-mcc-absent",
+      "country": "XX",
+      "scheme": "EMVCo, tag 52 omitted",
+      "note": "Tag 52 is optional in the spec. SWIP must report no category rather than defaulting to 0000 or inventing one.",
+      "payload": "00020101021126160007XX.TEST0101153038405802US5916NO CATEGORY SHOP6304E439",
+      "expectMcc": null
+    },
+    {
+      "id": "edge-mcc-0000",
+      "country": "XX",
+      "scheme": "EMVCo, tag 52 = 0000",
+      "note": "An unprovisioned terminal writes zeros. Zero is not a category — it is the absence of one, and must not be shown as MCC 0000.",
+      "payload": "00020101021126160007XX.TEST010115204000053038405802US5913UNPROVISIONED630497B2",
+      "expectMcc": null
+    },
+    {
+      "id": "edge-bad-crc",
+      "country": "XX",
+      "scheme": "EMVCo, corrupted checksum",
+      "note": "A damaged print or a bad camera read. The payload LOOKS valid and its tag 52 parses to 5812 — but the CRC fails, so those four digits are noise that happens to be four digits long. SWIP must refuse it.",
+      "payload": "00020101021126160007XX.TEST010115204581253038405802US5907CORRUPT6304DEAD",
+      "expectMcc": null,
+      "expectRejected": true
+    },
+    {
+      "id": "edge-tag-order-unusual",
+      "country": "XX",
+      "scheme": "EMVCo, tags out of numeric order",
+      "note": "The spec does not guarantee ascending tag order. A parser that assumes it will miss tag 52 entirely.",
+      "payload": "0002015914REVERSED ORDER5802US53038405204701101021126160007XX.TEST0101163041644",
+      "expectMcc": "7011"
+    },
+    {
+      "id": "edge-not-a-payment-qr",
+      "country": "XX",
+      "scheme": "Plain URL",
+      "note": "Someone points SWIP at a poster. It must not crash or fabricate.",
+      "payload": "https://example.com/menu",
+      "expectMcc": null
+    },
+    {
+      "id": "edge-payment-link-razorpay",
+      "country": "IN",
+      "scheme": "Payment link",
+      "note": "An MCC is assigned by the acquirer and is not encoded in a URL. SWIP must identify the PSP and merchant for the graph, and return no category rather than inferring one.",
+      "payload": "https://rzp.io/l/rentpay-aug",
+      "expectMcc": null,
+      "expectAcquirer": "Razorpay"
+    }
+  ]
+}

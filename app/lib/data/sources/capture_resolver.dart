@@ -249,10 +249,20 @@ abstract final class PaymentLinkInference {
     if (uri.scheme != 'http' && uri.scheme != 'https') return null;
 
     final host = uri.host.toLowerCase();
-    for (final entry in _psps.entries) {
-      if (host != entry.key && !host.endsWith('.${entry.key}')) continue;
 
-      final (psp, slugIndex) = entry.value;
+    // Most specific host wins. Relying on map insertion order silently breaks
+    // the moment two entries overlap — `pages.razorpay.com` also matches
+    // `razorpay.com`, and the two disagree about which path segment holds the
+    // merchant slug, so the wrong one produces a merchant key that never
+    // matches the same merchant again.
+    String? bestKey;
+    for (final key in _psps.keys) {
+      if (host != key && !host.endsWith('.$key')) continue;
+      if (bestKey == null || key.length > bestKey.length) bestKey = key;
+    }
+
+    if (bestKey != null) {
+      final (psp, slugIndex) = _psps[bestKey]!;
       final segments =
           uri.pathSegments.where((s) => s.trim().isNotEmpty).toList();
       final slug =
