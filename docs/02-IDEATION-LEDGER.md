@@ -25,6 +25,19 @@
 | `BLOCKED` | Cannot be done as literally stated — see the linked doc for the workaround |
 | `CORRECTED` | Your premise had a factual error; the corrected version is carried forward |
 
+> ### ⚠️ Correction, Prompt 4 — `BUILT` was overstated
+>
+> The status column below was written against **what the code would do once wired
+> together**, not what runs today. That was wrong, and the table read far more finished
+> than the repository is. Per the rule at the top of this file, no row is deleted — the
+> corrections are recorded in **[§ Reality check](#reality-check--corrected-build-status)**
+> at the bottom, and that section overrides any `BUILT` above it.
+>
+> **The one-line truth:** the hard, risky core is real and tested — the QR parsers, the
+> HCE service, the design system, the dashboard. **But there is no database, no scanner
+> screen, no navigation, and eight of the nine feature folders are empty.** SWIP today is
+> a set of proven parts and one screen, not yet an app you can use.
+
 ---
 
 ## A. Brand & Identity
@@ -150,3 +163,63 @@ Everything else is decided and built.
 ---
 
 *Last updated: Prompt 1. See [CHANGELOG.md](CHANGELOG.md).*
+
+---
+
+## Reality check — corrected build status
+
+*Added Prompt 4, after auditing `app/` file by file. **This section overrides the Status
+column above.*** Verified by inventory: 14 Dart files, 2 Kotlin files, 1 test file, and
+eight empty feature folders.
+
+### What actually runs today
+
+| Thing | File | Real state |
+|---|---|---|
+| EMVCo QR parser | `data/sources/emv_qr_parser.dart` | ✅ Real, byte-oriented TLV, CRC enforced, 17 tests |
+| UPI intent parser | `data/sources/upi_uri_parser.dart` | ✅ Real, hand-rolled for malformed real-world QRs |
+| HCE listen service | `android/.../SwipListenService.kt` | ⚠️ Kotlin written, **no Dart bridge — unreachable from the app** |
+| MCC table, 212 codes | `assets/mcc/mcc_table.json` | ✅ Loads and looks up |
+| Design tokens + theme | `core/theme/` | ✅ Real |
+| `MccBadge` `ConfidencePill` `PublicationChips` | `widgets/mcc_badge.dart` | ✅ Real |
+| `LedgerRow` | `widgets/ledger_row.dart` | ✅ Real, incl. the ≥130% reflow |
+| Dashboard `S-01` | `features/dashboard/` | ✅ Real — **the only screen in the app** |
+| App entry | `main.dart` | ⚠️ Temporary shell. `home:` only, no router. Feeds **hardcoded seed rows** |
+
+### What does not exist at all
+
+| Missing | Consequence | Ideation IDs affected |
+|---|---|---|
+| **Any database** | `sqflite` is a dependency; **no schema, no DAO, no write path**. Nothing is saved. Close the app and it's gone | `D-01` `D-02` |
+| **QR scanner screen** | `mobile_scanner` is a dependency; `features/capture_qr/` is **empty**. The parser works but **nothing can feed it** | `C-02` `C-03` `C-14` |
+| **NFC Dart side** | No platform channel to `SwipListenService`. The tap vector **cannot be triggered** | `C-04` |
+| **Link checking** | **No link parser file exists.** `features/capture_link/` is empty | `C-06` `C-07` |
+| **Ledger screen `S-04`** | `features/ledger/` empty. Only the dashboard's 5-row preview exists | `D-01` `D-08` `D-09` |
+| **Detail screens `S-05`–`S-07`** | Interlinking and progressive depth are unbuilt | `D-08` `D-09` |
+| **Onboarding, Settings** | Both folders empty | `B-05` `D-07` (the persisted toggle) |
+| **Navigation** | `go_router` is a dependency, **unused** | — |
+| **Rewards, Wallet, Virtual card** | Empty folders — correctly, these are Phase 2 | `C-09` `C-13` `E-*` `F-*` |
+
+> **The most important consequence, stated plainly:** the seed rows in `main.dart` are
+> stripped from release builds by design, and there is no capture path to replace them.
+> **A release APK built today would open to an empty dashboard with no way to add
+> anything.** Debug builds look populated, which is exactly the trap.
+
+### Corrected statuses
+
+| ID | Was | Should be | Why |
+|---|---|---|---|
+| `C-02` `C-03` `C-14` | BUILT | **PARTIAL** | Parser done and tested; no camera screen to feed it |
+| `C-04` | BUILT (Android) | **PARTIAL** | Kotlin service exists; no Dart bridge, so unreachable |
+| `C-07` | BUILT (heuristic) | **NOT STARTED** | No link parser exists in the repo |
+| `C-06` | BUILT + PHASE-2 | **PARTIAL** | Only via the unreachable NFC path |
+| `D-01` `D-02` | BUILT | **NOT STARTED** | No database and no ledger screen |
+| `D-08` `D-09` | BUILT | **SPEC'D** | Detail screens do not exist |
+| `D-03` `D-04` `D-05` `D-06` `D-07` `D-10` | BUILT | **BUILT** ✅ | Genuinely correct — visible in the dashboard and `LedgerRow` |
+| `A-01`–`A-09`, `B-01`–`B-05` | BUILT | **BUILT** ✅ | Brand, tokens, structure, docs all genuinely exist |
+| `H-03` `H-04` | DONE | **PARTIAL** | Figma has tokens, type and components; most screens undrawn (Starter plan cap) |
+| `A-06` | BUILT | **UNDER REVIEW** | Reversal proposed in [14-VISUAL-DIRECTION-FOIL](14-VISUAL-DIRECTION-FOIL.md), awaiting sign-off |
+
+**Rough completion of v1: about 25%.** But it is deliberately the *riskiest* 25% — the
+parsing, the EMV research, and the design system. The remaining 75% is conventional app
+assembly with no unknowns in it.
