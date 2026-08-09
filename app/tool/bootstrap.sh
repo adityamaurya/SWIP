@@ -118,6 +118,55 @@ for f in android/app/build.gradle.kts android/app/build.gradle; do
     "$f"
 done
 
+# ── 4b2. Force a modern compileSdk across every plugin ──────────────────
+#
+# Flutter plugins pin their own compileSdk, and they drift. file_picker 8.x
+# compiles against android-34 while its own transitive dependency
+# (flutter_plugin_android_lifecycle) now demands 36, so the build dies in
+# checkDebugAarMetadata with no way to fix it from our own module.
+#
+# Chasing plugin versions is the wrong lever: share_plus and mobile_scanner
+# have both had breaking API changes in their newer majors, and upgrading them
+# to satisfy Gradle would mean rewriting working Dart. Overriding compileSdk
+# for every android subproject fixes all of them at once and touches no code.
+#
+# compileSdk only controls which APIs are available at compile time — it does
+# not change targetSdk (runtime behaviour) or minSdk (device support).
+echo "▸ Forcing compileSdk 36 across plugin subprojects…"
+if [ -f android/build.gradle.kts ]; then
+  cat >> android/build.gradle.kts <<'KTS'
+
+// Added by tool/bootstrap.sh — see the script for why.
+// Reflection rather than a typed cast: the AGP classes are not guaranteed to
+// be on the root project's classpath, and a ClassNotFound here would be a far
+// more confusing failure than the one this fixes.
+subprojects {
+    afterEvaluate {
+        val androidExt = extensions.findByName("android") ?: return@afterEvaluate
+        runCatching {
+            androidExt.javaClass.methods.firstOrNull {
+                it.name == "compileSdkVersion" &&
+                    it.parameterTypes.size == 1 &&
+                    it.parameterTypes[0] == Int::class.javaPrimitiveType
+            }?.invoke(androidExt, 36)
+        }
+    }
+}
+KTS
+elif [ -f android/build.gradle ]; then
+  cat >> android/build.gradle <<'GROOVY'
+
+// Added by tool/bootstrap.sh — see the script for why.
+subprojects {
+    afterEvaluate { p ->
+        if (p.hasProperty('android')) {
+            p.android.compileSdkVersion 36
+        }
+    }
+}
+GROOVY
+fi
+
 # ── 4c. The round launcher icon ─────────────────────────────────────────
 #
 # The manifest declares android:roundIcon, but `flutter create` only ships
