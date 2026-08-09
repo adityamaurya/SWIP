@@ -103,11 +103,19 @@ fallback works regardless of what any merchant does.
 
 | ID | What you asked | Status |
 |---|---|---|
-| `F-08` | **NFC tap must work end to end**: ask for permission, prompt to enable NFC if off, tap the terminal, MCC in the bottom sheet | 📋 **next build** |
-| `F-09` | **Link checking must work** — a screen where a payment link is pasted and resolved | 📋 **next build** |
+| `F-08` | **NFC tap must work end to end**: ask for permission, prompt to enable NFC if off, tap the terminal, MCC in the bottom sheet | ✅ **built** — [prompt 16](CHANGELOG.md#prompt-16--09-aug-2026--tap-and-link-become-real) |
+| `F-09` | **Link checking must work** — a screen where a payment link is pasted and resolved | ✅ **built** — [prompt 16](CHANGELOG.md#prompt-16--09-aug-2026--tap-and-link-become-real) |
 
-The Kotlin HCE service compiles and is registered. What is missing is the Dart
-side that turns it on, listens, and renders. That is the next thing I build.
+~~The Kotlin HCE service compiles and is registered. What is missing is the Dart
+side that turns it on, listens, and renders. That is the next thing I build.~~
+
+**Built.** The Dart side now exists —
+[`tap_page.dart`](../app/lib/features/capture_nfc/tap_page.dart) and
+[`link_page.dart`](../app/lib/features/capture_link/link_page.dart) — and the
+reason both tiles did nothing turned out to be one line in the shell: the
+dashboard was passing which tile you tapped and
+[`main.dart`](../app/lib/main.dart) was discarding it and opening the scanner
+regardless. Both halves had existed for weeks; nothing joined them.
 
 ## D. The capture bottom sheet
 
@@ -117,8 +125,8 @@ side that turns it on, listens, and renders. That is the next thing I build.
 |---|---|---|
 | `F-10` | 1. **MCC code** | ✅ |
 | `F-11` | 2. **Description of the code** | ✅ |
-| `F-12` | 3. **Merchant name** | ⚠️ present but not prominent |
-| `F-13` | 4. **Everything else captured**, below a separator, using **the field's own name from the source** — dynamic, not a fixed list | 📋 |
+| `F-12` | 3. **Merchant name** | ✅ **built** — [prompt 16](CHANGELOG.md#prompt-16--09-aug-2026--tap-and-link-become-real) |
+| `F-13` | 4. **Everything else captured**, below a separator, using **the field's own name from the source** — dynamic, not a fixed list | ✅ **built** — [prompt 16](CHANGELOG.md#prompt-16--09-aug-2026--tap-and-link-become-real) |
 
 **Additions:**
 
@@ -127,8 +135,8 @@ side that turns it on, listens, and renders. That is the next thing I build.
 | `F-14` | **Domestic or international**, decided by comparing where you are now against your home country | 📋 |
 | `F-15` | **Onboarding asks home country + currency** — the baseline `F-14` compares against | 📋 |
 | `F-16` | When abroad: show **International**, the country, and the location | 📋 |
-| `F-17` | **Source badge, top-right of the sheet**: QR · POS · App intent · Link · Unknown | 📋 |
-| `F-18` | CTA keeps its label, with **grey subtext below** confirming it is saved to the ledger | 📋 |
+| `F-17` | **Source badge, top-right of the sheet**: QR · POS · App intent · Link · Unknown | ✅ **built** — [prompt 16](CHANGELOG.md#prompt-16--09-aug-2026--tap-and-link-become-real) |
+| `F-18` | CTA keeps its label, with **grey subtext below** confirming it is saved to the ledger | ✅ **built** — [prompt 16](CHANGELOG.md#prompt-16--09-aug-2026--tap-and-link-become-real) |
 | `F-40` | Geolocation captured with every capture, shown discreetly | 📋 |
 
 ## E. Uncategorised captures — the honest cases
@@ -138,11 +146,11 @@ plus what research turned up.
 
 | ID | Case | What SWIP should say |
 |---|---|---|
-| `F-19` | **A personal UPI QR** — someone's `9820012345@ybl` GPay code | *"This is a personal UPI code, not a shop. Personal codes carry no category."* |
-| `F-20` | **A plain web link** | *"That is a website, not a payment code."* |
-| `F-21` | **A random QR with nothing in it** — wifi, contact card, plain text | *"Nothing payment-related in this code."* |
-| `F-22` | Empty fields must be explained in **plain language, not technical jargon** | 📋 |
-| `F-23` | **"View technical details"** below the OK button, for when you do want the raw payload | 📋 |
+| `F-19` | **A personal UPI QR** — someone's `9820012345@ybl` GPay code | ✅ *"A personal UPI code, not a shop. This is someone paying as a person, not a registered business. Personal codes never carry a category — so there is nothing for your card to earn on here."* |
+| `F-20` | **A plain web link** | ✅ *"A website, not a payment code."* |
+| `F-21` | **A random QR with nothing in it** — wifi, contact card, plain text | ✅ Each is named for what it is — *"A wifi code"*, *"A contact card"*, *"A map pin"*, *"Just text"* |
+| `F-22` | Empty fields must be explained in **plain language, not technical jargon** | ✅ **built** — [prompt 16](CHANGELOG.md#prompt-16--09-aug-2026--tap-and-link-become-real) |
+| `F-23` | **"View technical details"** below the OK button, for when you do want the raw payload | ✅ **built** — [prompt 16](CHANGELOG.md#prompt-16--09-aug-2026--tap-and-link-become-real) |
 | `F-24` | The system should **group and learn** uncategorised types over time | 📋 |
 
 **Other QR types found by research, which all land here:**
@@ -150,6 +158,11 @@ wifi (`WIFI:`), contact cards (`BEGIN:VCARD`), calendar events, plain text,
 phone numbers (`tel:`), SMS (`smsto:`), geo pins (`geo:`), app store links,
 crypto addresses (`bitcoin:`), EMV codes that fail their own checksum, and
 merchant QRs where tag 52 is present but zero.
+
+**All of the above are now named in plain words** by
+[`payload_kind.dart`](../app/lib/data/sources/payload_kind.dart) — [prompt 16](CHANGELOG.md#prompt-16--09-aug-2026--tap-and-link-become-real).
+A code that looks like EMVCo but fails its own checksum is called *damaged*
+rather than parsed anyway, because a wrong category is worse than none.
 
 ## F. Getting listed in the merchant's UPI list
 
@@ -179,9 +192,9 @@ Ordered by value against risk, not by the order you listed them.
 
 | Priority | Items | Why |
 |---|---|---|
-| **1** | `F-08` `F-09` — NFC and links functional | You said no matter what, and they are the two vectors that exist but cannot be reached |
-| **2** | `F-10`–`F-13`, `F-17`, `F-18`, `F-19`–`F-23` — the bottom sheet | Every vector funnels through this one screen, so it pays for itself |
-| **3** | `F-01`–`F-03` — camera-first dashboard | Biggest change to how the app feels |
+| ~~**1**~~ ✅ | `F-08` `F-09` — NFC and links functional | You said no matter what, and they are the two vectors that exist but cannot be reached — **built**, [prompt 16](CHANGELOG.md#prompt-16--09-aug-2026--tap-and-link-become-real) |
+| ~~**2**~~ ✅ | `F-10`–`F-13`, `F-17`, `F-18`, `F-19`–`F-23` — the bottom sheet | Every vector funnels through this one screen, so it pays for itself — **built**, [prompt 16](CHANGELOG.md#prompt-16--09-aug-2026--tap-and-link-become-real) |
+| **3** ← next | `F-01`–`F-03` — camera-first dashboard | Biggest change to how the app feels |
 | **4** | `F-14`–`F-16`, `F-40` — location, home country, domestic/international | Needs a plugin; done after the build is stable |
 | **5** | `F-06` `F-07` — ledger filters | Small, and better once there is more to filter |
 

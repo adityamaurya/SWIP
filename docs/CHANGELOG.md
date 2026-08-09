@@ -164,6 +164,71 @@ environment.** Run `flutter analyze`.
 
 ---
 
+## Prompts 2–15 — 08–09 Aug 2026 · Backfilled from the commit history
+
+> **Honest note.** This file fell behind after Prompt 1: fourteen rounds of work were
+> committed without an entry here. The section below reconstructs them from
+> `git log` and the docs each round produced. It is a *record*, not a rewrite —
+> nothing above has been touched. Each row links to what it produced, so nothing is
+> left as words you cannot go and read.
+
+| # | Ask | What it produced |
+|---|---|---|
+| 2–5 | *"Use Team Claude Code"* → *"create it and move ahead"* → auto-resume | Figma file built under a new team; [11-FIGMA §4](11-FIGMA.md#4-where-the-build-stopped) records where the build stopped. `01ec498` establishes the Starter plan's MCP tool-call cap is a **hard cap**, not a throttle — six hourly probes, one across UTC midnight, all failed. `e2971ad` corrects [02-IDEATION-LEDGER](02-IDEATION-LEDGER.md) where statuses said BUILT and the audit found ~25% |
+| 6 | *"how do I view the app? I want to view it right away"* | [09-BUILD-AND-RUN](09-BUILD-AND-RUN.md) |
+| 7 | Play Store walkthrough + *"why are you making the design so boring? …do something like CRED"* | [13-PLAY-STORE-LAUNCH](13-PLAY-STORE-LAUNCH.md) with every fee itemised, and [14-VISUAL-DIRECTION-FOIL](14-VISUAL-DIRECTION-FOIL.md) — the **Foil** direction, which reverses `A-06` |
+| 8–9 | *"Yes"* / *"YES"* | `dabdabe` Foil dark theme everywhere, sqflite store, live scanner, ledger, contextual onboarding primers · `75a67c4` [15-TRADEMARK-SWIP](15-TRADEMARK-SWIP.md) · `9eadd80` the world QR corpus (and a PSP host-matching bug it exposed) · `db98ff3` [16-V2-PRD](16-V2-PRD.md) |
+| 10 | *"HOW DO I FACILITATE THIS FOR YOU, STEP-BY-STEP NEEDED"* | `cf42883` [Flutter CI](../.github/workflows/flutter.yml) — **the code had never been compiled**; CI became the compiler |
+| 11 | Screenshot of the first red CI run | `b737845` every error from run 1 · `55882c8` a stale `.gitignore` rule was silently dropping the Inter font · `4bfbb75` EMVCo TLV lengths are **bytes, not characters** |
+| 12 | *"whats happening? where are we falling short to achieve success?"* | The honest structural answer — code had been written for weeks before the project could build. Then `1dcfdd2` round icon + package alignment · `5eeefca` the Kotlin HCE service and its missing Android resources · `cedd09e`/`83caa21` compileSdk 36 (my own append-vs-prepend error, fixed). **First installable APK.** |
+| 13 | Reusable APK instructions for other projects · PVR pay-by-app · phone-to-phone card payment | [17-BUILD-ANY-APK](17-BUILD-ANY-APK.md) — the recipe any repo can follow · [18-INTENT-CAPTURE-AND-TAP-TO-PHONE](18-INTENT-CAPTURE-AND-TAP-TO-PHONE.md) · `62020c6` **Vector 7**, capture the merchant's pay-by-app intent |
+| 14–15 | Feedback after installing the APK, with PVR and Swiggy screenshots | `4d8f3bc` [19-FEEDBACK-ROUND-1](19-FEEDBACK-ROUND-1.md) — `F-01`–`F-25` with a build order. Same commit **corrects my Vector 7 claim**: the screenshots showed merchant-rendered app lists, not Android's system chooser, so "SWIP will appear there" was downgraded from confident to 50/50, settled only by one install |
+
+---
+
+## Prompt 16 — 09 Aug 2026 · Tap and Link become real
+
+> *"read docs/19-FEEDBACK-ROUND-1.md and build priorities 1 and 2"*
+
+### Screens changed
+
+| ID | Screen | Change | Serves |
+|---|---|---|---|
+| `S-03` | Tap a POS terminal | **New in Dart.** The Kotlin host has implemented NFC since the first commit and nothing ever called it | `F-08` |
+| `S-08` | Check a payment link | **New in Dart.** Paste or clipboard → resolve → ledger | `F-09` |
+| `S-02` / `S-09` / Vector 7 | Every capture result | Two near-identical sheets replaced by one `CaptureSheet` | `F-10`–`F-13`, `F-17`, `F-18`, `F-23` |
+
+### Element changes
+
+| Where | Before | After | Why |
+|---|---|---|---|
+| App shell | `onOpenCapture` received the vector and `_openScan()` ignored it — every tile opened the scanner | `_openCapture(vector)` switches to `TapPage` / `LinkPage` / `ScanPage` | **This was the whole bug.** Two of three vectors were unreachable from the UI although both halves existed |
+| Capture sheet | Merchant name first, category below | **Code → what it means → merchant → the rest under a rule** | `F-10`–`F-12`: the number is the product |
+| Capture sheet | Fixed field schema shared by both sheets | Per-vector `details` map keyed by **the source's own field names** (`9F15`, `9F1C`, `Payment provider`…) | `F-13`. A POS tap and a QR genuinely return different things, and this audience does not trust a number it cannot check |
+| Capture sheet | Provenance in body text | Badge, **top right** | `F-17` |
+| Capture sheet | No confirmation | Grey *"Saved to your ledger"* under the CTA | `F-18` |
+| Capture sheet | Raw payload always shown | *"View technical details"* — available, never in the way | `F-23` |
+| Unrecognised QR | *"Unrecognised"* | Named in plain words: wifi, contact, phone, SMS, map pin, app link, crypto, plain text — and **"a personal UPI code, not a shop"** | `F-19`–`F-22`. Technically true and useless is still useless |
+| Failed-checksum QR | Parsed anyway, or silently dropped | *"This code is damaged"* | Better to show nothing than something invented |
+
+### Code
+
+| File | Change |
+|---|---|
+| [`app/lib/main.dart`](../app/lib/main.dart) | `_openCapture` routes by `CaptureVector` |
+| [`app/lib/features/capture_nfc/tap_page.dart`](../app/lib/features/capture_nfc/tap_page.dart) | **New.** Capability probe → NFC-off prompt → preferred-service registration → capture stream → `stopListening` always on dispose, so SWIP never holds the NFC field in the background |
+| [`app/lib/features/capture_link/link_page.dart`](../app/lib/features/capture_link/link_page.dart) | **New.** States plainly that this vector can only ever infer — an MCC is assigned by the acquiring bank and is never written into a URL, so a link never returns *Verified* |
+| [`app/lib/widgets/capture_sheet.dart`](../app/lib/widgets/capture_sheet.dart) | **New.** The one sheet, replacing ~610 duplicated lines |
+| [`app/lib/data/sources/payload_kind.dart`](../app/lib/data/sources/payload_kind.dart) | **New.** Kept out of `CaptureResolver` so copy can change without touching parsing that has 40 tests against it |
+
+### Open
+
+- **Vector 2 is unproven in the field.** The code path is now complete end to end, but whether real terminals populate EMV tag `9F15` needs the 50-terminal test in [03-RESEARCH-MCC-CAPTURE](03-RESEARCH-MCC-CAPTURE.md).
+- Still queued from [19-FEEDBACK-ROUND-1](19-FEEDBACK-ROUND-1.md): camera-first dashboard carousel (`F-01`–`F-03`), geolocation and domestic/international (`F-14`–`F-16`, `F-40`), ledger filters (`F-06`, `F-07`), learning uncategorised merchants (`F-24`).
+- Launcher icons are still the Flutter placeholders.
+
+---
+
 <!--
 Template for the next entry:
 
