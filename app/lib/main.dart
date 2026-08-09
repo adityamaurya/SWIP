@@ -7,7 +7,10 @@ import 'core/theme/swip_theme.dart';
 import 'core/theme/swip_tokens.dart';
 import 'core/utils/swip_time.dart';
 import 'data/repositories/capture_repository.dart';
+import 'data/models/capture_event.dart';
 import 'features/capture_intent/intent_capture.dart';
+import 'features/capture_link/link_page.dart';
+import 'features/capture_nfc/tap_page.dart';
 import 'features/capture_qr/scan_page.dart';
 import 'features/dashboard/dashboard_page.dart';
 import 'features/ledger/ledger_page.dart';
@@ -59,10 +62,18 @@ class _SwipShellState extends ConsumerState<SwipShell> {
             : TimeFormatPref.absolute;
       });
 
-  Future<void> _openScan() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const ScanPage()),
-    );
+  Future<void> _openScan() => _openCapture(CaptureVector.qr);
+
+  /// F-08, F-09. The dashboard has always sent which tile was tapped; the
+  /// shell used to throw it away and open the scanner regardless, which is
+  /// why Tap and Link appeared to do nothing.
+  Future<void> _openCapture(CaptureVector vector) async {
+    final page = switch (vector) {
+      CaptureVector.nfc => const TapPage(),
+      CaptureVector.link => const LinkPage(),
+      _ => const ScanPage(),
+    };
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
   }
 
   @override
@@ -86,7 +97,7 @@ class _SwipShellState extends ConsumerState<SwipShell> {
           onToggleTimeFormat: _toggleTime,
           onOpenLedger: () => setState(() => _index = 1),
           onOpenSettings: () => setState(() => _index = 2),
-          onOpenCapture: (_) => _openScan(),
+          onOpenCapture: _openCapture,
         ),
       ),
       LedgerPage(timeFormat: _timeFormat, onToggleTime: _toggleTime),

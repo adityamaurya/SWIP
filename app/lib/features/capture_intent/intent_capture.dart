@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/swip_tokens.dart';
 import '../../data/models/capture_event.dart';
 import '../../data/repositories/capture_repository.dart';
 import '../../data/sources/capture_resolver.dart';
-import '../../widgets/mcc_badge.dart';
+import '../../widgets/capture_sheet.dart';
 
 /// Vector 7 — the pay-by-app intent.
 ///
@@ -52,7 +51,7 @@ class IntentCapture {
   }
 }
 
-/// Watches for an incoming payment intent and shows [IntentCaptureSheet].
+/// Watches for an incoming payment intent and shows the [CaptureSheet].
 ///
 /// Wraps the shell rather than living on a screen, because a checkout hand-off
 /// can arrive while SWIP is on any tab, or cold-start it outright.
@@ -123,10 +122,23 @@ class _IntentCaptureListenerState extends ConsumerState<IntentCaptureListener>
         isDismissible: false,
         enableDrag: false,
         backgroundColor: SwipColors.surfaceRaised,
-        builder: (_) => IntentCaptureSheet(
+        builder: (ctx) => CaptureSheet(
           event: event,
-          categoryName: repo.lookup(event.mcc)?.displayName,
-          uri: uri,
+          mcc: repo.lookup(event.mcc),
+          sourceLabel: 'Pay-by-app · ${resolved.sourceLabel}',
+          rawPayload: uri,
+          primaryLabel: 'Continue to pay',
+          onPrimary: () async {
+            Navigator.of(ctx).pop();
+            await IntentCapture.forward(uri);
+          },
+          details: {
+            if (resolved.amount != null)
+              'Amount': '${resolved.currency ?? ''} ${resolved.amount}'.trim(),
+            if (resolved.merchantKey != null)
+              'Merchant key': resolved.merchantKey!,
+            'SWIP\'s part': 'Read the category only — no payment is made here',
+          },
         ),
       );
     } finally {
@@ -136,137 +148,4 @@ class _IntentCaptureListenerState extends ConsumerState<IntentCaptureListener>
 
   @override
   Widget build(BuildContext context) => widget.child;
-}
-
-/// The hand-off sheet.
-///
-/// Deliberately spare and deliberately fast. Every element here is either the
-/// category or a statement that SWIP is not taking the payment — anything else
-/// would make a pass-through feel like an interception.
-class IntentCaptureSheet extends StatelessWidget {
-  const IntentCaptureSheet({
-    super.key,
-    required this.event,
-    required this.categoryName,
-    required this.uri,
-  });
-
-  final CaptureEvent event;
-  final String? categoryName;
-  final String uri;
-
-  @override
-  Widget build(BuildContext context) {
-    final known = event.hasMcc;
-
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-            SwipSpace.xl, SwipSpace.xl, SwipSpace.xl, SwipSpace.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              event.merchantName?.toUpperCase() ?? 'THIS MERCHANT',
-              style: SwipType.labelS.copyWith(color: SwipColors.textTertiary),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: SwipSpace.md),
-
-            if (known)
-              ShaderMask(
-                shaderCallback: (b) => SwipGradients.foil.createShader(b),
-                blendMode: BlendMode.srcIn,
-                child: Text(
-                  event.mcc!,
-                  style: SwipType.mcc.copyWith(
-                    fontSize: 56,
-                    height: 60 / 56,
-                    color: SwipColors.gold500,
-                  ),
-                ),
-              )
-                  .animate()
-                  .fadeIn(duration: 240.ms)
-                  .moveY(begin: 18, curve: SwipMotion.captureCurve)
-                  .shimmer(delay: 260.ms, duration: 700.ms,
-                      color: SwipColors.gold100)
-            else
-              Text('No category in this request',
-                  style: SwipType.titleM
-                      .copyWith(color: SwipColors.textSecondary)),
-
-            if (categoryName != null) ...[
-              const SizedBox(height: SwipSpace.xs),
-              Text(categoryName!,
-                  style: SwipType.bodyL
-                      .copyWith(color: SwipColors.textPrimary)),
-            ],
-
-            const SizedBox(height: SwipSpace.md),
-            Row(children: [
-              ConfidencePill(event.confidence),
-              if (event.amount != null) ...[
-                const SizedBox(width: SwipSpace.md),
-                Text(
-                  '${event.currency ?? ''} ${event.amount!.toStringAsFixed(2)}',
-                  style: SwipType.bodyM
-                      .copyWith(color: SwipColors.textSecondary),
-                ),
-              ],
-            ]),
-
-            const SizedBox(height: SwipSpace.xl),
-
-            // The disclosure. Not fine print — it is the reason this screen is
-            // allowed to exist between a merchant and a wallet.
-            Container(
-              padding: const EdgeInsets.all(SwipSpace.md),
-              decoration: BoxDecoration(
-                color: SwipColors.infoFill,
-                borderRadius: SwipRadius.inputAll,
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.info_outline_rounded,
-                      size: 18, color: SwipColors.infoOnInk),
-                  const SizedBox(width: SwipSpace.sm),
-                  Expanded(
-                    child: Text(
-                      'SWIP does not take payments. Saved to your ledger — '
-                      'now choose the app you want to pay with.',
-                      style: SwipType.bodyS
-                          .copyWith(color: SwipColors.infoOnInk),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: SwipSpace.lg),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () async {
-                  Navigator.of(context).pop();
-                  await IntentCapture.forward(uri);
-                },
-                child: const Text('Continue to pay'),
-              ),
-            ),
-            SizedBox(
-              width: double.infinity,
-              child: TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Not now'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
