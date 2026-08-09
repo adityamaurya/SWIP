@@ -1,0 +1,124 @@
+name: Flutter CI
+
+# WHY THIS EXISTS
+# ---------------
+# SWIP is built in an environment with no Flutter toolchain, so nothing written
+# there is compiled. This workflow is the compiler: GitHub runs it on every
+# push, and the logs are readable without anyone installing anything locally.
+#
+# It runs the same three commands you would run on your own machine:
+#   bash tool/bootstrap.sh   → generate the platform scaffold, fetch packages
+#   flutter analyze          → find compile errors and warnings
+#   flutter test             → run the parser and world-QR corpus tests
+#
+# analyze is allowed to fail so that test still runs — one push then surfaces
+# every problem at once instead of one per round trip.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Analyze and test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Flutter version
+        run: flutter --version
+
+      # Regenerates the world QR corpus from the spec so a stale fixture can
+      # never silently pass. If the generator and the committed fixture
+      # disagree, the diff check below fails loudly.
+      - name: Rebuild the QR corpus
+        run: node tool/build_qr_corpus.mjs
+
+      - name: Fail if the committed corpus is stale
+        run: |
+          if ! git diff --quiet -- test/fixtures/qr_corpus.json; then
+            echo "::error::test/fixtures/qr_corpus.json is out of date."
+            echo "Run: node tool/build_qr_corpus.mjs — then commit the result."
+            git diff -- test/fixtures/qr_corpus.json
+            exit 1
+          fi
+
+      - name: Bootstrap the project
+        run: bash tool/bootstrap.sh
+
+      - name: Analyze
+        id: analyze
+        continue-on-error: true
+        run: flutter analyze --no-fatal-infos
+
+      - name: Test
+        id: test
+        continue-on-error: true
+        run: flutter test --reporter expanded
+
+      # Both steps above are allowed to fail individually so their output is
+      # captured; this makes the job's overall status honest.
+      - name: Report
+        run: |
+          echo "analyze: ${{ steps.analyze.outcome }}"
+          echo "test:    ${{ steps.test.outcome }}"
+          if [ "${{ steps.analyze.outcome }}" != "success" ] \
+          || [ "${{ steps.test.outcome }}" != "success" ]; then
+            echo "::error::analyze or test failed — see the logs above."
+            exit 1
+          fi
+          echo "✓ analyze clean, tests green"
+
+  # Proves the app actually assembles into an installable artifact, which
+  # `analyze` alone does not. The APK is downloadable from the run page.
+  apk:
+    name: Build debug APK
+    runs-on: ubuntu-latest
+    needs: build
+    if: success()
+    defaults:
+      run:
+        working-directory: app
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Bootstrap
+        run: bash tool/bootstrap.sh
+
+      - name: Build debug APK
+        run: flutter build apk --debug
+
+      - name: Upload the APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: swip-debug-apk
+          path: app/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
