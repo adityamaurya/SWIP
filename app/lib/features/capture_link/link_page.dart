@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/onboarding/primers.dart';
+import '../../core/settings/home_market.dart';
 import '../../core/theme/swip_tokens.dart';
 import '../../data/repositories/capture_repository.dart';
 import '../../data/sources/capture_resolver.dart';
@@ -59,6 +60,7 @@ class _LinkPageState extends ConsumerState<LinkPage> {
     try {
       final resolved = CaptureResolver.resolve(raw);
       final repo = await ref.read(captureRepositoryProvider.future);
+      final home = ref.read(homeMarketProvider).valueOrNull;
 
       final event = await repo.record(
         vector: resolved.vector,
@@ -85,6 +87,8 @@ class _LinkPageState extends ConsumerState<LinkPage> {
           mcc: repo.lookup(event.mcc),
           sourceLabel: resolved.sourceLabel,
           rawPayload: raw,
+          verdict: home?.verdictFor(resolved.countryCode),
+          payeeKind: resolved.payeeKind,
           details: {
             if (resolved.acquirer != null)
               'Payment provider': resolved.acquirer!,

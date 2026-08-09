@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../core/onboarding/primers.dart';
+import '../../core/settings/home_market.dart';
 import '../../core/theme/swip_tokens.dart';
 import '../../data/repositories/capture_repository.dart';
 import '../../data/sources/capture_resolver.dart';
@@ -55,6 +56,7 @@ class _ScanPageState extends ConsumerState<ScanPage> {
 
     final resolved = CaptureResolver.resolve(raw);
     final repo = await ref.read(captureRepositoryProvider.future);
+    final home = ref.read(homeMarketProvider).valueOrNull;
 
     final event = await repo.record(
       vector: resolved.vector,
@@ -82,7 +84,14 @@ class _ScanPageState extends ConsumerState<ScanPage> {
         mcc: repo.lookup(event.mcc),
         sourceLabel: resolved.sourceLabel,
         rawPayload: raw,
+        verdict: home?.verdictFor(resolved.countryCode),
+        payeeKind: resolved.payeeKind,
         details: {
+          // `F-42`. The payment company and the payee handle are listed as
+          // what they are, so neither can be mistaken for the shop's name.
+          if (resolved.acquirer != null) 'Payment company': resolved.acquirer!,
+          if (resolved.merchantHandle != null)
+            'Pays to': resolved.merchantHandle!,
           if (resolved.merchantCity != null) 'City': resolved.merchantCity!,
           if (resolved.countryCode != null) 'Country': resolved.countryCode!,
           if (resolved.amount != null)

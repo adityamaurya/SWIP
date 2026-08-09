@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/settings/home_market.dart';
 import '../core/theme/swip_tokens.dart';
 import '../core/utils/swip_time.dart';
 import '../data/models/capture_event.dart';
@@ -25,6 +26,7 @@ class LedgerRow extends StatelessWidget {
     required this.event,
     required this.mcc,
     required this.timeFormat,
+    this.verdict,
     this.captureCount,
     this.onTap,
     this.onTapMcc,
@@ -40,6 +42,11 @@ class LedgerRow extends StatelessWidget {
   final Mcc? mcc;
 
   final TimeFormatPref timeFormat;
+
+  /// `F-16` — domestic or international, decided by the caller against the
+  /// user's home market. `null` when the capture carried no country.
+  final MarketVerdict? verdict;
+
   final int? captureCount;
 
   /// `D-08` — every row is a hub. Three separate destinations from one row.
@@ -100,46 +107,79 @@ class LedgerRow extends StatelessWidget {
         child: MccBadge(event.mcc),
       );
 
+  /// `F-44`, and a reversal of `D-05`.
+  ///
+  /// The category used to lead and the merchant was a footnote. In the field
+  /// that reads backwards: you are standing in front of a shop you can see, so
+  /// the row's job is *"which visit was this"* first and *"what was it filed
+  /// as"* second. Line 1 is therefore the merchant — its registered name, or
+  /// the payee handle when the code carried no trustworthy name — and line 2 is
+  /// the category the code resolves to.
   Widget _detailCell() {
-    final merchant = event.merchantName ?? event.merchantKey ?? 'Unknown merchant';
+    final identity = event.identityLine;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Category — up to 2 lines, then ellipsis. Never fewer than 2 lines of
-        // room: a 40-character official MCC name is normal.
+        // 1 ── who
+        GestureDetector(
+          onTap: onTapMerchant,
+          behavior: HitTestBehavior.opaque,
+          child: Text(
+            identity ?? 'Unnamed merchant',
+            style: SwipType.bodyM.copyWith(
+              color: identity == null
+                  ? SwipColors.textSecondary
+                  : SwipColors.textPrimary,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(height: 1),
+
+        // 2 ── what kind of business, from the code
         Text(
-          mcc?.displayName ??
-              (event.isUnclassified
-                  ? 'Unclassified — personal handle'
-                  : 'Unknown category'),
-          style: SwipType.bodyM.copyWith(color: SwipColors.textPrimary),
+          mcc?.displayName ?? event.categoryFallback,
+          style: SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
+
         if (mcc != null && mcc!.publications.isNotEmpty) ...[
           const SizedBox(height: SwipSpace.xs + 2),
           PublicationChips(mcc!.publications),
         ],
+
         const SizedBox(height: SwipSpace.xs + 2),
         Row(
           children: [
             ConfidencePill(event.confidence, compact: true),
-            const SizedBox(width: SwipSpace.sm),
-            // The merchant is the only thing allowed to ellipsise.
-            Flexible(
-              child: GestureDetector(
-                onTap: onTapMerchant,
-                behavior: HitTestBehavior.opaque,
+            if (verdict != null) ...[
+              const SizedBox(width: SwipSpace.sm),
+              Text(
+                verdict!.isInternational ? 'Intl' : 'Domestic',
+                style: SwipType.bodyS.copyWith(
+                  color: verdict!.isInternational
+                      ? SwipColors.warningOnInk
+                      : SwipColors.textTertiary,
+                ),
+              ),
+            ],
+            if (event.acquirer != null) ...[
+              const SizedBox(width: SwipSpace.sm),
+              // The payment company, kept visibly separate from the merchant.
+              Flexible(
                 child: Text(
-                  merchant,
-                  style: SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
+                  event.acquirer!,
+                  style:
+                      SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-            ),
-            const SizedBox(width: SwipSpace.xs),
+            ],
+            const Spacer(),
             Text(
               _vectorGlyph(event.vector),
               style: SwipType.bodyS.copyWith(color: SwipColors.textTertiary),

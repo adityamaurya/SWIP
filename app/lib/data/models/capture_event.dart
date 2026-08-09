@@ -129,6 +129,34 @@ class CaptureEvent {
   bool get hasMcc => mcc != null && mcc!.length == 4;
   bool get isUnclassified => mcc == '0000';
 
+  /// `F-42`. The payee handle, recovered from [merchantKey] rather than stored
+  /// twice — `upi:paytmqr6twbbd@ptys` → `paytmqr6twbbd@ptys`.
+  ///
+  /// Derived rather than a column because it is the same fact written two ways,
+  /// and a second copy is a second thing that can disagree. It also means no
+  /// schema migration for ledgers that already exist on people's phones.
+  String? get merchantHandle {
+    final k = merchantKey;
+    if (k == null || !k.startsWith('upi:')) return null;
+    final h = k.substring(4);
+    return h.isEmpty ? null : h;
+  }
+
+  /// `F-44`. What goes where the shop's name goes.
+  ///
+  /// A real name if the code carried one, else the handle — which a person can
+  /// read off the sticker in front of them and check. Never the PSP's name:
+  /// "Paytm" on five rows for five different shops is worse than no name.
+  String? get identityLine => merchantName ?? merchantHandle;
+
+  /// The category line when there is no name for the code. Each case is a
+  /// different situation with a different remedy, so each gets its own words.
+  String get categoryFallback {
+    if (isUnclassified) return 'No category set by the merchant\'s bank';
+    if (mcc == null) return 'Category not written into this code';
+    return 'Category $mcc — not in the offline table yet';
+  }
+
   CaptureEvent copyWith({
     String? mcc,
     MccConfidence? confidence,

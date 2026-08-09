@@ -3,18 +3,22 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/settings/home_market.dart';
 import 'core/theme/swip_theme.dart';
 import 'core/theme/swip_tokens.dart';
 import 'core/utils/swip_time.dart';
 import 'data/repositories/capture_repository.dart';
 import 'data/models/capture_event.dart';
+import 'data/sources/capture_resolver.dart';
 import 'features/capture_intent/intent_capture.dart';
 import 'features/capture_link/link_page.dart';
 import 'features/capture_nfc/tap_page.dart';
 import 'features/capture_qr/scan_page.dart';
 import 'features/dashboard/dashboard_page.dart';
 import 'features/ledger/ledger_page.dart';
+import 'features/onboarding/home_market_page.dart';
 import 'features/settings/settings_page.dart';
+import 'widgets/capture_sheet.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,12 +53,53 @@ class SwipShell extends ConsumerStatefulWidget {
   ConsumerState<SwipShell> createState() => _SwipShellState();
 }
 
-class _SwipShellState extends ConsumerState<SwipShell> {
+class _SwipShellState extends ConsumerState<SwipShell>
+    with WidgetsBindingObserver {
   int _index = 0;
+
+  /// `F-01`. The dashboard's camera runs only when the app is resumed *and*
+  /// Home is the visible tab. `IndexedStack` keeps every tab alive, so without
+  /// this the viewfinder would hold the camera open behind the Ledger — a
+  /// battery cost and, worse, a green privacy dot with no visible camera.
+  bool _resumed = true;
+
+  /// True while a capture sheet is open, so the inline viewfinder cannot stack
+  /// a second sheet on top of the first.
+  bool _capturing = false;
 
   /// `D-07`. Global and shared by every time cell in the app, so tapping one
   /// switches them all. Persisted in [SettingsPage].
   TimeFormatPref _timeFormat = TimeFormatPref.absolute;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeOnboard());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final resumed = state == AppLifecycleState.resumed;
+    if (resumed != _resumed) setState(() => _resumed = resumed);
+  }
+
+  /// `F-15`. Asked once, before anything else, because every later
+  /// domestic/international verdict is measured against the answer.
+  Future<void> _maybeOnboard() async {
+    final needs = await ref.read(needsHomeMarketProvider.future);
+    if (!needs || !mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => const HomeMarketPage(),
+    ));
+  }
 
   void _toggleTime() => setState(() {
         _timeFormat = _timeFormat == TimeFormatPref.absolute
@@ -76,11 +121,73 @@ class _SwipShellState extends ConsumerState<SwipShell> {
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
   }
 
+  /// `F-01`. A code read by the dashboard's inline viewfinder. Identical
+  /// handling to the full-screen scanner — same resolver, same ledger write,
+  /// same sheet — so the two paths can never describe the same sticker
+  /// differently.
+  Future<void> _onInlineScan(String raw) async {
+    if (_capturing) return;
+    setState(() => _capturing = true);
+
+    try {
+      final resolved = CaptureResolver.resolve(raw);
+      final repo = await ref.read(captureRepositoryProvider.future);
+
+      final event = await repo.record(
+        vector: resolved.vector,
+        mcc: resolved.mcc,
+        merchantName: resolved.merchantName,
+        merchantCity: resolved.merchantCity,
+        countryCode: resolved.countryCode,
+        merchantKey: resolved.merchantKey,
+        amount: resolved.amount,
+        currency: resolved.currency,
+        terminalId: resolved.terminalId,
+        acquirer: resolved.acquirer,
+        rawPayload: resolved.rawPayload,
+      );
+
+      ref.read(ledgerRevisionProvider.notifier).state++;
+      if (!mounted) return;
+
+      final home = ref.read(homeMarketProvider).valueOrNull;
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: SwipColors.surfaceRaised,
+        builder: (_) => CaptureSheet(
+          event: event,
+          mcc: repo.lookup(event.mcc),
+          sourceLabel: resolved.sourceLabel,
+          rawPayload: raw,
+          verdict: home?.verdictFor(resolved.countryCode),
+          payeeKind: resolved.payeeKind,
+          details: {
+            if (resolved.acquirer != null)
+              'Payment company': resolved.acquirer!,
+            if (resolved.merchantHandle != null)
+              'Pays to': resolved.merchantHandle!,
+            if (resolved.merchantCity != null) 'City': resolved.merchantCity!,
+            if (resolved.countryCode != null)
+              'Country': resolved.countryCode!,
+            if (resolved.amount != null)
+              'Amount': '${resolved.currency ?? ''} ${resolved.amount}'.trim(),
+            if (resolved.terminalId != null)
+              'Terminal': resolved.terminalId!,
+          },
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _capturing = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final recent = ref.watch(recentCapturesProvider);
     final repo = ref.watch(captureRepositoryProvider);
     final count = ref.watch(captureCountProvider).valueOrNull ?? 0;
+    final home = ref.watch(homeMarketProvider).valueOrNull;
 
     final pages = [
       recent.when(
@@ -90,6 +197,8 @@ class _SwipShellState extends ConsumerState<SwipShell> {
           recent: events,
           mccFor: (code) => repo.valueOrNull?.lookup(code),
           timeFormat: _timeFormat,
+          homeMarket: home,
+          active: _index == 0 && _resumed && !_capturing,
           // Vector 2 is Android-only: Apple permits host card emulation for
           // contactless transactions in the EEA only, and India is not
           // included. The tile is dimmed and explained, never hidden.
@@ -98,6 +207,7 @@ class _SwipShellState extends ConsumerState<SwipShell> {
           onOpenLedger: () => setState(() => _index = 1),
           onOpenSettings: () => setState(() => _index = 2),
           onOpenCapture: _openCapture,
+          onScanned: _onInlineScan,
         ),
       ),
       LedgerPage(timeFormat: _timeFormat, onToggleTime: _toggleTime),

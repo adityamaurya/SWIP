@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
+import '../core/settings/home_market.dart';
 import '../core/theme/swip_tokens.dart';
 import '../data/models/capture_event.dart';
 import '../data/models/mcc.dart';
+import '../data/sources/merchant_identity.dart';
 import '../data/sources/payload_kind.dart';
 import 'mcc_badge.dart';
 
@@ -34,6 +36,8 @@ class CaptureSheet extends StatelessWidget {
     this.primaryLabel = 'Done',
     this.noCategoryTitle,
     this.noCategoryBody,
+    this.verdict,
+    this.payeeKind = PayeeKind.undetermined,
   });
 
   final CaptureEvent event;
@@ -58,6 +62,14 @@ class CaptureSheet extends StatelessWidget {
   final String? noCategoryTitle;
   final String? noCategoryBody;
 
+  /// `F-16`. Domestic or international, decided against the user's home market.
+  final MarketVerdict? verdict;
+
+  /// `F-42`. Whether the payee is a registered business or a person. Changes
+  /// what "no category" *means*, which is the whole difference between "this
+  /// will not earn" and "this shop's bank did not publish it".
+  final PayeeKind payeeKind;
+
   @override
   Widget build(BuildContext context) {
     final known = event.hasMcc;
@@ -69,6 +81,8 @@ class CaptureSheet extends StatelessWidget {
     final explanation = rawPayload == null || !_payloadIsTheCode(event.vector)
         ? null
         : PayloadExplanation.of(rawPayload!, hasMcc: known);
+
+    final isRegisteredMerchant = payeeKind == PayeeKind.registeredMerchant;
 
     return SafeArea(
       child: Padding(
@@ -90,6 +104,13 @@ class CaptureSheet extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                if (verdict != null) ...[
+                  _Badge(
+                    text: verdict!.isInternational ? 'INTL' : 'DOMESTIC',
+                    accent: verdict!.isInternational,
+                  ),
+                  const SizedBox(width: SwipSpace.xs),
+                ],
                 _Badge(text: explanation?.badge ?? _vectorBadge(event.vector)),
               ],
             ),
@@ -110,38 +131,65 @@ class CaptureSheet extends StatelessWidget {
                   .moveY(begin: 10, curve: SwipMotion.captureCurve),
             ] else ...[
               // No category — say what this is instead, in plain words.
+              //
+              // `F-42`. A registered shop with no category is a completely
+              // different situation from a friend's personal code, and the old
+              // copy called both "unrecognised". Precedence: what the vector
+              // knows > what the handle proves > what the payload sniff guessed.
               Text(
                 noCategoryTitle ??
-                    explanation?.title ??
-                    'No category in this code',
+                    (isRegisteredMerchant
+                        ? 'A real shop — its category was not in the code'
+                        : explanation?.title ?? 'No category in this code'),
                 style: SwipType.titleM.copyWith(color: SwipColors.textPrimary),
               ),
               const SizedBox(height: SwipSpace.sm),
               Text(
                 noCategoryBody ??
-                    explanation?.body ??
-                    'This code carried no category. SWIP will fill it in if '
-                        'anyone captures this merchant another way.',
+                    (isRegisteredMerchant
+                        ? 'This is a registered business, not a person — so it '
+                            'can earn. But the category is set by the shop\'s '
+                            'bank and this sticker does not carry it. Tap the '
+                            'shop\'s card machine, or add the category yourself '
+                            'once you see it on your statement, and SWIP will '
+                            'know this shop from then on.'
+                        : explanation?.body ??
+                            'This code carried no category. SWIP will fill it '
+                                'in if anyone captures this merchant another '
+                                'way.'),
                 style: SwipType.bodyM
                     .copyWith(color: SwipColors.textSecondary),
               ),
             ],
 
-            // 3 ── the merchant
-            if (event.merchantName != null) ...[
+            // 3 ── the merchant, registered name where one exists.
+            //
+            // `F-42`. Falls back to the payee handle rather than to the PSP's
+            // name. `paytmqr6twbbd@ptys` is checkable against the sticker in
+            // front of you; "Paytm" is the payment company and was appearing as
+            // the shop on every Paytm QR in the country.
+            if (event.identityLine != null) ...[
               const SizedBox(height: SwipSpace.md),
               Row(
                 children: [
-                  const Icon(Icons.storefront_outlined,
-                      size: 16, color: SwipColors.textTertiary),
+                  Icon(
+                    event.merchantName == null
+                        ? Icons.alternate_email_rounded
+                        : Icons.storefront_outlined,
+                    size: 16,
+                    color: SwipColors.textTertiary,
+                  ),
                   const SizedBox(width: SwipSpace.sm),
                   Expanded(
                     child: Text(
-                      [event.merchantName, event.merchantCity]
+                      [event.identityLine, event.merchantCity]
                           .whereType<String>()
                           .join(' · '),
-                      style: SwipType.titleS
-                          .copyWith(color: SwipColors.textPrimary),
+                      style: SwipType.titleS.copyWith(
+                        color: event.merchantName == null
+                            ? SwipColors.textSecondary
+                            : SwipColors.textPrimary,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -339,19 +387,29 @@ class _FoilCode extends StatelessWidget {
 }
 
 class _Badge extends StatelessWidget {
-  const _Badge({required this.text});
+  const _Badge({required this.text, this.accent = false});
+
   final String text;
+
+  /// `F-16`. Amber, only for International. Domestic is the common case and a
+  /// badge on every single row stops being read after a week — the colour is
+  /// reserved for the one that changes what a card pays.
+  final bool accent;
 
   @override
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(
             horizontal: SwipSpace.sm, vertical: 3),
         decoration: BoxDecoration(
+          color: accent ? SwipColors.warningFill : null,
           borderRadius: SwipRadius.chipAll,
-          border: Border.all(color: SwipColors.hairline),
+          border: Border.all(
+              color: accent ? SwipColors.warningOnInk : SwipColors.hairline),
         ),
         child: Text(text,
-            style: SwipType.labelS
-                .copyWith(color: SwipColors.textSecondary)),
+            style: SwipType.labelS.copyWith(
+                color: accent
+                    ? SwipColors.warningOnInk
+                    : SwipColors.textSecondary)),
       );
 }

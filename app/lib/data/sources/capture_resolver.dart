@@ -1,5 +1,6 @@
 import '../models/capture_event.dart';
 import 'emv_qr_parser.dart';
+import 'merchant_identity.dart';
 import 'upi_uri_parser.dart';
 
 /// One entry point for every string SWIP can be handed.
@@ -43,17 +44,37 @@ abstract final class CaptureResolver {
       final upi = UpiUriParser.tryParse(raw);
       if (upi != null) {
         final vpa = upi.payeeAddress;
+
+        // `F-42`. The handle, not `pn`, is the reliable identity. A Paytm shop
+        // sticker says `pn=Paytm`, which is the payment company rather than the
+        // shop — showing it as the merchant put "Paytm" on five ledger rows
+        // that were five different shops.
+        final identity = vpa == null
+            ? null
+            : MerchantIdentifier.of(
+                vpa,
+                payeeName: upi.payeeName,
+                signed: upi.isSigned,
+                mode: upi.params['mode'],
+              );
+
         return ResolvedCapture(
           vector: CaptureVector.qr,
           kind: CaptureKind.upi,
           mcc: upi.mcc,
-          merchantName: upi.payeeName,
+          merchantName: identity?.displayName ??
+              (vpa == null ? upi.payeeName : null),
+          merchantHandle: vpa?.toLowerCase(),
+          payeeKind: identity?.kind ?? PayeeKind.undetermined,
+          acquirer: identity?.psp,
           merchantKey: vpa == null ? null : 'upi:${vpa.toLowerCase()}',
           amount: upi.amount,
           currency: upi.currency ?? 'INR',
           countryCode: 'IN',
           rawPayload: raw,
-          sourceLabel: 'UPI QR',
+          sourceLabel: identity?.psp == null
+              ? 'UPI QR'
+              : 'UPI QR · ${identity!.psp}',
         );
       }
     }
@@ -69,7 +90,11 @@ abstract final class CaptureResolver {
           vector: CaptureVector.qr,
           kind: CaptureKind.emvco,
           mcc: emv.mcc,
-          merchantName: emv.merchantName,
+          // Tag 59 is free text the QR printer fills in, and PSP-printed
+          // BharatQR stickers carry the same placeholders as UPI's `pn`.
+          merchantName: MerchantIdentifier.isGenericName(emv.merchantName)
+              ? null
+              : emv.merchantName,
           merchantCity: emv.merchantCity,
           countryCode: emv.countryCode,
           merchantKey: _emvMerchantKey(emv),
@@ -315,6 +340,8 @@ class ResolvedCapture {
     this.terminalId,
     this.acquirer,
     this.rawPayload,
+    this.merchantHandle,
+    this.payeeKind = PayeeKind.undetermined,
   });
 
   final CaptureVector vector;
@@ -335,5 +362,18 @@ class ResolvedCapture {
   final String? acquirer;
   final String? rawPayload;
 
+  /// `F-42`. The payee handle exactly as the code carried it —
+  /// `paytmqr6twbbd@ptys`. Shown when no trustworthy merchant name exists,
+  /// because a handle a person can read off the sticker and check is worth
+  /// more than a name SWIP made up.
+  final String? merchantHandle;
+
+  /// Whether the payee is a registered business, a person, or undetermined.
+  final PayeeKind payeeKind;
+
   bool get hasMcc => mcc != null && mcc!.length == 4 && mcc != '0000';
+
+  /// The line to print where a shop's name goes. Falls back through: a real
+  /// name → the handle → nothing (and the UI then leads with the category).
+  String? get identityLine => merchantName ?? merchantHandle;
 }

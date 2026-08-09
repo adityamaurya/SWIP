@@ -8,8 +8,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/onboarding/primers.dart';
+import '../../core/settings/home_market.dart';
 import '../../core/theme/swip_tokens.dart';
 import '../../data/repositories/capture_repository.dart';
+import '../onboarding/home_market_page.dart';
 
 /// `S-12` — Settings.
 ///
@@ -23,12 +25,36 @@ class SettingsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final count = ref.watch(captureCountProvider).valueOrNull ?? 0;
+    final home = ref.watch(homeMarketProvider).valueOrNull;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: SwipSpace.sm),
         children: [
+          _header('Where you are'),
+
+          // `F-15`. Changeable, because people move — and because a wrong
+          // answer here silently mislabels every capture as domestic.
+          ListTile(
+            leading: Text(home?.flag ?? '🏳️',
+                style: const TextStyle(fontSize: 24)),
+            title: const Text('Home country'),
+            subtitle: Text(
+              home == null
+                  ? 'Not set — captures cannot be marked domestic or '
+                      'international'
+                  : '${home.displayName} · ${home.currency}',
+              style: SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
+            ),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) =>
+                  HomeMarketPage(initial: home, isOnboarding: false),
+            )),
+          ),
+
+          const Divider(height: SwipSpace.xxl),
           _header('Your data'),
 
           ListTile(

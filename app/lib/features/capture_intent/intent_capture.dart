@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/settings/home_market.dart';
 import '../../core/theme/swip_tokens.dart';
 import '../../data/models/capture_event.dart';
 import '../../data/repositories/capture_repository.dart';
@@ -97,6 +98,7 @@ class _IntentCaptureListenerState extends ConsumerState<IntentCaptureListener>
     try {
       final resolved = CaptureResolver.resolve(uri);
       final repo = await ref.read(captureRepositoryProvider.future);
+      final home = ref.read(homeMarketProvider).valueOrNull;
 
       final event = await repo.record(
         // Force the vector: the resolver sees a UPI payload and would call it
@@ -127,6 +129,8 @@ class _IntentCaptureListenerState extends ConsumerState<IntentCaptureListener>
           mcc: repo.lookup(event.mcc),
           sourceLabel: 'Pay-by-app · ${resolved.sourceLabel}',
           rawPayload: uri,
+          verdict: home?.verdictFor(resolved.countryCode),
+          payeeKind: resolved.payeeKind,
           // Without this, the payload sniffer would call a Swiggy or PVR
           // checkout "a personal UPI code, not a shop" — it is plainly a shop,
           // it just did not put a category in the intent.

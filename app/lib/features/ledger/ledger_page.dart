@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/onboarding/primers.dart';
+import '../../core/settings/home_market.dart';
 import '../../core/theme/swip_tokens.dart';
 import '../../core/utils/swip_time.dart';
 import '../../data/models/capture_event.dart';
@@ -11,7 +12,8 @@ import '../../widgets/ledger_row.dart';
 
 /// `S-04` — the Ledger.
 ///
-/// `D-01` simple · `D-02` every vector writes here · `D-04`–`D-10`.
+/// `D-01` simple · `D-02` every vector writes here · `D-04`–`D-10` ·
+/// `F-06` the uncategorised filter · `F-07` collapsed rows shown, not vanished.
 class LedgerPage extends ConsumerStatefulWidget {
   const LedgerPage({super.key, required this.timeFormat, this.onToggleTime});
 
@@ -23,7 +25,8 @@ class LedgerPage extends ConsumerStatefulWidget {
 }
 
 class _LedgerPageState extends ConsumerState<LedgerPage> {
-  CaptureVector? _filter;
+  CaptureVector? _vector;
+  bool _hideUncategorised = false;
 
   @override
   void initState() {
@@ -35,8 +38,9 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
 
   @override
   Widget build(BuildContext context) {
-    final async = ref.watch(allCapturesProvider(_filter));
+    final async = ref.watch(allCapturesProvider(_vector));
     final repoAsync = ref.watch(captureRepositoryProvider);
+    final home = ref.watch(homeMarketProvider).valueOrNull;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Ledger')),
@@ -55,20 +59,36 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
               data: (events) {
                 if (events.isEmpty) return const _EmptyLedger();
                 final repo = repoAsync.valueOrNull;
+                final rows = _rowsFor(events);
+
+                if (rows.isEmpty) return const _AllHidden();
 
                 return ListView.separated(
                   padding: const EdgeInsets.symmetric(
                       horizontal: SwipSpace.gutter, vertical: SwipSpace.sm),
-                  itemCount: events.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemCount: rows.length,
+                  separatorBuilder: (_, i) =>
+                      rows[i] is _GapRow ? const SizedBox.shrink()
+                          : const Divider(height: 1),
                   itemBuilder: (context, i) {
-                    final e = events[i];
-                    return LedgerRow(
-                      event: e,
-                      mcc: repo?.lookup(e.mcc),
-                      timeFormat: widget.timeFormat,
-                      onToggleTimeFormat: widget.onToggleTime,
-                    )
+                    final row = rows[i];
+
+                    final child = switch (row) {
+                      _GapRow(:final hidden) => _CollapsedBreak(
+                          hidden: hidden,
+                          onTap: () =>
+                              setState(() => _hideUncategorised = false),
+                        ),
+                      _EventRow(:final event) => LedgerRow(
+                          event: event,
+                          mcc: repo?.lookup(event.mcc),
+                          timeFormat: widget.timeFormat,
+                          verdict: home?.verdictFor(event.countryCode),
+                          onToggleTimeFormat: widget.onToggleTime,
+                        ),
+                    };
+
+                    return child
                         .animate()
                         .fadeIn(
                             delay: (i.clamp(0, 12) * 28).ms, duration: 260.ms)
@@ -83,33 +103,97 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
     );
   }
 
-  Widget _filters() => SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(
-            SwipSpace.gutter, 0, SwipSpace.gutter, SwipSpace.md),
-        child: Row(
-          children: [
-            _chip('All', null),
-            for (final v in [
-              CaptureVector.qr,
-              CaptureVector.nfc,
-              CaptureVector.intent,
-              CaptureVector.link,
-              CaptureVector.manual,
-            ])
-              _chip(v.shortLabel, v),
-          ],
-        ),
+  /// `F-07`. Hiding rows must never make them *disappear* — a spreadsheet shows
+  /// a break where rows are collapsed, and that break is how you know you are
+  /// not looking at everything. Consecutive hidden captures collapse into one
+  /// dotted row that names how many and is tappable to bring them back.
+  List<_Row> _rowsFor(List<CaptureEvent> events) {
+    if (!_hideUncategorised) {
+      return [for (final e in events) _EventRow(e)];
+    }
+
+    final rows = <_Row>[];
+    var run = 0;
+    for (final e in events) {
+      if (_isUncategorised(e)) {
+        run++;
+        continue;
+      }
+      if (run > 0) {
+        rows.add(_GapRow(run));
+        run = 0;
+      }
+      rows.add(_EventRow(e));
+    }
+    if (run > 0) rows.add(_GapRow(run));
+    return rows;
+  }
+
+  /// Uncategorised means *no usable category*: no code at all, or the explicit
+  /// `0000` that means "the bank never set one". A code SWIP simply does not
+  /// have a name for is still a category and stays visible.
+  static bool _isUncategorised(CaptureEvent e) =>
+      e.mcc == null || e.isUnclassified;
+
+  Widget _filters() => Column(
+        children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(
+                SwipSpace.gutter, 0, SwipSpace.gutter, SwipSpace.sm),
+            child: Row(
+              children: [
+                _chip('All', null),
+                for (final v in [
+                  CaptureVector.qr,
+                  CaptureVector.nfc,
+                  CaptureVector.intent,
+                  CaptureVector.link,
+                  CaptureVector.manual,
+                ])
+                  _chip(v.shortLabel, v),
+              ],
+            ),
+          ),
+          // `F-06` — the one toggle that matters, given its own line so it is
+          // never scrolled off the end of the vector chips.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+                SwipSpace.gutter, 0, SwipSpace.gutter, SwipSpace.md),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _hideUncategorised
+                        ? 'Showing only captures with a category'
+                        : 'Showing everything, categorised or not',
+                    style: SwipType.bodyS
+                        .copyWith(color: SwipColors.textTertiary),
+                  ),
+                ),
+                Text('Hide uncategorised',
+                    style: SwipType.bodyS
+                        .copyWith(color: SwipColors.textSecondary)),
+                Switch(
+                  value: _hideUncategorised,
+                  onChanged: (v) => setState(() => _hideUncategorised = v),
+                  activeThumbColor: SwipColors.gold500,
+                  activeTrackColor: SwipColors.gold900,
+                ),
+              ],
+            ),
+          ),
+        ],
       );
 
   Widget _chip(String label, CaptureVector? v) {
-    final selected = _filter == v;
+    final selected = _vector == v;
     return Padding(
       padding: const EdgeInsets.only(right: SwipSpace.sm),
       child: ChoiceChip(
         label: Text(label),
         selected: selected,
-        onSelected: (_) => setState(() => _filter = v),
+        onSelected: (_) => setState(() => _vector = v),
         showCheckmark: false,
         backgroundColor: SwipColors.surfaceRaised,
         selectedColor: SwipColors.gold900,
@@ -121,6 +205,97 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
       ),
     );
   }
+}
+
+// ── row model ─────────────────────────────────────────────────────────
+
+sealed class _Row {
+  const _Row();
+}
+
+class _EventRow extends _Row {
+  const _EventRow(this.event);
+  final CaptureEvent event;
+}
+
+class _GapRow extends _Row {
+  const _GapRow(this.hidden);
+  final int hidden;
+}
+
+/// `F-07` — the dotted break. Deliberately looks like a torn edge rather than a
+/// row: it is a statement that something is missing, not a thing to read.
+class _CollapsedBreak extends StatelessWidget {
+  const _CollapsedBreak({required this.hidden, this.onTap});
+  final int hidden;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+              horizontal: SwipSpace.lg, vertical: SwipSpace.sm),
+          child: Row(
+            children: [
+              const Expanded(child: _DottedRule()),
+              const SizedBox(width: SwipSpace.sm),
+              Text(
+                hidden == 1 ? '1 hidden' : '$hidden hidden',
+                style:
+                    SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
+              ),
+              const SizedBox(width: SwipSpace.xs),
+              const Icon(Icons.unfold_more_rounded,
+                  size: 14, color: SwipColors.textTertiary),
+              const SizedBox(width: SwipSpace.sm),
+              const Expanded(child: _DottedRule()),
+            ],
+          ),
+        ),
+      );
+}
+
+class _DottedRule extends StatelessWidget {
+  const _DottedRule();
+
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+        painter: _DottedPainter(),
+        size: const Size(double.infinity, 1),
+      );
+}
+
+class _DottedPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Paint()
+      ..color = SwipColors.hairline
+      ..strokeWidth = 1;
+    const dash = 3.0;
+    const gap = 4.0;
+    var x = 0.0;
+    while (x < size.width) {
+      canvas.drawLine(Offset(x, 0), Offset(x + dash, 0), p);
+      x += dash + gap;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DottedPainter oldDelegate) => false;
+}
+
+class _AllHidden extends StatelessWidget {
+  const _AllHidden();
+
+  @override
+  Widget build(BuildContext context) => const _Message(
+        title: 'Every capture here is uncategorised',
+        body: 'Turn off "Hide uncategorised" to see them. They are not '
+            'failures — most are shop stickers whose bank never wrote a '
+            'category into the code.',
+        icon: Icons.filter_alt_off_outlined,
+      );
 }
 
 class _EmptyLedger extends StatelessWidget {
