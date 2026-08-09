@@ -20,6 +20,10 @@ enum CaptureVector {
   /// Vector 4 — declined authorization on a SWIP Probe card (v2).
   probe('Probe', 'Probe card'),
 
+  /// Vector 7 — a merchant's "pay by any UPI app" intent, read on the way
+  /// through. The MCC arrives in the intent's `mc` parameter before payment.
+  intent('App', 'Pay-by-app intent'),
+
   /// Vector 5 — the user told us what posted on their statement.
   manual('Manual', 'You confirmed it'),
 
@@ -35,7 +39,11 @@ enum CaptureVector {
   bool get isLiveCapture =>
       this == CaptureVector.qr ||
       this == CaptureVector.nfc ||
-      this == CaptureVector.probe;
+      this == CaptureVector.probe ||
+      // The intent's `mc` is set by the merchant's own PSP, so it is as
+      // authoritative as a QR — it is the same field arriving by a different
+      // route, and it arrives before the payment rather than after.
+      this == CaptureVector.intent;
 }
 
 /// One row of the ledger.

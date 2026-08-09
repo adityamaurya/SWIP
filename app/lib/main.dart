@@ -7,6 +7,7 @@ import 'core/theme/swip_theme.dart';
 import 'core/theme/swip_tokens.dart';
 import 'core/utils/swip_time.dart';
 import 'data/repositories/capture_repository.dart';
+import 'features/capture_intent/intent_capture.dart';
 import 'features/capture_qr/scan_page.dart';
 import 'features/dashboard/dashboard_page.dart';
 import 'features/ledger/ledger_page.dart';
@@ -29,7 +30,7 @@ class SwipApp extends StatelessWidget {
         // Foil is the only look. Reverses A-06 — see
         // docs/14-VISUAL-DIRECTION-FOIL.md.
         themeMode: ThemeMode.dark,
-        home: const SwipShell(),
+        home: const IntentCaptureListener(child: SwipShell()),
       );
 }
 

@@ -59,6 +59,26 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!--
+              Vector 7 — the pay-by-app intent.
+
+              NPCI requires merchants to offer "Pay by any UPI App" on Android,
+              which fires an IMPLICIT intent. Android shows every app that can
+              handle it, and that list is the bottom sheet you see at checkout.
+              The intent carries `mc` — the merchant category code — before any
+              money moves.
+
+              SWIP registers here to READ that field and then hand the identical
+              intent straight on to a real UPI app. It renders no payment UI,
+              holds no funds, and is not a PSP. See docs/18-INTENT-CAPTURE.
+            -->
+            <intent-filter android:label="@string/swip_intent_label">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="upi" android:host="pay" />
+            </intent-filter>
+
             <!-- S-08: accept a shared payment link from any app's share sheet. -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />

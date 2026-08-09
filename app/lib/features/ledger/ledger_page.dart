@@ -93,6 +93,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
             for (final v in [
               CaptureVector.qr,
               CaptureVector.nfc,
+              CaptureVector.intent,
               CaptureVector.link,
               CaptureVector.manual,
             ])

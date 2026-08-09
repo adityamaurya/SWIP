@@ -10,4 +10,11 @@
     <string name="swip_hce_description">SWIP reads a terminal\'s merchant category and stops. It cannot make a payment.</string>
 
     <string name="swip_hce_aid_group">Merchant category reader — no payment is made</string>
+
+    <!--
+      Shown as SWIP's name inside the merchant's "pay by app" sheet, beside
+      GPay and PhonePe. It must not read like a wallet: a user glancing at that
+      list has to understand this one does not pay.
+    -->
+    <string name="swip_intent_label">SWIP · read category</string>
 </resources>

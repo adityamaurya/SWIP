@@ -199,6 +199,7 @@ class LedgerRow extends StatelessWidget {
         CaptureVector.qr => '▣',
         CaptureVector.nfc => '⌁',
         CaptureVector.link => '🔗',
+        CaptureVector.intent => '⇥',
         CaptureVector.probe => '🪪',
         CaptureVector.manual => '✎',
         CaptureVector.graph => '◎',

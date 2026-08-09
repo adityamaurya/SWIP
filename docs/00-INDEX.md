@@ -92,3 +92,5 @@ Inter's `tnum` needs enabling by hand on the `MCC` text style.
 | **14** | [14-VISUAL-DIRECTION-FOIL](14-VISUAL-DIRECTION-FOIL.md) | The dark "Foil" redesign — proposed, awaiting sign-off |
 | **15** | [15-TRADEMARK-SWIP](15-TRADEMARK-SWIP.md) | Trademarking the name and logo in India — every step, every link, real fees |
 | **16** | [16-V2-PRD](16-V2-PRD.md) | The money side: wallet, Probe card, travel MCC, coins, float, miles — constraint then workaround |
+| **17** | [17-BUILD-ANY-APK](17-BUILD-ANY-APK.md) | **The reusable recipe: get a downloadable APK for any project, nothing installed locally** |
+| **18** | [18-INTENT-CAPTURE-AND-TAP-TO-PHONE](18-INTENT-CAPTURE-AND-TAP-TO-PHONE.md) | Pay-by-app capture, geolocation, ledger filters, and the Paris phone-to-phone question |

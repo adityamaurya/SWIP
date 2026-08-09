@@ -43,6 +43,33 @@ class MainActivity : FlutterFragmentActivity() {
     /** True while S-03 is on screen. Drives preferred-service registration. */
     private var listening = false
 
+    /**
+     * The `upi://pay?...` URI SWIP was launched with, if any.
+     *
+     * Held here rather than pushed straight to Dart because the Flutter engine
+     * may not be attached yet when the Activity is created cold from a
+     * merchant's checkout — Dart pulls it when it is ready.
+     */
+    private var pendingUpi: String? = null
+
+    override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        super.onCreate(savedInstanceState)
+        capturePaymentIntent(intent)
+    }
+
+    /** `launchMode="singleTop"`, so a second checkout arrives here. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        capturePaymentIntent(intent)
+    }
+
+    private fun capturePaymentIntent(intent: Intent?) {
+        val data = intent?.data ?: return
+        if (data.scheme?.lowercase() != "upi") return
+        pendingUpi = data.toString()
+    }
+
     override fun configureFlutterEngine(engine: FlutterEngine) {
         super.configureFlutterEngine(engine)
 
@@ -78,6 +105,50 @@ class MainActivity : FlutterFragmentActivity() {
                     "openNfcSettings" -> {
                         startActivity(Intent(android.provider.Settings.ACTION_NFC_SETTINGS))
                         result.success(null)
+                    }
+
+                    // ── Vector 7: the pay-by-app intent ──────────────────
+                    //
+                    // Returns the pending upi:// URI once and clears it, so a
+                    // rebuild or a rotation cannot replay the same capture.
+                    "consumeUpiIntent" -> {
+                        result.success(pendingUpi)
+                        pendingUpi = null
+                    }
+
+                    // Hand the payment on to a real UPI app.
+                    //
+                    // EXTRA_EXCLUDE_COMPONENTS removes SWIP from the chooser it
+                    // opens. Without it the user would pick SWIP, be shown a
+                    // chooser containing SWIP, and could loop forever.
+                    "forwardUpiIntent" -> {
+                        val uri = call.argument<String>("uri")
+                        if (uri == null) {
+                            result.error("no_uri", "forwardUpiIntent needs a uri", null)
+                        } else {
+                            runCatching {
+                                val target = Intent(
+                                    Intent.ACTION_VIEW,
+                                    android.net.Uri.parse(uri)
+                                )
+                                val chooser = Intent.createChooser(target, "Pay with")
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                                    chooser.putExtra(
+                                        Intent.EXTRA_EXCLUDE_COMPONENTS,
+                                        arrayOf(
+                                            ComponentName(
+                                                this@MainActivity,
+                                                MainActivity::class.java
+                                            )
+                                        )
+                                    )
+                                }
+                                startActivity(chooser)
+                            }.fold(
+                                onSuccess = { result.success(true) },
+                                onFailure = { result.success(false) }
+                            )
+                        }
                     }
 
                     else -> result.notImplemented()
