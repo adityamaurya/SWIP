@@ -132,11 +132,19 @@ done
 #
 # compileSdk only controls which APIs are available at compile time — it does
 # not change targetSdk (runtime behaviour) or minSdk (device support).
+#
+# It must be PREPENDED, not appended. Flutter's root build script contains
+#   subprojects { project.evaluationDependsOn(":app") }
+# which evaluates every subproject on the spot. Registering an afterEvaluate
+# callback after that line throws "Cannot run Project.afterEvaluate(Action)
+# when the project is already evaluated" — the callback has to be in place
+# before evaluation is triggered.
 echo "▸ Forcing compileSdk 36 across plugin subprojects…"
 if [ -f android/build.gradle.kts ]; then
-  cat >> android/build.gradle.kts <<'KTS'
-
-// Added by tool/bootstrap.sh — see the script for why.
+  cat > /tmp/swip_compilesdk.kts <<'KTS'
+// Prepended by tool/bootstrap.sh — see the script for why, and for why this
+// must come before Flutter's `subprojects { evaluationDependsOn(":app") }`.
+//
 // Reflection rather than a typed cast: the AGP classes are not guaranteed to
 // be on the root project's classpath, and a ClassNotFound here would be a far
 // more confusing failure than the one this fixes.
@@ -152,11 +160,14 @@ subprojects {
         }
     }
 }
-KTS
-elif [ -f android/build.gradle ]; then
-  cat >> android/build.gradle <<'GROOVY'
 
-// Added by tool/bootstrap.sh — see the script for why.
+KTS
+  cat /tmp/swip_compilesdk.kts android/build.gradle.kts > /tmp/swip_root.kts
+  mv /tmp/swip_root.kts android/build.gradle.kts
+elif [ -f android/build.gradle ]; then
+  cat > /tmp/swip_compilesdk.gradle <<'GROOVY'
+// Prepended by tool/bootstrap.sh — must precede Flutter's
+// `subprojects { evaluationDependsOn(":app") }`.
 subprojects {
     afterEvaluate { p ->
         if (p.hasProperty('android')) {
@@ -164,7 +175,10 @@ subprojects {
         }
     }
 }
+
 GROOVY
+  cat /tmp/swip_compilesdk.gradle android/build.gradle > /tmp/swip_root.gradle
+  mv /tmp/swip_root.gradle android/build.gradle
 fi
 
 # ── 4c. The round launcher icon ─────────────────────────────────────────
