@@ -462,7 +462,7 @@ class _LastCaptureHero extends StatelessWidget {
                     // On Ink, gold returns to full text duty — 8.4:1. `F-76`:
                     // `NA` in grey when there is no code, so an absence can
                     // never be mistaken for a value.
-                    Text(
+                    //
                     // `F-86`. Every item in this row is flexible, because a
                     // 40 px number becomes a 64 px number the moment someone
                     // turns text size up — and four of those plus a pill, a tag
