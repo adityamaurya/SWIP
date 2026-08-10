@@ -511,6 +511,86 @@ return from Android's contactless settings are still yours to confirm on the pho
 
 ---
 
+## Prompt 26 — 10 Aug 2026 · The dashboard went black
+
+### The bug
+
+One line, added in prompt 25:
+
+```dart
+Row(crossAxisAlignment: CrossAxisAlignment.stretch, …)   // inside a sliver
+```
+
+A `SliverToBoxAdapter` hands its child an **unbounded** height. `stretch` makes
+`RenderFlex` pass that height down as a *tight* constraint —
+`BoxConstraints.tightFor(height: infinity)` — which throws during layout. The
+exception takes the entire `CustomScrollView` with it, so the header, the
+camera band, the tiles and the recent list vanish together and the body renders
+as nothing but the navigation bar.
+
+It was pointless as well as fatal: the tiles were already the same height,
+because each is a `Container(height: 104)`.
+
+### Why CI was green on a build whose main screen did not render
+
+`flutter analyze` cannot see it — the code is legal Dart — and the suite was
+entirely parser tests, so nothing had ever laid a screen out. A green tick
+meant *"this compiles"* and was reported as *"this works"*. That gap is the
+real defect; the missing line was just its first casualty.
+
+### Four more, found by the same sweep
+
+| Defect | Pre-existing? |
+|---|---|
+| Ledger row overflows horizontally above 1.3× text scale | **Yes — shipped in every build so far** |
+| Last Capture row overflows at large text (a 40 px number becomes 64 px) | Yes |
+| First-run card: three lines of prose in a fixed-height box | Yes |
+| `ConfidencePill` could not shrink — "Conflicting" is twice the width of "Likely" | Yes |
+
+All four are `Flexible` now, with `FittedBox(scaleDown)` where a number has to
+keep its shape. The ledger-row overflow only ever appeared for people with
+large text switched on: the readers who most needed the reflow were the only
+ones who saw it fail.
+
+### The guard
+
+[`dashboard_layout_test.dart`](../app/test/dashboard_layout_test.dart) lays the
+real dashboard out at 320, 360 and 412 dp, empty and populated, at 1.0× and
+1.6× text scale, and asserts nothing threw. **It fails on the commit that
+shipped the black dashboard**, and it caught the ledger-row overflow on its
+first run — a bug nothing in the project had ever been able to see.
+
+A bracket-balance pass over all 44 Dart files now runs before every push, after
+a dangling `Text(` from one of these fixes broke the parse and cost a red run.
+
+### The foil keeps catching the light
+
+`F-85`. The sheet's MCC swept once, 320 ms in, then sat as flat text for as long
+as the sheet stayed open — a loading flourish that has finished, which is the
+opposite of what the one number the product exists to deliver should say.
+
+The timeline now repeats with the delay **inside** the loop: 1800 ms of rest,
+900 ms of travel. The rest is the point. A continuous shimmer is a strobe next
+to text someone is trying to read; a periodic one is metal in a moving light.
+It also lands after the digits finish flying in rather than across them.
+
+### Code
+
+| File | Change |
+|---|---|
+| [`dashboard_page.dart`](../app/lib/features/dashboard/dashboard_page.dart) | `stretch` removed; hero row, tiles and first-run card made flexible |
+| [`ledger_row.dart`](../app/lib/widgets/ledger_row.dart) | The stacked (large-text) layout's cells are `Flexible` |
+| [`mcc_badge.dart`](../app/lib/widgets/mcc_badge.dart) | `ConfidencePill`'s word ellipsizes; the dot always survives |
+| [`capture_sheet.dart`](../app/lib/widgets/capture_sheet.dart) | The foil sweep repeats |
+| [`dashboard_layout_test.dart`](../app/test/dashboard_layout_test.dart) | **New.** The first test in the project that renders anything |
+
+### Open
+
+- *"Second, as per user experience on the MCC…"* — the prompt ends mid-sentence.
+  Held open rather than guessed at.
+
+---
+
 <!--
 Template for the next entry:
 

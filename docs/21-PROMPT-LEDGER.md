@@ -397,7 +397,7 @@ Three more, from the same reading:
 
 ---
 
-## Prompt 25 — the deck, the ledger's way in, and one language per row *(current)*
+## Prompt 25 — the deck, the ledger's way in, and one language per row
 
 **Original prompt, verbatim:**
 
@@ -481,6 +481,52 @@ Where the geolocation permission was off at capture time there is no place to
 show, so the row shows nothing rather than inventing one. Rows captured before
 location was switched on will stay blank for ever — that history cannot be
 recovered, only added to from here.
+
+---
+
+## Prompt 26 — the dashboard went black *(current)*
+
+**Original prompt, verbatim:**
+
+> Now, what is happening? The dashboard is broken fully! Please do a deep dive
+> and sanity check throughout the code and fix why this is happening. Also, when
+> the model pops up showing the MCC code, I want you to keep on animating, as in
+> keep it shimmering, after the most logical time. Second, as per user experience
+> on the MCC
+
+*(The prompt ends there. The second point is truncated mid-sentence and has NOT
+been guessed at — it stays open until you send the rest.)*
+
+| # | ID | To-do | Status |
+|---|---|---|---|
+| 26.1 | `F-84` | **The dashboard renders nothing.** Find it and fix it | ✅ `CrossAxisAlignment.stretch` on a Row inside a `SliverToBoxAdapter` |
+| 26.2 | `F-84` | Deep dive + sanity check throughout | ✅ found three more defects, below |
+| 26.3 | `F-85` | The MCC in the sheet must **keep shimmering** after the logical moment | ✅ repeating timeline, 1800 ms rest + 900 ms sweep |
+| 26.4 | — | *"Second, as per user experience on the MCC…"* | 🔍 **truncated — held open, not invented** |
+
+### What the deep dive found
+
+| # | Defect | Where | Pre-existing? |
+|---|---|---|---|
+| 1 | `stretch` inside a sliver throws on layout and kills the whole `CustomScrollView` | `dashboard_page.dart` | No — I introduced it in prompt 25 |
+| 2 | Ledger row overflows horizontally above 1.3× text scale | `ledger_row.dart` | **Yes — every build so far** |
+| 3 | Last Capture row overflows at large text: a 40 px number becomes 64 px | `dashboard_page.dart` | Yes |
+| 4 | First-run card: three lines of prose in a fixed-height box | `dashboard_page.dart` | Yes |
+| 5 | `ConfidencePill` could not shrink — "Conflicting" is twice the width of "Likely" | `mcc_badge.dart` | Yes |
+
+### The process failure behind it
+
+`flutter analyze` and a suite of pure parser tests cannot see a layout error.
+A green CI meant *"the code compiles"*, and it was reported as *"the app
+works"*. [`dashboard_layout_test.dart`](../app/test/dashboard_layout_test.dart)
+now lays the real screen out at three widths, empty and populated, at 1.0× and
+1.6× text scale. It fails on the commit that shipped the black dashboard, and
+it caught defect 2 — which nothing had ever been able to catch — on its first
+run.
+
+A bracket-balance pass over all 44 Dart files is also run before pushing now,
+after a dangling `Text(` from one of these very fixes broke the parse and cost
+a whole red run.
 
 ---
 
