@@ -374,6 +374,7 @@ class CaptureSheet extends StatelessWidget {
         CaptureVector.probe => 'PROBE',
         CaptureVector.manual => 'YOU',
         CaptureVector.graph => 'KNOWN',
+        CaptureVector.statement => 'BANK',
       };
 
   static void _showRaw(BuildContext context, String raw) {
@@ -545,6 +546,11 @@ class _DetectionLine extends StatelessWidget {
           Icons.badge_outlined,
           'Read from a declined authorisation',
           'SWIP Probe',
+        ),
+      CaptureVector.statement => (
+          Icons.receipt_long_rounded,
+          'Read from your bank statement',
+          'what the acquirer actually posted',
         ),
     };
 

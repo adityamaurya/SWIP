@@ -13,6 +13,7 @@ import '../../core/settings/home_market.dart';
 import '../../core/theme/swip_tokens.dart';
 import '../../data/repositories/capture_repository.dart';
 import '../onboarding/home_market_page.dart';
+import '../statement/statement_import_page.dart';
 
 /// `S-12` — Settings.
 ///
@@ -72,6 +73,26 @@ class SettingsPage extends ConsumerWidget {
             activeThumbColor: SwipColors.gold500,
             activeTrackColor: SwipColors.gold900,
             onChanged: (want) => _setLocation(context, ref, want),
+          ),
+
+          const Divider(height: SwipSpace.xxl),
+          _header('Teach SWIP'),
+
+          // `F-50`. The highest-value screen in the app: a statement carries
+          // the category the acquirer actually posted, paired with the payee
+          // handle, for merchants whose QR carries nothing at all.
+          ListTile(
+            leading: const Icon(Icons.receipt_long_rounded),
+            title: const Text('Learn from a bank statement'),
+            subtitle: Text(
+              'Some banks print the category in the statement line. One paste '
+              'teaches SWIP every shop you have paid.',
+              style: SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
+            ),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const StatementImportPage(),
+            )),
           ),
 
           const Divider(height: SwipSpace.xxl),

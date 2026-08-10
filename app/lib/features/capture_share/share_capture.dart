@@ -111,6 +111,20 @@ class _ShareCaptureListenerState extends ConsumerState<ShareCaptureListener>
         return;
       }
 
+      // `F-50`. Selecting statement lines in a PDF viewer and hitting share is
+      // the shortest path there is to teaching SWIP a merchant, so a share
+      // that parses as a statement is treated as one rather than being run
+      // through the QR resolver and reported as "just text".
+      if (shared.kind == 'text') {
+        final repo = await ref.read(captureRepositoryProvider.future);
+        final learned = await repo.learnFromStatement(raw);
+        if (learned.learned > 0) {
+          ref.read(ledgerRevisionProvider.notifier).state++;
+          if (mounted) await _learnedFromStatement(learned);
+          return;
+        }
+      }
+
       await _record(raw, fromImage: shared.kind == 'image');
     } finally {
       _handling = false;
@@ -198,6 +212,56 @@ class _ShareCaptureListenerState extends ConsumerState<ShareCaptureListener>
       ),
     );
   }
+
+  /// `F-50`. A shared statement taught SWIP something. Reported quietly, with
+  /// the count, because the value is invisible otherwise — nothing on screen
+  /// changes until the next time one of those shops is scanned.
+  Future<void> _learnedFromStatement(
+          ({int learned, int backfilled}) result) =>
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: SwipColors.surfaceRaised,
+        builder: (ctx) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(SwipSpace.xl),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.receipt_long_rounded,
+                    size: 32, color: SwipColors.gold500),
+                const SizedBox(height: SwipSpace.lg),
+                Text(
+                  'Learned ${result.learned} '
+                  '${result.learned == 1 ? "merchant" : "merchants"}',
+                  style: SwipType.titleM
+                      .copyWith(color: SwipColors.textPrimary),
+                ),
+                const SizedBox(height: SwipSpace.sm),
+                Text(
+                  result.backfilled > 0
+                      ? 'Filled in ${result.backfilled} past '
+                          '${result.backfilled == 1 ? "capture" : "captures"} '
+                          'too. Those shops will answer the moment you scan '
+                          'them again.'
+                      : 'Those shops will answer the moment you scan them.',
+                  style: SwipType.bodyM
+                      .copyWith(color: SwipColors.textSecondary),
+                ),
+                const SizedBox(height: SwipSpace.xl),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text('Done'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
 
   /// The screenshot had no readable code. Says what to do next rather than
   /// just failing — a share that goes nowhere is worse than no share target.

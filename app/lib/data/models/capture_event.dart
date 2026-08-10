@@ -28,7 +28,14 @@ enum CaptureVector {
   manual('Manual', 'You confirmed it'),
 
   /// Vector 6 — answered from the merchant graph, no live capture.
-  graph('Known', 'SWIP merchant graph');
+  graph('Known', 'SWIP merchant graph'),
+
+  /// Vector 8 — read off a bank statement narration. `F-50`.
+  ///
+  /// The strongest source there is: it is the category the acquirer actually
+  /// posted, after the money moved, paired with the payee handle in the same
+  /// line. Not a prediction — the settled truth.
+  statement('Statement', 'Your bank statement');
 
   const CaptureVector(this.shortLabel, this.longLabel);
   final String shortLabel;

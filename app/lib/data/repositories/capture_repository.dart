@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/location/capture_location.dart';
 import '../models/capture_event.dart';
 import '../models/mcc.dart';
+import '../sources/statement_parser.dart';
 import '../sources/swip_database.dart';
 import 'mcc_repository.dart';
 
@@ -92,6 +93,58 @@ class CaptureRepository {
 
     await _db.insertCapture(event);
     return event;
+  }
+
+  /// `F-50` — teach SWIP from a bank statement.
+  ///
+  /// This is the highest-value path in the app, and it exists because of one
+  /// line on a Federal Bank statement:
+  ///
+  ///     UPIOUT/658724829452/paytm.s233ffl@pty/Demo/5451
+  ///
+  /// The category and the payee handle sit **in the same line**, and the handle
+  /// is in exactly the form a QR scan produces. So a statement does not teach
+  /// SWIP about a *payment* — it teaches SWIP about a **merchant**, permanently
+  /// and without asking the user which shop it was.
+  ///
+  /// Everything already captured for that merchant is back-filled, so the five
+  /// "Unknown category" rows from a shop you scanned last week acquire their
+  /// real code the moment the statement lands.
+  ///
+  /// Returns (merchants learned, past captures back-filled).
+  Future<({int learned, int backfilled})> learnFromStatement(
+      String text) async {
+    final entries = StatementParser.parseAll(
+      text,
+      isKnownMcc: (code) => _mcc.lookup(code) != null,
+    );
+
+    var backfilled = 0;
+
+    for (final entry in entries) {
+      final key = entry.merchantKey!;
+
+      // A statement row of its own, so the ledger shows where the knowledge
+      // came from and the graph counts it as an agreeing capture.
+      final event = CaptureEvent(
+        id: _newId(),
+        mcc: entry.mcc,
+        vector: CaptureVector.statement,
+        // The acquirer posted this after the money moved. Nothing SWIP can
+        // read is more authoritative.
+        confidence: MccConfidence.verified,
+        capturedAt: DateTime.now().toUtc(),
+        merchantKey: key,
+        merchantName: entry.note,
+        countryCode: 'IN',
+        rawPayload: entry.raw,
+      );
+      await _db.insertCapture(event);
+
+      backfilled += await _db.backfillMcc(key, entry.mcc!);
+    }
+
+    return (learned: entries.length, backfilled: backfilled);
   }
 
   Future<List<CaptureEvent>> recent({int limit = 5}) =>

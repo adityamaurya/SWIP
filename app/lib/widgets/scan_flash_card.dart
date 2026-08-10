@@ -154,6 +154,7 @@ class ScanFlashCard extends StatelessWidget {
         CaptureVector.graph => Icons.hub_outlined,
         CaptureVector.manual => Icons.edit_outlined,
         CaptureVector.probe => Icons.badge_outlined,
+        CaptureVector.statement => Icons.receipt_long_rounded,
       };
 
   /// `F-61` asked for "a type of detection i.e (qr or pos detection)".
@@ -165,5 +166,6 @@ class ScanFlashCard extends StatelessWidget {
         CaptureVector.graph => 'Already known',
         CaptureVector.manual => 'You entered it',
         CaptureVector.probe => 'Probe card',
+        CaptureVector.statement => 'From your statement',
       };
 }

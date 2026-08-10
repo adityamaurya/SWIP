@@ -171,6 +171,23 @@ class SwipDatabase {
     return rows.map(_fromRow).toList();
   }
 
+  /// `F-50`. Give every uncategorised capture of this merchant the category a
+  /// bank statement has now settled, and return how many were fixed.
+  ///
+  /// This is an **update in place**, which is the one exception to the
+  /// append-only rule and worth stating plainly: these rows were never wrong,
+  /// they were *blank*. Filling a blank is not rewriting history. A row that
+  /// already carries a different code is left alone — that is a genuine
+  /// disagreement and belongs to the conflict machinery, not to this.
+  Future<int> backfillMcc(String merchantKey, String mcc) async {
+    return _db.update(
+      'captures',
+      {'mcc': mcc, 'confidence': MccConfidence.verified.name},
+      where: 'merchant_key = ? AND (mcc IS NULL OR mcc = ?)',
+      whereArgs: [merchantKey, '0000'],
+    );
+  }
+
   Future<void> deleteCapture(String id) async =>
       _db.delete('captures', where: 'id = ?', whereArgs: [id]);
 

@@ -257,5 +257,6 @@ class LedgerRow extends StatelessWidget {
         CaptureVector.probe => '🪪',
         CaptureVector.manual => '✎',
         CaptureVector.graph => '◎',
+        CaptureVector.statement => '▤',
       };
 }
