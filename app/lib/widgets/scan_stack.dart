@@ -8,25 +8,32 @@ import 'scan_flash_card.dart';
 
 /// `F-62` — the stack of recent scans, docked at the bottom of the screen.
 ///
-/// ## Why the bottom, and why a toast
+/// ## The reference, taken properly this time
 ///
-/// The first version put the condensed card under the camera. Wrong place: it
-/// pushed the page around every time a code drifted through frame, and it sat
-/// in the middle of the layout as though it were content. It is not content —
-/// it is *notification*, and notifications belong at an edge.
+/// Apple's collapsed music player is *one* bar. It never becomes a carousel of
+/// equals, it never shows you a page indicator, and it never asks you to swipe
+/// sideways to find out what is behind it. It is one thing, in one place, with
+/// the implication of more.
 ///
-/// The reference is Apple's condensed music player: a small floating bar over
-/// the interface, always in the same place, ignorable, and one tap from the
-/// full thing. Nothing behind it moves when it appears.
+/// The first build of this used a `PageView`, which made every card an equal
+/// citizen competing for the same slot — a horizontal filmstrip pretending to
+/// be a stack. `F-79` replaces it with an actual deck:
 ///
-/// ## The stack
+///   * The newest capture is the **front card**, full size and full contrast.
+///   * Up to two cards behind it are drawn **inset and shorter**, peeking above
+///     the front card's top edge, dimmed. They are depth, not content — they
+///     are `IgnorePointer`ed so no tap can ever land on a card you cannot read.
+///   * Flicking the front card sideways dismisses it and the next one rises.
 ///
-/// Scanning continues, so cards accumulate. They page horizontally — newest
-/// first — and the cards behind peek out at the right edge so the depth is
-/// visible rather than implied. Anything older than a minute drops off the
-/// stack on its own; the ledger has it for ever, and a toast that never expires
-/// stops being a toast.
-class ScanStack extends StatefulWidget {
+/// The count moves onto the front card's own line rather than a caption below,
+/// because a line of text under a floating bar is one more thing to lay out
+/// over content that is already there.
+///
+/// ## Height
+///
+/// Fixed, and derived from [ScanFlashCard.height] plus the peek, rather than a
+/// hand-tuned number. The hand-tuned number is what overflowed by four pixels.
+class ScanStack extends StatelessWidget {
   const ScanStack({
     super.key,
     required this.events,
@@ -43,107 +50,91 @@ class ScanStack extends StatefulWidget {
   final void Function(CaptureEvent)? onExpand;
   final void Function(CaptureEvent)? onDismiss;
 
-  /// `F-63` — where the pull-string ends up.
+  /// Where "see the rest" ends up.
   final VoidCallback? onOpenLedger;
 
-  @override
-  State<ScanStack> createState() => _ScanStackState();
-}
+  /// How many cards are drawn behind the front one.
+  static const _behind = 2;
 
-class _ScanStackState extends State<ScanStack> {
-  final _pages = PageController(viewportFraction: .93);
-  int _page = 0;
+  /// Vertical offset per card behind. Small: this is a hint of depth, not a
+  /// fan of playing cards.
+  static const _peek = 7.0;
 
-  /// `F-63`. How far the stack has been dragged down, 0–1. Drives the number
-  /// of `e`s in "vieeeeew older scans", which is the whole joke: the word
-  /// stretches like bubblegum and snaps into the ledger when it has stretched
-  /// far enough.
-  double _pull = 0;
+  /// How much narrower each card behind is, per step.
+  static const _inset = 14.0;
 
-  static const _pullToOpen = 4; // e-count past which the ledger opens
-
-  @override
-  void dispose() {
-    _pages.dispose();
-    super.dispose();
-  }
-
-  int get _eCount => (_pull * 7).round().clamp(0, 9);
-
-  void _onPullEnd() {
-    if (_eCount > _pullToOpen) {
-      widget.onOpenLedger?.call();
-    }
-    setState(() => _pull = 0);
-  }
+  static const _height = ScanFlashCard.height + _peek * _behind;
 
   @override
   Widget build(BuildContext context) {
-    if (widget.events.isEmpty) return const SizedBox.shrink();
+    if (events.isEmpty) return const SizedBox.shrink();
+
+    final depth = events.length.clamp(1, _behind + 1);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // ── F-63, the pull string ──
-        if (_pull > 0.02)
+        // `F-80`. The count, and the way to everything older. It sits above the
+        // deck as one quiet line — the pull-string gesture it replaces was
+        // charming and undiscoverable, and it fought the page's own scrolling.
+        if (events.length > 1)
           Padding(
             padding: const EdgeInsets.only(bottom: SwipSpace.xs),
-            child: Text(
-              'vi${'e' * (2 + _eCount)}w older scans',
-              style: SwipType.labelS.copyWith(
-                color: _eCount > _pullToOpen
-                    ? SwipColors.gold500
-                    : SwipColors.textTertiary,
-                letterSpacing: .5 + _pull * 2,
+            child: GestureDetector(
+              onTap: onOpenLedger,
+              behavior: HitTestBehavior.opaque,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    '${events.length} just now',
+                    style: SwipType.labelS
+                        .copyWith(color: SwipColors.textTertiary),
+                  ),
+                  const SizedBox(width: SwipSpace.xs),
+                  Text(
+                    'See all',
+                    style:
+                        SwipType.labelS.copyWith(color: SwipColors.gold500),
+                  ),
+                  const Icon(Icons.chevron_right_rounded,
+                      size: 14, color: SwipColors.gold500),
+                ],
               ),
             ),
           ),
 
-        GestureDetector(
-          // Dragging the stack downwards stretches the word. Downwards because
-          // the stack is docked at the bottom: you are pulling it further out
-          // of the way to look behind it.
-          onVerticalDragUpdate: (d) => setState(
-              () => _pull = (_pull + d.primaryDelta! / 160).clamp(0.0, 1.0)),
-          onVerticalDragEnd: (_) => _onPullEnd(),
-          child: SizedBox(
-            height: 86,
-            child: PageView.builder(
-              controller: _pages,
-              onPageChanged: (i) => setState(() => _page = i),
-              itemCount: widget.events.length,
-              padEnds: false,
-              itemBuilder: (context, i) {
-                final event = widget.events[i];
-                return Padding(
-                  padding: EdgeInsets.only(
-                    right: SwipSpace.sm,
-                    // The cards behind sit slightly lower, so the stack reads
-                    // as depth rather than as a carousel of equals.
-                    top: i == _page ? 0 : 5,
-                    bottom: i == _page ? 0 : 5,
+        SizedBox(
+          height: _height,
+          child: Stack(
+            alignment: Alignment.bottomCenter,
+            children: [
+              // Back to front, so the newest ends up on top of the pile.
+              for (var i = depth - 1; i >= 0; i--)
+                Positioned(
+                  left: _inset * i,
+                  right: _inset * i,
+                  bottom: 0,
+                  // Cards behind are pushed *up*, so they peek out of the top
+                  // edge. Downwards would bury them under the navigation bar.
+                  child: Padding(
+                    padding: EdgeInsets.only(bottom: _peek * i),
+                    child: Opacity(
+                      opacity: i == 0 ? 1 : (i == 1 ? .55 : .3),
+                      child: ScanFlashCard(
+                        key: ValueKey(events[i].id),
+                        event: events[i],
+                        mcc: mccFor(events[i].mcc),
+                        dimmed: i != 0,
+                        onExpand: () => onExpand?.call(events[i]),
+                        onDismiss: () => onDismiss?.call(events[i]),
+                      ),
+                    ),
                   ),
-                  child: ScanFlashCard(
-                    event: event,
-                    mcc: widget.mccFor(event.mcc),
-                    onExpand: () => widget.onExpand?.call(event),
-                    onDismiss: () => widget.onDismiss?.call(event),
-                  ),
-                );
-              },
-            ),
+                ),
+            ],
           ),
         ),
-
-        if (widget.events.length > 1)
-          Padding(
-            padding: const EdgeInsets.only(top: SwipSpace.xs),
-            child: Text(
-              '${_page + 1} of ${widget.events.length} in the last minute',
-              style:
-                  SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
-            ),
-          ),
       ],
     ).animate().fadeIn(duration: 240.ms).moveY(begin: 24, end: 0);
   }

@@ -10,7 +10,6 @@ import 'core/utils/swip_time.dart';
 import 'data/repositories/capture_repository.dart';
 import 'data/models/capture_event.dart';
 import 'data/sources/capture_resolver.dart';
-import 'data/sources/merchant_identity.dart';
 import 'data/sources/merchant_reconciler.dart';
 import 'features/capture_intent/intent_capture.dart';
 import 'features/capture_link/link_page.dart';
@@ -21,7 +20,7 @@ import 'features/dashboard/dashboard_page.dart';
 import 'features/ledger/ledger_page.dart';
 import 'features/onboarding/home_market_page.dart';
 import 'features/settings/settings_page.dart';
-import 'widgets/capture_sheet.dart';
+import 'widgets/capture_detail.dart';
 import 'widgets/scan_stack.dart';
 
 void main() {
@@ -150,8 +149,6 @@ class _SwipShellState extends ConsumerState<SwipShell>
             : TimeFormatPref.absolute;
       });
 
-  Future<void> _openScan() => _openCapture(CaptureVector.qr);
-
   /// F-08, F-09. The dashboard has always sent which tile was tapped; the
   /// shell used to throw it away and open the scanner regardless, which is
   /// why Tap and Link appeared to do nothing.
@@ -244,42 +241,12 @@ class _SwipShellState extends ConsumerState<SwipShell>
     ));
   }
 
-  /// The chevron on the condensed card — everything the old modal showed.
-  Future<void> _expandFlash(CaptureEvent event) async {
-    final repo = await ref.read(captureRepositoryProvider.future);
-    if (!mounted) return;
-    final home = ref.read(homeMarketProvider).valueOrNull;
-
-    final resolved = event.rawPayload == null
-        ? null
-        : CaptureResolver.resolve(event.rawPayload!);
-
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: SwipColors.surfaceRaised,
-      builder: (_) => CaptureSheet(
-        event: event,
-        mcc: repo.lookup(event.mcc),
-        sourceLabel: resolved?.sourceLabel ?? event.vector.longLabel,
-        rawPayload: event.rawPayload,
-        verdict: home?.verdictFor(event.countryCode,
-            deviceCountry: event.placeCountry),
-        payeeKind: resolved?.payeeKind ?? PayeeKind.undetermined,
-        tier: resolved?.tier ?? MerchantTier.unknown,
-        details: {
-          if (event.acquirer != null) 'Payment company': event.acquirer!,
-          if (event.merchantHandle != null) 'Pays to': event.merchantHandle!,
-          if (event.merchantCity != null) 'City': event.merchantCity!,
-          if (event.countryCode != null) 'Country': event.countryCode!,
-          if (event.placeLabel != null) 'Where': event.placeLabel!,
-          if (event.amount != null)
-            'Amount': '${event.currency ?? ''} ${event.amount}'.trim(),
-          if (event.terminalId != null) 'Terminal': event.terminalId!,
-        },
-      ),
-    );
-  }
+  /// A tap on a condensed card, or on a row of the dashboard's recent list.
+  ///
+  /// Both go through [showCaptureDetail], which the Ledger now uses too — so
+  /// the three places you can tap a capture cannot describe it differently.
+  Future<void> _expandFlash(CaptureEvent event) =>
+      showCaptureDetail(context, ref, event);
 
   @override
   Widget build(BuildContext context) {
@@ -356,13 +323,17 @@ class _SwipShellState extends ConsumerState<SwipShell>
             ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openScan,
-        backgroundColor: SwipColors.gold500,
-        foregroundColor: const Color(0xFF14100A),
-        icon: const Icon(Icons.qr_code_scanner_rounded),
-        label: Text('Capture', style: SwipType.label),
-      ),
+      // `F-82`. The Capture button is gone.
+      //
+      // It sat in the bottom-right corner, which is exactly where the condensed
+      // scan cards dock — so the moment SWIP found something, the gold pill was
+      // parked on top of the answer. A floating action button that covers the
+      // result of the action is worse than no button.
+      //
+      // Nothing is lost with it: the dashboard's top band is a live camera that
+      // is already scanning, double-tapping it opens the full scanner, and the
+      // Scan QR tile does the same thing with a label on it. The button was a
+      // fourth route to a screen that already had three.
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),

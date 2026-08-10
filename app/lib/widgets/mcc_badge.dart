@@ -12,28 +12,37 @@ import '../data/models/mcc.dart';
 class MccBadge extends StatelessWidget {
   const MccBadge(this.code, {super.key, this.size = MccBadgeSize.md});
 
-  /// `null` renders an em-dash rather than collapsing — a row with no category
-  /// must still occupy its column so the ledger stays aligned.
+  /// `null` renders `NA` rather than collapsing — a row with no category must
+  /// still occupy its column so the ledger stays aligned.
+  ///
+  /// `F-76`. It used to render an em-dash, which is punctuation pretending to
+  /// be a value: at a glance it reads as a hyphen, a minus, or a rendering
+  /// fault. `NA` is a word, it is unambiguous, and it is grey rather than gold
+  /// so a missing category can never be mistaken for a found one.
   final String? code;
   final MccBadgeSize size;
 
   @override
   Widget build(BuildContext context) {
+    final missing = code == null;
+
     final style = switch (size) {
       MccBadgeSize.sm => SwipType.label,
       MccBadgeSize.md => SwipType.mcc.copyWith(fontSize: 20, height: 24 / 20),
-      MccBadgeSize.lg => SwipType.mcc,
+      MccBadgeSize.lg => SwipType.mcc.copyWith(fontSize: 26, height: 30 / 26),
       MccBadgeSize.hero => SwipType.mcc.copyWith(fontSize: 56, height: 60 / 56),
     };
 
     return Text(
-      code ?? '—',
-      style: style.copyWith(color: SwipColors.gold500),
+      code ?? 'NA',
+      style: style.copyWith(
+        color: missing ? SwipColors.textTertiary : SwipColors.gold500,
+      ),
       // Never softWrap, never ellipsis: four digits always fit, and if they
       // ever did not that is a layout bug to fix, not to hide.
       softWrap: false,
       maxLines: 1,
-      semanticsLabel: code == null
+      semanticsLabel: missing
           ? 'No category code'
           : 'Category code ${code!.split('').join(' ')}',
     );
@@ -41,6 +50,38 @@ class MccBadge extends StatelessWidget {
 }
 
 enum MccBadgeSize { sm, md, lg, hero }
+
+/// `F-73` — the confidence word, sized to sit directly under the MCC.
+///
+/// The dot-and-word [ConfidencePill] is right where confidence stands alone. In
+/// a ledger row it had drifted into a line of five competing signals, where
+/// "Verified" read as a claim about the *shop*. It is a claim about the
+/// **number**, so here it is a caption: same column, smaller, no dot to add
+/// weight the line does not need.
+class ConfidenceCaption extends StatelessWidget {
+  const ConfidenceCaption(this.confidence, {super.key});
+
+  final MccConfidence confidence;
+
+  @override
+  Widget build(BuildContext context) {
+    final (fg, label) = switch (confidence) {
+      MccConfidence.verified => (SwipConfidenceColors.verifiedOnInk, 'Verified'),
+      MccConfidence.likely => (SwipConfidenceColors.likelyOnInk, 'Likely'),
+      MccConfidence.unknown => (SwipConfidenceColors.unknownOnInk, 'Unknown'),
+      MccConfidence.conflict =>
+        (SwipConfidenceColors.conflictOnInk, 'Conflicting'),
+    };
+
+    return Text(
+      label,
+      style: SwipType.labelS.copyWith(color: fg),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      semanticsLabel: 'Confidence: $label',
+    );
+  }
+}
 
 /// Confidence, as a dot **and** a word.
 ///

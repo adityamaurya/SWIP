@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../core/settings/home_market.dart';
 import '../core/theme/swip_tokens.dart';
 import '../core/utils/swip_time.dart';
 import '../data/models/capture_event.dart';
@@ -9,24 +8,34 @@ import 'mcc_badge.dart';
 
 /// One ledger row.
 ///
-/// Implements ideation `D-04`–`D-10` exactly:
+/// ## The three columns
 ///
-///   col 1  the MCC              — never truncated, fixed width  (`D-04`, `D-10`)
-///   col 2  detailed category    — 2 lines max                   (`D-05`)
-///          publication chips    — NATIONAL / INTL / RUPAY       (`D-05`)
-///          confidence + merchant + vector
-///   col 3  the time cell        — day+date+month over time      (`D-07`)
+///   col 1  the MCC, large, with its confidence word directly beneath  (`F-73`)
+///   col 2  the merchant, the category, and **where you were**         (`F-74`)
+///   col 3  the time, with a tag saying how it was read                (`F-75`)
 ///
-/// Everything that must give, gives in the merchant string. The MCC and the
-/// category never do — those are the "primary" that you said must always be
-/// visible.
+/// ## What was removed, and why
+///
+/// The row had grown a second language of its own: `NATIONAL`/`INTL` chips, a
+/// `▣` glyph, a lightning bolt, the acquirer's name, and the word "Domestic".
+/// Five signals, none of them legible without a legend, competing with the two
+/// facts the row exists to carry.
+///
+///   * **`NATIONAL` / `INTL` chips** — where a code is *published* is a fact
+///     about the code, not about your visit. It belongs on the MCC screen.
+///   * **`▣` and the bolt** — a private glyph alphabet nobody was taught. The
+///     vector is now a word: `SCAN`, `POS`, `LINK`.
+///   * **"Domestic"** — true and useless. You know which country you are in.
+///     The slot now carries the thing you actually search by: the place.
+///   * **The acquirer ("Paytm")** — on a row it reads as the shop's name, which
+///     is exactly the confusion `F-42` was about. It moved into the sheet,
+///     under a label that says what it is.
 class LedgerRow extends StatelessWidget {
   const LedgerRow({
     super.key,
     required this.event,
     required this.mcc,
     required this.timeFormat,
-    this.verdict,
     this.captureCount,
     this.onTap,
     this.onTapMcc,
@@ -43,14 +52,10 @@ class LedgerRow extends StatelessWidget {
 
   final TimeFormatPref timeFormat;
 
-  /// `F-16` — domestic or international, decided by the caller against the
-  /// user's home market. `null` when the capture carried no country.
-  final MarketVerdict? verdict;
-
   final int? captureCount;
 
-  /// `D-08` — every row is a hub. Three separate destinations from one row.
-  final VoidCallback? onTap; // -> S-05 capture detail
+  /// `D-08` — every row is a hub.
+  final VoidCallback? onTap; // -> the capture detail sheet
   final VoidCallback? onTapMcc; // -> S-06 MCC detail
   final VoidCallback? onTapMerchant; // -> S-07 merchant detail
   final VoidCallback? onToggleTimeFormat; // `D-07` toggle
@@ -80,11 +85,11 @@ class LedgerRow extends StatelessWidget {
   Widget _columns(BuildContext context) => Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 56, child: _mccCell()),
+          SizedBox(width: 62, child: _mccCell()),
           const SizedBox(width: SwipSpace.md),
           Expanded(child: _detailCell()),
           const SizedBox(width: SwipSpace.sm),
-          SizedBox(width: 64, child: _timeCell()),
+          SizedBox(width: 70, child: _timeCell()),
         ],
       );
 
@@ -94,17 +99,31 @@ class LedgerRow extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [_mccCell(), _timeCell(alignEnd: true)],
+            children: [_mccCell(), _timeCell()],
           ),
           const SizedBox(height: SwipSpace.sm),
           _detailCell(),
         ],
       );
 
+  /// `F-73`. The code, and immediately under it how much to trust it.
+  ///
+  /// Confidence used to sit in the third line of the middle column, next to
+  /// four other things, where "Verified" read as a property of the *merchant*.
+  /// It is a property of the **number**, so it lives with the number — smaller,
+  /// directly beneath, the way a caption sits under a figure.
   Widget _mccCell() => GestureDetector(
         onTap: onTapMcc,
         behavior: HitTestBehavior.opaque,
-        child: MccBadge(event.mcc),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            MccBadge(event.mcc, size: MccBadgeSize.lg),
+            const SizedBox(height: 1),
+            ConfidenceCaption(event.confidence),
+          ],
+        ),
       );
 
   /// `F-44`, and a reversal of `D-05`.
@@ -112,9 +131,7 @@ class LedgerRow extends StatelessWidget {
   /// The category used to lead and the merchant was a footnote. In the field
   /// that reads backwards: you are standing in front of a shop you can see, so
   /// the row's job is *"which visit was this"* first and *"what was it filed
-  /// as"* second. Line 1 is therefore the merchant — its registered name, or
-  /// the payee handle when the code carried no trustworthy name — and line 2 is
-  /// the category the code resolves to.
+  /// as"* second.
   Widget _detailCell() {
     final identity = event.identityLine;
 
@@ -146,31 +163,19 @@ class LedgerRow extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
         ),
 
-        if (mcc != null && mcc!.publications.isNotEmpty) ...[
-          const SizedBox(height: SwipSpace.xs + 2),
-          PublicationChips(mcc!.publications),
-        ],
-
-        const SizedBox(height: SwipSpace.xs + 2),
-        Row(
-          children: [
-            ConfidencePill(event.confidence, compact: true),
-            if (verdict != null) ...[
-              const SizedBox(width: SwipSpace.sm),
-              Text(
-                verdict!.isInternational ? 'Intl' : 'Domestic',
-                style: SwipType.bodyS.copyWith(
-                  color: verdict!.isInternational
-                      ? SwipColors.warningOnInk
-                      : SwipColors.textTertiary,
-                ),
-              ),
-            ],
-            // `F-40`. Where beats who-processed-it for recall — "the Bandra
-            // one" is how a person actually finds a past capture — so the place
-            // takes the slot when both exist.
-            if (event.placeLabel != null) ...[
-              const SizedBox(width: SwipSpace.sm),
+        // 3 ── `F-74`. Where you were standing.
+        //
+        // "Domestic" told you nothing you did not already know. The place is
+        // how a person actually finds a past capture — *the Bandra one* — so
+        // the slot goes to the neighbourhood and the city. Absent when location
+        // is switched off, rather than filled with a placeholder.
+        if (event.placeLabel != null) ...[
+          const SizedBox(height: SwipSpace.xs),
+          Row(
+            children: [
+              const Icon(Icons.place_outlined,
+                  size: 12, color: SwipColors.textTertiary),
+              const SizedBox(width: 3),
               Flexible(
                 child: Text(
                   event.placeLabel!,
@@ -180,83 +185,97 @@ class LedgerRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-            ] else if (event.acquirer != null) ...[
-              const SizedBox(width: SwipSpace.sm),
-              // The payment company, kept visibly separate from the merchant.
-              Flexible(
-                child: Text(
-                  event.acquirer!,
-                  style:
-                      SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
             ],
-            const Spacer(),
-            Text(
-              _vectorGlyph(event.vector),
-              style: SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
-              semanticsLabel: event.vector.longLabel,
-            ),
-            if (!event.isSynced) ...[
-              const SizedBox(width: SwipSpace.xs),
-              const Icon(Icons.bolt_outlined,
-                  size: 12, color: SwipColors.textTertiary),
-            ],
-          ],
-        ),
+          ),
+        ],
       ],
     );
   }
 
   /// `D-07`. Default: `08 Aug` over `4:12 PM`. Tap to switch the whole ledger
-  /// to `2h ago`. The toggle is global and persisted — see [TimeFormatPref].
-  Widget _timeCell({bool alignEnd = false}) {
+  /// to `2h ago`. Below it, `F-75`: how this capture was read.
+  Widget _timeCell() {
     final cell = SwipTime.cell(event.capturedAt, timeFormat);
 
-    return GestureDetector(
-      onTap: onToggleTimeFormat,
-      behavior: HitTestBehavior.opaque,
-      child: Semantics(
-        label: SwipTime.full(event.capturedAt),
-        excludeSemantics: true,
-        button: onToggleTimeFormat != null,
-        child: AnimatedSwitcher(
-          duration: SwipMotion.micro,
-          child: Column(
-            key: ValueKey(timeFormat),
-            crossAxisAlignment:
-                alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.end,
-            children: [
-              Text(
-                cell.primary,
-                style: SwipType.label.copyWith(color: SwipColors.textPrimary),
-                maxLines: 1,
-                textAlign: TextAlign.right,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GestureDetector(
+          onTap: onToggleTimeFormat,
+          behavior: HitTestBehavior.opaque,
+          child: Semantics(
+            label: SwipTime.full(event.capturedAt),
+            excludeSemantics: true,
+            button: onToggleTimeFormat != null,
+            child: AnimatedSwitcher(
+              duration: SwipMotion.micro,
+              child: Column(
+                key: ValueKey(timeFormat),
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    cell.primary,
+                    style:
+                        SwipType.label.copyWith(color: SwipColors.textPrimary),
+                    maxLines: 1,
+                    textAlign: TextAlign.right,
+                  ),
+                  if (cell.secondary != null)
+                    Text(
+                      cell.secondary!,
+                      style: SwipType.bodyS
+                          .copyWith(color: SwipColors.textSecondary),
+                      maxLines: 1,
+                      textAlign: TextAlign.right,
+                    ),
+                ],
               ),
-              if (cell.secondary != null)
-                Text(
-                  cell.secondary!,
-                  style: SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
-                  maxLines: 1,
-                  textAlign: TextAlign.right,
-                ),
-            ],
+            ),
           ),
         ),
-      ),
+        const SizedBox(height: SwipSpace.xs),
+        VectorTag(event.vector),
+      ],
     );
   }
+}
 
-  static String _vectorGlyph(CaptureVector v) => switch (v) {
-        CaptureVector.qr => '▣',
-        CaptureVector.nfc => '⌁',
-        CaptureVector.link => '🔗',
-        CaptureVector.intent => '⇥',
-        CaptureVector.probe => '🪪',
-        CaptureVector.manual => '✎',
-        CaptureVector.graph => '◎',
-        CaptureVector.statement => '▤',
+/// `F-75` — how the capture was read, as a word.
+///
+/// This replaces the `▣` / `⌁` / `🔗` glyphs and the lightning bolt. Those were
+/// a private alphabet: correct, compact, and unreadable without being taught.
+/// `SCAN` and `POS` need no legend, and the one thing a person asks of an old
+/// row — *did I tap this or scan it?* — is answered without opening anything.
+class VectorTag extends StatelessWidget {
+  const VectorTag(this.vector, {super.key});
+
+  final CaptureVector vector;
+
+  /// Short enough to sit under a date column at any text scale.
+  static String labelFor(CaptureVector v) => switch (v) {
+        CaptureVector.qr => 'SCAN',
+        CaptureVector.nfc => 'POS',
+        CaptureVector.link => 'LINK',
+        CaptureVector.intent => 'APP',
+        CaptureVector.statement => 'BANK',
+        CaptureVector.manual => 'TYPED',
+        CaptureVector.graph => 'KNOWN',
+        CaptureVector.probe => 'PROBE',
       };
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+        decoration: BoxDecoration(
+          borderRadius: SwipRadius.chipAll,
+          border: Border.all(color: SwipColors.hairline),
+        ),
+        child: Text(
+          labelFor(vector),
+          style: SwipType.labelS.copyWith(color: SwipColors.textTertiary),
+          maxLines: 1,
+          semanticsLabel: 'Read by ${vector.longLabel}',
+        ),
+      );
 }

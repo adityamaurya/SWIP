@@ -167,8 +167,6 @@ class _DashboardPageState extends State<DashboardPage> {
         _LastCaptureHero(
           event: last,
           mcc: widget.mccFor(last.mcc),
-          verdict: widget.homeMarket?.verdictFor(last.countryCode,
-              deviceCountry: last.placeCountry),
           height: bandHeight,
           onTap: () => widget.onOpenEvent?.call(last),
         )
@@ -239,34 +237,45 @@ class _DashboardPageState extends State<DashboardPage> {
         ),
       );
 
+  /// `F-81`. Three equal tiles said the three routes were equally useful. They
+  /// are not: scanning a shop's QR and tapping its card machine are how a
+  /// category is actually read, and Link is a fallback for a payment page you
+  /// were sent. So the two that matter get the room and the larger type, and
+  /// Link is dimmed to a third — still tappable, because a greyed control you
+  /// cannot press is just a broken one.
   Widget _captureTiles() => Padding(
         padding: const EdgeInsets.symmetric(horizontal: SwipSpace.gutter),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
+              flex: 3,
               child: _CaptureTile(
                 icon: Icons.qr_code_scanner_rounded,
-                label: 'Scan',
-                sublabel: 'QR',
+                label: 'Scan QR',
+                sublabel: 'The shop\'s code',
                 onTap: () => widget.onOpenCapture?.call(CaptureVector.qr),
               ),
             ),
             const SizedBox(width: SwipSpace.md),
             Expanded(
+              flex: 3,
               child: _CaptureTile(
                 icon: Icons.contactless_rounded,
-                label: 'Tap',
-                sublabel: 'POS',
+                label: 'Tap POS',
+                sublabel: 'The card machine',
                 enabled: widget.tapAvailable,
                 onTap: () => widget.onOpenCapture?.call(CaptureVector.nfc),
               ),
             ),
             const SizedBox(width: SwipSpace.md),
             Expanded(
+              flex: 2,
               child: _CaptureTile(
                 icon: Icons.link_rounded,
                 label: 'Link',
-                sublabel: 'check',
+                sublabel: 'Later',
+                enabled: false,
                 onTap: () => widget.onOpenCapture?.call(CaptureVector.link),
               ),
             ),
@@ -315,8 +324,6 @@ class _DashboardPageState extends State<DashboardPage> {
               event: rows[i],
               mcc: widget.mccFor(rows[i].mcc),
               timeFormat: widget.timeFormat,
-              verdict: widget.homeMarket?.verdictFor(rows[i].countryCode,
-                  deviceCountry: rows[i].placeCountry),
               onTap: () => widget.onOpenEvent?.call(rows[i]),
               onToggleTimeFormat: widget.onToggleTimeFormat,
             ),
@@ -361,14 +368,12 @@ class _LastCaptureHero extends StatelessWidget {
     required this.event,
     required this.height,
     this.mcc,
-    this.verdict,
     this.onTap,
   });
 
   final CaptureEvent event;
   final double height;
   final Mcc? mcc;
-  final MarketVerdict? verdict;
   final VoidCallback? onTap;
 
   @override
@@ -393,7 +398,29 @@ class _LastCaptureHero extends StatelessWidget {
                       style: SwipType.labelS
                           .copyWith(color: SwipColors.textTertiary)),
                   const Spacer(),
-                  if (verdict != null) _VerdictChip(verdict!),
+                  // `F-74`. Where, not whether-it-was-abroad. The same swap the
+                  // ledger row made: you know which country you are standing
+                  // in, and "the Bandra one" is how a capture is recalled.
+                  if (event.placeLabel != null)
+                    Flexible(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.place_outlined,
+                              size: 13, color: SwipColors.textTertiary),
+                          const SizedBox(width: 3),
+                          Flexible(
+                            child: Text(
+                              event.placeLabel!,
+                              style: SwipType.labelS
+                                  .copyWith(color: SwipColors.textTertiary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ]),
                 const SizedBox(height: SwipSpace.md),
 
@@ -421,20 +448,27 @@ class _LastCaptureHero extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    // On Ink, gold returns to full text duty — 8.4:1.
+                    // On Ink, gold returns to full text duty — 8.4:1. `F-76`:
+                    // `NA` in grey when there is no code, so an absence can
+                    // never be mistaken for a value.
                     Text(
-                      event.mcc ?? '—',
-                      style: SwipType.mcc
-                          .copyWith(fontSize: 40, color: SwipColors.gold500),
+                      event.mcc ?? 'NA',
+                      style: SwipType.mcc.copyWith(
+                        fontSize: 40,
+                        color: event.mcc == null
+                            ? SwipColors.textTertiary
+                            : SwipColors.gold500,
+                      ),
                       semanticsLabel: event.mcc == null
                           ? 'No category code'
                           : 'Category ${event.mcc!.split('').join(' ')}',
                     ),
                     const SizedBox(width: SwipSpace.md),
                     Expanded(child: ConfidencePill(event.confidence)),
+                    VectorTag(event.vector),
+                    const SizedBox(width: SwipSpace.sm),
                     Text(
-                      '${event.vector.shortLabel} · '
-                      '${SwipTime.relative(event.capturedAt)}',
+                      SwipTime.relative(event.capturedAt),
                       style: SwipType.bodyS
                           .copyWith(color: SwipColors.textTertiary),
                     ),
@@ -496,33 +530,6 @@ class _FirstRunCard extends StatelessWidget {
       );
 }
 
-/// `F-16` — domestic or international, at a glance.
-class _VerdictChip extends StatelessWidget {
-  const _VerdictChip(this.verdict);
-  final MarketVerdict verdict;
-
-  @override
-  Widget build(BuildContext context) {
-    final intl = verdict.isInternational;
-    return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: SwipSpace.sm, vertical: 3),
-      decoration: BoxDecoration(
-        color: intl ? SwipColors.warningFill : Colors.transparent,
-        borderRadius: SwipRadius.chipAll,
-        border: Border.all(
-            color: intl ? SwipColors.warningOnInk : SwipColors.hairline),
-      ),
-      child: Text(
-        verdict.label.toUpperCase(),
-        style: SwipType.labelS.copyWith(
-            color:
-                intl ? SwipColors.warningOnInk : SwipColors.textTertiary),
-      ),
-    );
-  }
-}
-
 class _CaptureTile extends StatelessWidget {
   const _CaptureTile({
     required this.icon,
@@ -545,16 +552,20 @@ class _CaptureTile extends StatelessWidget {
     return Semantics(
       button: true,
       enabled: enabled,
-      label: '$label $sublabel',
+      label: '$label. $sublabel',
       child: Material(
         color: SwipColors.surface,
         borderRadius: SwipRadius.cardAll,
         child: InkWell(
-          // Still tappable when disabled: it routes to S-22, which explains why.
+          // Still tappable when disabled. A dimmed tile says "not the thing you
+          // want right now"; a dead one says "broken", and they must not look
+          // the same.
           onTap: onTap,
           borderRadius: SwipRadius.cardAll,
           child: Container(
-            height: 96,
+            height: 104,
+            padding:
+                const EdgeInsets.symmetric(horizontal: SwipSpace.sm),
             decoration: BoxDecoration(
               borderRadius: SwipRadius.cardAll,
               border: SwipElevation.e1,
@@ -562,12 +573,26 @@ class _CaptureTile extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, size: 26, color: enabled ? SwipColors.gold500 : fg),
+                Icon(icon, size: 28, color: enabled ? SwipColors.gold500 : fg),
                 const SizedBox(height: SwipSpace.sm),
-                Text(label, style: SwipType.label.copyWith(color: fg)),
-                Text(sublabel,
-                    style: SwipType.bodyS
-                        .copyWith(color: SwipColors.textTertiary)),
+                // `F-81`. titleS rather than label: these are the two things
+                // the screen is for, and they were being read at arm's length
+                // in a shop.
+                Text(
+                  label,
+                  style: SwipType.titleS.copyWith(color: fg),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
+                Text(
+                  sublabel,
+                  style:
+                      SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
               ],
             ),
           ),

@@ -3,11 +3,11 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/onboarding/primers.dart';
-import '../../core/settings/home_market.dart';
-import '../../core/theme/swip_tokens.dart';
 import '../../core/utils/swip_time.dart';
+import '../../core/theme/swip_tokens.dart';
 import '../../data/models/capture_event.dart';
 import '../../data/repositories/capture_repository.dart';
+import '../../widgets/capture_detail.dart';
 import '../../widgets/ledger_row.dart';
 
 /// `S-04` — the Ledger.
@@ -40,7 +40,6 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
   Widget build(BuildContext context) {
     final async = ref.watch(allCapturesProvider(_vector));
     final repoAsync = ref.watch(captureRepositoryProvider);
-    final home = ref.watch(homeMarketProvider).valueOrNull;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Ledger')),
@@ -83,9 +82,14 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                           event: event,
                           mcc: repo?.lookup(event.mcc),
                           timeFormat: widget.timeFormat,
-                          verdict: home?.verdictFor(event.countryCode,
-                              deviceCountry: event.placeCountry),
                           onToggleTimeFormat: widget.onToggleTime,
+                          // `F-83`. Every row in the ledger opens the same
+                          // sheet the capture showed when it happened. The row
+                          // has always looked tappable — it is an `InkWell` and
+                          // it ripples — but nothing was wired to `onTap`, so
+                          // the ledger was a dead end with a hundred rows in it.
+                          onTap: () =>
+                              showCaptureDetail(context, ref, event),
                         ),
                     };
 

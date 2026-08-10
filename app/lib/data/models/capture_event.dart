@@ -175,12 +175,17 @@ class CaptureEvent {
   /// "Paytm" on five rows for five different shops is worse than no name.
   String? get identityLine => merchantName ?? merchantHandle;
 
-  /// The category line when there is no name for the code. Each case is a
-  /// different situation with a different remedy, so each gets its own words.
+  /// The category line when there is no name for the code.
+  ///
+  /// `F-77`. These used to be sentences — *"Category not written into this
+  /// code"* — which is accurate and takes a second to parse, on a row you are
+  /// scanning at a counter with a queue behind you. A row is not the place to
+  /// explain; it is the place to state. The full explanation, which is
+  /// genuinely different for each case, is in the sheet a tap away.
   String get categoryFallback {
-    if (isUnclassified) return 'No category set by the merchant\'s bank';
-    if (mcc == null) return 'Category not written into this code';
-    return 'Category $mcc — not in the offline table yet';
+    if (isUnclassified) return 'No category';
+    if (mcc == null) return 'No category';
+    return 'Category not in the offline list';
   }
 
   CaptureEvent copyWith({

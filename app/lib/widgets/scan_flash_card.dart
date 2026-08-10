@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
 import '../core/theme/swip_tokens.dart';
 import '../data/models/capture_event.dart';
 import '../data/models/mcc.dart';
+import 'ledger_row.dart' show VectorTag;
+import 'mcc_badge.dart';
 
 /// `F-61` — the condensed detection card.
 ///
@@ -12,22 +13,24 @@ import '../data/models/mcc.dart';
 /// A full-height bottom sheet is the correct answer to *a scan you asked for*.
 /// It is the wrong answer to *ambient scanning you did not*. With the camera
 /// always looking, the sheet fired on every code that drifted through frame,
-/// covered the viewfinder, and had to be dismissed before the next one — which
-/// is exactly the frustration you hit.
+/// covered the viewfinder, and had to be dismissed before the next one.
 ///
-/// The research agrees: modals are the most interrupting pattern available, and
-/// lighter in-place responses are dramatically less disruptive. See
-/// `docs/22-FEEDBACK-ROUND-3.md` for the sources.
-///
-/// So the rule is now:
+/// So the rule is:
 ///
 ///   * **ambient scan** (dashboard viewfinder) → this card, quiet, in place
 ///   * **deliberate scan** (full-screen scanner, tap, link, share) → full sheet
 ///
-/// ## What it shows, in your order
+/// ## The fixed height, and why it is not a suggestion
 ///
-///   the MCC · the merchant · the universal MCC description · how it was
-///   detected · a chevron to open the full sheet
+/// `F-78`. This card lives inside a stack of a fixed height, over the top of
+/// the dashboard. When its content grew a third line it overflowed by four
+/// pixels and Flutter painted the yellow-and-black hazard bars across it — on
+/// the one surface in the app that is supposed to be reassuring.
+///
+/// It is now a strict two-line card with a fixed [height], and everything that
+/// used to be a third line is a compact tag on the right. Two lines is also
+/// simply the right amount: the merchant and what it is. Anything more is what
+/// the chevron is for.
 class ScanFlashCard extends StatelessWidget {
   const ScanFlashCard({
     super.key,
@@ -35,137 +38,104 @@ class ScanFlashCard extends StatelessWidget {
     required this.mcc,
     this.onExpand,
     this.onDismiss,
+    this.dimmed = false,
   });
 
   final CaptureEvent event;
   final Mcc? mcc;
 
-  /// The chevron. Opens the full sheet — everything the old modal showed.
+  /// Tap anywhere. Opens the full sheet — everything the old modal showed.
   final VoidCallback? onExpand;
   final VoidCallback? onDismiss;
+
+  /// True for the cards *behind* the front one in the stack. They are scenery:
+  /// they show there is more, they are not meant to be read.
+  final bool dimmed;
+
+  /// The one number the stack's geometry is built on. Fixed on purpose — see
+  /// the note above about the four pixels.
+  static const height = 72.0;
 
   @override
   Widget build(BuildContext context) {
     final known = event.hasMcc;
 
+    final card = Container(
+      height: height,
+      decoration: BoxDecoration(
+        color: SwipColors.surfaceRaised,
+        borderRadius: SwipRadius.cardAll,
+        border: Border.all(
+          color: known ? SwipColors.gold700 : SwipColors.hairline,
+        ),
+        boxShadow: dimmed ? null : SwipElevation.e3,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: SwipSpace.md),
+      child: Row(
+        children: [
+          // ── the code ── `F-76`: `NA`, never a dash.
+          SizedBox(
+            width: 46,
+            child: MccBadge(event.mcc, size: MccBadgeSize.md),
+          ),
+          const SizedBox(width: SwipSpace.sm),
+
+          // ── who, and what kind of place ──
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  event.identityLine ?? 'Unnamed merchant',
+                  style:
+                      SwipType.bodyM.copyWith(color: SwipColors.textPrimary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  mcc?.displayName ?? event.categoryFallback,
+                  style:
+                      SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: SwipSpace.sm),
+
+          // ── how it was read, then the way in ──
+          VectorTag(event.vector),
+          const Icon(Icons.keyboard_arrow_up_rounded,
+              size: 22, color: SwipColors.textSecondary),
+        ],
+      ),
+    );
+
+    if (dimmed) return IgnorePointer(child: card);
+
     return Dismissible(
       key: ValueKey(event.id),
       direction: DismissDirection.horizontal,
       onDismissed: (_) => onDismiss?.call(),
-      child: Material(
-        color: SwipColors.surfaceRaised,
-        borderRadius: SwipRadius.cardAll,
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onExpand,
-          child: Container(
-            decoration: BoxDecoration(
+      // The ink goes *over* the card rather than under it. A `Material` beneath
+      // an opaque `Container` swallows its own ripple, which is how a control
+      // ends up feeling dead even though the tap registers.
+      child: Stack(
+        children: [
+          card,
+          Positioned.fill(
+            child: Material(
+              color: Colors.transparent,
               borderRadius: SwipRadius.cardAll,
-              border: Border.all(
-                color: known ? SwipColors.gold700 : SwipColors.hairline,
-              ),
-            ),
-            padding: const EdgeInsets.symmetric(
-                horizontal: SwipSpace.md, vertical: SwipSpace.md),
-            child: Row(
-              children: [
-                // ── the code ──
-                SizedBox(
-                  width: 62,
-                  child: Text(
-                    event.mcc ?? '—',
-                    style: SwipType.mcc.copyWith(
-                      fontSize: 24,
-                      height: 1.1,
-                      color: known
-                          ? SwipColors.gold500
-                          : SwipColors.textTertiary,
-                    ),
-                    semanticsLabel: known
-                        ? 'Category ${event.mcc!.split('').join(' ')}'
-                        : 'No category',
-                  ),
-                ),
-                const SizedBox(width: SwipSpace.sm),
-
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // ── the merchant ──
-                      Text(
-                        event.identityLine ?? 'Unnamed merchant',
-                        style: SwipType.bodyM
-                            .copyWith(color: SwipColors.textPrimary),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 1),
-                      // ── the universal MCC description ──
-                      Text(
-                        mcc?.displayName ?? event.categoryFallback,
-                        style: SwipType.bodyS
-                            .copyWith(color: SwipColors.textSecondary),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: SwipSpace.xs),
-                      // ── how it was detected ──
-                      Row(
-                        children: [
-                          Icon(_icon(event.vector),
-                              size: 12, color: SwipColors.textTertiary),
-                          const SizedBox(width: 4),
-                          Text(
-                            _how(event.vector),
-                            style: SwipType.bodyS
-                                .copyWith(color: SwipColors.textTertiary),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                // ── expand ──
-                Icon(Icons.keyboard_arrow_up_rounded,
-                    size: 22, color: SwipColors.textSecondary),
-              ],
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(onTap: onExpand),
             ),
           ),
-        ),
+        ],
       ),
-    )
-        .animate()
-        .fadeIn(duration: 260.ms)
-        .moveY(begin: 16, curve: SwipMotion.captureCurve)
-        .then(delay: 60.ms)
-        .shimmer(
-            duration: SwipMotion.foilSweep,
-            color: known ? SwipColors.gold100 : SwipColors.hairline);
+    );
   }
-
-  static IconData _icon(CaptureVector v) => switch (v) {
-        CaptureVector.nfc => Icons.contactless_rounded,
-        CaptureVector.qr => Icons.qr_code_scanner_rounded,
-        CaptureVector.link => Icons.link_rounded,
-        CaptureVector.intent => Icons.open_in_new_rounded,
-        CaptureVector.graph => Icons.hub_outlined,
-        CaptureVector.manual => Icons.edit_outlined,
-        CaptureVector.probe => Icons.badge_outlined,
-        CaptureVector.statement => Icons.receipt_long_rounded,
-      };
-
-  /// `F-61` asked for "a type of detection i.e (qr or pos detection)".
-  static String _how(CaptureVector v) => switch (v) {
-        CaptureVector.nfc => 'POS detection',
-        CaptureVector.qr => 'QR detection',
-        CaptureVector.link => 'Link, inferred',
-        CaptureVector.intent => 'App hand-off',
-        CaptureVector.graph => 'Already known',
-        CaptureVector.manual => 'You entered it',
-        CaptureVector.probe => 'Probe card',
-        CaptureVector.statement => 'From your statement',
-      };
 }
