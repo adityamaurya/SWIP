@@ -317,6 +317,118 @@ worth chasing.
 
 ---
 
+## ✅ Vector 7, precisely this time
+
+I called it *"confirmed not possible"* in round 2. **That headline was wrong**,
+and your `Open with` screenshot is the proof: Android's system chooser lists
+**"SWIP · read category"**, right under CRED.
+
+The body of round 2 did hedge it correctly — *"the pay-by-app handler still
+works for any merchant whose checkout does use the system chooser"* — but a
+headline is what gets remembered, and mine overstated a negative.
+
+**The accurate picture:**
+
+| Flow | SWIP appears? | Why |
+|---|---|---|
+| Android's **system chooser** — any checkout that redirects | ✅ **Yes** | It asks the OS who handles `upi://pay`, and SWIP answers |
+| A merchant's **in-app list** — Swiggy, PVR | ❌ No | Their payment SDK ships a maintained allowlist of UPI packages |
+
+Both readings from round 1 were true. They are just true of different flows.
+
+**What this changes:** Vector 7 is a live capture path again, not a dead one —
+and it is the route that makes `F-58` work. Share-to-SWIP remains the universal
+fallback for the allowlist checkouts.
+
+---
+
+## `F-62`, `F-63`, `F-66`–`F-68` — the camera and the stack
+
+| ID | Item | Where |
+|---|---|---|
+| `F-62` | Stack docked at the **bottom**, Apple-condensed-player style, swipeable, last minute | [`scan_stack.dart`](../app/lib/widgets/scan_stack.dart) |
+| `F-63` | Drag down → *"vie**eee**w older scans"*, one `e` per unit of pull, past four it opens the ledger | same |
+| `F-66` | Single tap **morphs the band to a square** | [`live_viewfinder.dart`](../app/lib/widgets/live_viewfinder.dart) |
+| `F-67` | Double tap → full-screen scanner | same |
+| `F-68` | Ripple + hand glyph; **two rings** for a double | same |
+
+**Why the bottom and not under the camera.** The first version put the card
+under the viewfinder, and it pushed the page around on every drive-by scan while
+sitting in the layout as though it were content. It is not content — it is
+*notification*, and notifications belong at an edge.
+
+**One implementation detail worth knowing.** The ripple fires on **tap-down**,
+not on tap. Flutter waits ~300 ms after a single tap before it can rule out a
+double; a third of a second of nothing reads as a dead screen, so people tap
+again — which then registers as the double they did not want.
+
+---
+
+## `F-49` — merchant reconciliation, built
+
+Code: [`merchant_reconciler.dart`](../app/lib/data/sources/merchant_reconciler.dart) ·
+[card](../app/lib/widgets/merchant_link_card.dart) ·
+[11 tests](../app/test/merchant_reconciler_test.dart)
+
+### What the industry does, and why SWIP does not copy it
+
+| | Approach | Why it does not transfer |
+|---|---|---|
+| [Plaid](https://plaid.com/blog/transaction-enrichment-engine/) | Regex normalisation + fuzzy matching against a curated knowledge base, ~800 M transactions/day | Corpus-scale and server-side |
+| [Yodlee](https://www.yodlee.com/transaction-data-enrichment) | Proprietary ML over millions of transactions | Same, and [still needs cleanup](https://www.fintegrationfs.com/post/plaid-vs-yodlee-enrichment-who-wins-in-categorization-accuracy) |
+
+SWIP has **no server, no corpus, and usually n=1**. Fuzzy-matching two merchant
+strings on one phone is guessing dressed as inference — and merging two shops
+that are not the same is the most damaging thing this app could do to itself,
+because the wrong category is then inherited by every future scan of that
+sticker.
+
+### So it uses circumstance, not similarity
+
+A link is proposed only when all four hold:
+
+1. **Same place** — identical ~1 km geohash cell. No location, no proposal.
+2. **Same visit** — within 20 minutes. A tap that errors, a word with the
+   cashier, then the sticker instead is normal and unhurried.
+3. **Different identity spaces** — one `emv:`, one `upi:`. Two QRs in one cell
+   are two shops in a market; a tap and a QR are one counter.
+4. **Complementary** — exactly one side carries a category.
+
+Then **you confirm**, because you were standing there. The card gives
+*"Different shops"* the same weight as *"Same shop"*: a prompt that nudges
+toward yes gets confirmed by reflex.
+
+Schema `v3` adds `merchant_alias`, resolved **one hop only** — chains are how a
+graph quietly merges two unrelated shops.
+
+---
+
+## `F-58` — wallet top-up. Researched, held for your call.
+
+**You do not need to capture this one. It is predictable, and the answer is
+bad.**
+
+Wallet loads post as **MCC 6540 — prepaid load**, which most Indian issuers
+exclude from rewards outright:
+
+- [Amazon Pay loads via Zomato confirmed as 6540](https://x.com/CatchMeAbhiOrb/status/2017122245768782298) — *"excluded by the majority of CC issuers for milestone accounting or earning rewards"*
+- [SBI removed reward points on wallet loads from 1 July 2020](https://www.cardexpert.in/no-more-reward-points-for-wallet-loads-on-sbicards/)
+- [India MCC list — wallet/prepaid codes](https://blog.monzy.co/credit-card-guides/merchant-category-code-list-india-2025/)
+
+**And now that the system chooser is confirmed to list SWIP**, the capture path
+is real: wallet top-up → *Pay by UPI app* → the `Open with` sheet → pick SWIP →
+SWIP reads `mc` from the intent, warns, and hands you straight on to your real
+UPI app.
+
+The valuable output is not the four digits, it is:
+
+> **This is a wallet top-up. It will post as 6540 and earn nothing on most
+> cards — including on whatever you spend from the wallet afterwards.**
+
+Held rather than built, as you asked. Confirm the shape and it is a small job.
+
+---
+
 ## Carried forward
 
 | ID | Item | Why not yet |

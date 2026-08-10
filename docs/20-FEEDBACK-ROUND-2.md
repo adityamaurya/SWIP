@@ -9,6 +9,13 @@
 
 ## ⚠️ First: Vector 7 is settled, and I was wrong
 
+> **⏭ CORRECTED 10 Aug 2026 — and this headline was itself too broad.**
+> Android's real *"Open with"* chooser **does** list "SWIP · read category".
+> Vector 7 works whenever a checkout hands off to the system chooser; it fails
+> only inside merchant-SDK lists like Swiggy's. Both readings below were true,
+> for different flows. See
+> [22-FEEDBACK-ROUND-3 § Vector 7, precisely](22-FEEDBACK-ROUND-3.md#-vector-7-precisely-this-time).
+
 I said [50/50](19-FEEDBACK-ROUND-1.md#what-the-swiggy-screenshots-add), and that
 one install would settle it. It settled it. **SWIP does not appear in Swiggy's
 UPI list.**
