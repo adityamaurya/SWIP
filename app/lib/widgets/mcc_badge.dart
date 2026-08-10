@@ -133,7 +133,19 @@ class ConfidencePill extends StatelessWidget {
             decoration: BoxDecoration(color: fg, shape: BoxShape.circle),
           ),
           const SizedBox(width: SwipSpace.sm - 2),
-          Text(text, style: SwipType.bodyS.copyWith(color: fg)),
+          // Flexible, because this sits in an `Expanded` on the Last Capture
+          // card between a 40 px number and a time. "Conflicting" is nearly
+          // twice the width of "Likely", so the widest word decides whether
+          // that row overflows — and the dot must survive even when the word
+          // cannot, since the dot is what carries the reading at a glance.
+          Flexible(
+            child: Text(
+              text,
+              style: SwipType.bodyS.copyWith(color: fg),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );

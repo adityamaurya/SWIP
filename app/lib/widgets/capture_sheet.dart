@@ -463,10 +463,27 @@ class _FoilCode extends StatelessWidget {
                     curve: SwipMotion.captureCurve),
         ],
       ),
-    ).animate().shimmer(
-        delay: 320.ms,
-        duration: SwipMotion.foilSweep,
-        color: SwipColors.gold100);
+    )
+        // `F-85` — the foil keeps catching the light.
+        //
+        // The sweep used to run once, 320 ms in, and then the number sat there
+        // as flat text for as long as the sheet was open. This is the one
+        // figure the whole product exists to deliver, and a single sweep reads
+        // as a loading flourish that has finished — the opposite of what it
+        // should say.
+        //
+        // Repeating the whole timeline gives a sweep roughly every two and a
+        // half seconds, because the delay is inside the loop: 1800 ms of rest,
+        // then 900 ms of travel. The rest is the point. A continuous shimmer is
+        // a strobe sitting next to text someone is trying to read; a periodic
+        // one is metal in a moving light, and it also lands *after* the digits
+        // have finished flying in rather than across them.
+        .animate(onPlay: (controller) => controller.repeat())
+        .shimmer(
+          delay: 1800.ms,
+          duration: SwipMotion.foilSweep,
+          color: SwipColors.gold100,
+        );
   }
 }
 

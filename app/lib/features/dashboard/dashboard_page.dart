@@ -245,8 +245,19 @@ class _DashboardPageState extends State<DashboardPage> {
   /// cannot press is just a broken one.
   Widget _captureTiles() => Padding(
         padding: const EdgeInsets.symmetric(horizontal: SwipSpace.gutter),
+        // **Never `CrossAxisAlignment.stretch` here.**
+        //
+        // `F-84`, and the reason the whole dashboard went black. This Row lives
+        // in a `SliverToBoxAdapter`, which hands its child an **unbounded**
+        // height. `stretch` makes `RenderFlex` pass that height down as a tight
+        // constraint — `BoxConstraints.tightFor(height: infinity)` — which
+        // throws during layout. The exception takes the entire `CustomScrollView`
+        // with it, so the header, the camera band, the tiles and the recent list
+        // all vanish at once and the body renders as nothing at all.
+        //
+        // It was also pointless: the tiles are already the same height, because
+        // each one is a `Container(height: 104)`.
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
               flex: 3,
@@ -570,30 +581,40 @@ class _CaptureTile extends StatelessWidget {
               borderRadius: SwipRadius.cardAll,
               border: SwipElevation.e1,
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, size: 28, color: enabled ? SwipColors.gold500 : fg),
-                const SizedBox(height: SwipSpace.sm),
-                // `F-81`. titleS rather than label: these are the two things
-                // the screen is for, and they were being read at arm's length
-                // in a shop.
-                Text(
-                  label,
-                  style: SwipType.titleS.copyWith(color: fg),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                ),
-                Text(
-                  sublabel,
-                  style:
-                      SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                ),
-              ],
+            // `F-84`. Bigger type inside a fixed-height tile is an overflow
+            // waiting for someone with large text switched on. `scaleDown` does
+            // nothing at all until the content would not fit, and then shrinks
+            // it just enough — which beats both a clipped tile and a tile that
+            // paints hazard stripes.
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon,
+                      size: 28, color: enabled ? SwipColors.gold500 : fg),
+                  const SizedBox(height: SwipSpace.sm),
+                  // `F-81`. titleS rather than label: these are the two things
+                  // the screen is for, and they were being read at arm's length
+                  // in a shop.
+                  Text(
+                    label,
+                    style: SwipType.titleS.copyWith(color: fg),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
+                  Text(
+                    sublabel,
+                    style:
+                        SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
