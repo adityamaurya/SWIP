@@ -244,9 +244,9 @@
 |---|---|---|---|
 | 19.1 | `F-46` | Detect from a branded QR (Paytm, BharatQR, others) that it **is a merchant QR** | ✅ built |
 | 19.2 | `F-47` | Detect whether the merchant **accepts RuPay credit card on UPI**, as CRED does, and show a notifier line on the modal | ✅ built — and the research explains exactly how CRED knows |
-| 19.3 | `F-48` | **Get the MCC out of these QRs** — *"we need to crack this man"* | ◑ **Root cause established.** The four digits are not in the payload for these merchants; three working routes to them are built or specced |
+| 19.3 | `F-48` | **Get the MCC out of these QRs** — *"we need to crack this man"* | ✅ **cracked, by another route.** The digits are not in those payloads and never will be — but `F-50` reads them off your statement, keyed to the same handle, so the sticker answers for ever after |
 | 19.4 | `F-49` | Snowberry POS tap worked; the same shop's Paytm QR did not. Make one shop's knowledge reach the other | 📋 **the ₹1 statement loop + merchant reconciliation** |
-| 19.5 | `F-50` | The Federal Bank statement shows the MCC after a ₹1 test payment. Build a workaround around this | 📋 specced |
+| 19.5 | `F-50` | The Federal Bank statement shows the MCC after a ₹1 test payment. Build a workaround around this | ✅ **built** — `S-25`, and it turned out to be the strongest vector in the app |
 | 19.6 | `F-51` | **Geolocation is not working** | ✅ fixed |
 | 19.7 | `F-52` | Geolocation must be granular — *"karsavadavli, Thane"*, not "Mumbai, Maharashtra" | ✅ fixed |
 | 19.8 | `F-53` | Show on the modal **which mode of payment the MCC was detected from** | ✅ built |

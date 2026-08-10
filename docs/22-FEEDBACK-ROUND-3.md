@@ -121,7 +121,7 @@ can reach all three:
 | Route | How | Status |
 |---|---|---|
 | **The terminal** | EMV tag `9F15` over NFC. **This already worked at Snowberry.** | ✅ built |
-| **Your statement** | You proved it: ₹1 via Federal Bank, MCC visible on the statement. SWIP should walk you through that deliberately | 📋 `F-50`, specced below |
+| **Your statement** | You proved it: ₹1 via Federal Bank, MCC visible on the statement. **Built** — see below | ✅ `S-25` |
 | **Another sticker** | Many shops carry both a Paytm sticker and a bank/BharatQR one; the bank one often does carry EMVCo tag `52` | ✅ works today |
 
 **And the piece that makes all three pay off — `F-49`.**
@@ -146,19 +146,48 @@ Snowberry's real category — for you, and for anyone else once sync exists.
 This is the "workaround" you asked for, and it is better than a workaround: it
 is how the merchant graph was always supposed to earn its keep.
 
-### `F-50` — the ₹1 statement loop, specced
+### `F-50` — the statement loop. **Built, and better than specced.**
 
-You already invented this. Formalising it:
+You sent the line, and it changed the plan. I had specced *"type the four digits
+in"*. The line makes that unnecessary:
 
-1. Scan a shop whose category is unknown. Sheet offers **"Teach SWIP this shop"**.
-2. SWIP explains the trick you used: pay ₹1 from a bank whose statement shows the
-   MCC — **Federal Bank does**, which is the tip worth writing down.
-3. SWIP sets a reminder for when the statement posts.
-4. You type in the four digits once.
-5. The merchant graph learns it against `upi:<handle>`, permanently, and every
-   past capture of that sticker is back-filled.
+```
+UPIOUT/658724829452/paytm.s233ffl@pty/Demo/5451
+          RRN         Snowberry's VPA   note   MCC
+```
 
-One ₹1 payment permanently categorises a shop for everybody who ever scans it.
+**5451 is Dairy Products Stores.** Snowberry sells ice cream. Correct.
+
+The category is not the valuable half — **the VPA beside it is**. A category
+alone is a fact about one payment. A category *paired with the handle that was
+paid* is a fact about a **merchant**, and that handle is byte-for-byte what a QR
+scan produces. So SWIP never has to ask which shop a line belongs to, and a
+paste teaches it every UPI merchant in the statement at once.
+
+| | |
+|---|---|
+| Where | Settings ▸ **Learn from a bank statement** — or select the lines in a PDF viewer and **share to SWIP** |
+| What it keeps | The handle and its category. Amounts and balances are ignored |
+| Back-fill | Every uncategorised capture already stored for that merchant gets the code retroactively |
+| Confidence | **Verified** — and it earns it. This is what the acquirer posted after the money moved, not a prediction made before |
+
+Code: [`statement_parser.dart`](../app/lib/data/sources/statement_parser.dart) ·
+[`S-25`](../app/lib/features/statement/statement_import_page.dart) ·
+[tests](../app/test/statement_parser_test.dart)
+
+**The design decision worth checking.** Fields are identified by *shape*, not by
+a per-bank regex table that would rot — a VPA looks like `x@y`, an RRN is 12
+digits, an MCC is 4 digits **and resolves in the offline table**. That last
+clause is load-bearing: without it a four-digit transaction note would be adopted
+as a category and taught to the merchant graph permanently.
+
+**And a bug worth recording.** The first version split only on `/`, so it worked
+on the bare narration I quoted from your screenshot and found **nothing** in an
+actual pasted row — where date and amount columns surround the narration. CI
+caught it. The fix segments first and reads words inside each segment, with the
+rule that a category must be the **first word of its own segment** — otherwise an
+amount printed without decimals (`TFR 5451`) becomes a category. Three regression
+tests now cover it.
 
 ---
 
