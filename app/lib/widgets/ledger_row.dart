@@ -93,13 +93,25 @@ class LedgerRow extends StatelessWidget {
         ],
       );
 
+  /// The large-text layout. `F-86`.
+  ///
+  /// Both cells are `Flexible`, and that is not decoration. This branch only
+  /// runs above [_reflowScale], which is exactly where the MCC, the confidence
+  /// word, the date, the time and the vector tag have all grown by 60 % — and
+  /// two natural-width cells at that size do not fit side by side on a 360 dp
+  /// phone. Without a flex factor the row overflowed and painted hazard stripes
+  /// across the ledger for anyone with large text switched on: the readers who
+  /// most needed the reflow were the only ones who saw it fail.
   Widget _stacked(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [_mccCell(), _timeCell()],
+            children: [
+              Flexible(child: _mccCell()),
+              Flexible(child: _timeCell()),
+            ],
           ),
           const SizedBox(height: SwipSpace.sm),
           _detailCell(),

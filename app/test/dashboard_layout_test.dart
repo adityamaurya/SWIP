@@ -143,4 +143,18 @@ void main() {
 
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('the first-run card survives a large text scale',
+      (tester) async {
+    tester.view.physicalSize = const Size(360, 800) * 3;
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+
+    // A different second card entirely — three lines of prose in a
+    // fixed-height box — so the empty state needs its own pass at scale.
+    await tester.pumpWidget(harness(const [], textScale: 1.6));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(tester.takeException(), isNull);
+  });
 }

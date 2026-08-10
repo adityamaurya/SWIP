@@ -463,25 +463,44 @@ class _LastCaptureHero extends StatelessWidget {
                     // `NA` in grey when there is no code, so an absence can
                     // never be mistaken for a value.
                     Text(
-                      event.mcc ?? 'NA',
-                      style: SwipType.mcc.copyWith(
-                        fontSize: 40,
-                        color: event.mcc == null
-                            ? SwipColors.textTertiary
-                            : SwipColors.gold500,
+                    // `F-86`. Every item in this row is flexible, because a
+                    // 40 px number becomes a 64 px number the moment someone
+                    // turns text size up — and four of those plus a pill, a tag
+                    // and a timestamp do not fit across a phone. `scaleDown`
+                    // touches nothing until it has to, then gives back exactly
+                    // the width the rest of the row needs.
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.bottomLeft,
+                        child: Text(
+                          event.mcc ?? 'NA',
+                          style: SwipType.mcc.copyWith(
+                            fontSize: 40,
+                            color: event.mcc == null
+                                ? SwipColors.textTertiary
+                                : SwipColors.gold500,
+                          ),
+                          maxLines: 1,
+                          semanticsLabel: event.mcc == null
+                              ? 'No category code'
+                              : 'Category ${event.mcc!.split('').join(' ')}',
+                        ),
                       ),
-                      semanticsLabel: event.mcc == null
-                          ? 'No category code'
-                          : 'Category ${event.mcc!.split('').join(' ')}',
                     ),
                     const SizedBox(width: SwipSpace.md),
-                    Expanded(child: ConfidencePill(event.confidence)),
+                    Flexible(child: ConfidencePill(event.confidence)),
+                    const SizedBox(width: SwipSpace.sm),
                     VectorTag(event.vector),
                     const SizedBox(width: SwipSpace.sm),
-                    Text(
-                      SwipTime.relative(event.capturedAt),
-                      style: SwipType.bodyS
-                          .copyWith(color: SwipColors.textTertiary),
+                    Flexible(
+                      child: Text(
+                        SwipTime.relative(event.capturedAt),
+                        style: SwipType.bodyS
+                            .copyWith(color: SwipColors.textTertiary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),
@@ -519,22 +538,36 @@ class _FirstRunCard extends StatelessWidget {
                 .fadeIn(duration: 420.ms)
                 .moveY(begin: 10, curve: SwipMotion.captureCurve),
             const SizedBox(height: SwipSpace.sm),
-            Text(
-              'Every shop is filed under a four-digit category code. It decides '
-              'what your card pays back — and nobody shows it to you before you '
-              'pay. SWIP does.',
-              style: SwipType.bodyM.copyWith(color: SwipColors.textSecondary),
-            )
-                .animate()
-                .fadeIn(delay: 120.ms, duration: 420.ms)
-                .moveY(begin: 10, curve: SwipMotion.captureCurve),
+            // `F-86`. Three lines of prose in a card of fixed height is the
+            // most reliable way to overflow there is — it only takes someone
+            // turning text size up. Flexible plus ellipsis: the sentence gives
+            // before the card does.
+            Flexible(
+              child: Text(
+                'Every shop is filed under a four-digit category code. It '
+                'decides what your card pays back — and nobody shows it to you '
+                'before you pay. SWIP does.',
+                style: SwipType.bodyM.copyWith(color: SwipColors.textSecondary),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 5,
+              )
+                  .animate()
+                  .fadeIn(delay: 120.ms, duration: 420.ms)
+                  .moveY(begin: 10, curve: SwipMotion.captureCurve),
+            ),
             const SizedBox(height: SwipSpace.lg),
             Row(children: [
               const Icon(Icons.swipe_left_rounded,
                   size: 18, color: SwipColors.gold500),
               const SizedBox(width: SwipSpace.sm),
-              Text('Swipe back for the camera',
-                  style: SwipType.label.copyWith(color: SwipColors.gold500)),
+              Flexible(
+                child: Text(
+                  'Swipe back for the camera',
+                  style: SwipType.label.copyWith(color: SwipColors.gold500),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ]).animate().fadeIn(delay: 260.ms, duration: 420.ms),
           ],
         ),
