@@ -45,27 +45,26 @@ class _ScanPageState extends ConsumerState<ScanPage> {
     });
   }
 
-  /// Start the camera, retrying the two documented transient failures.
+  /// Start the camera, retrying a transient failure.
   ///
-  /// `controllerNotAttached` is real and common here: the primer sheet is on
-  /// screen when this runs on a first launch, so the scanner's platform view
-  /// may not be attached yet.
+  /// "Not attached yet" is real and common here — the primer sheet is on screen
+  /// when this first runs — but 5.2.3 has no error code for it, so the retry
+  /// stands in for the distinction.
   Future<void> _start({int attempt = 0}) async {
     try {
       await _controller.start();
       if (mounted) setState(() => _refused = false);
     } on MobileScannerException catch (e) {
-      switch (e.errorCode) {
-        case MobileScannerErrorCode.permissionDenied:
-          if (mounted) setState(() => _refused = true);
-        case MobileScannerErrorCode.controllerNotAttached:
-        case MobileScannerErrorCode.controllerInitializing:
-          if (attempt < 3 && mounted) {
-            await Future<void>.delayed(const Duration(milliseconds: 300));
-            return _start(attempt: attempt + 1);
-          }
-        default:
-          break;
+      if (e.errorCode == MobileScannerErrorCode.permissionDenied) {
+        if (mounted) setState(() => _refused = true);
+        return;
+      }
+      // See live_viewfinder: 5.2.3 has no "not attached yet" code, so a
+      // bounded retry stands in for one. It matters here because the primer
+      // sheet is on screen when this first runs.
+      if (attempt < 3 && mounted) {
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        return _start(attempt: attempt + 1);
       }
     } catch (_) {
       // A scanner that cannot open must still be a screen you can back out of.

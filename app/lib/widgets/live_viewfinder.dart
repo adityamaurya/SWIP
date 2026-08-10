@@ -78,10 +78,10 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
   late final MobileScannerController _controller = MobileScannerController(
     detectionSpeed: DetectionSpeed.noDuplicates,
     formats: const [BarcodeFormat.qrCode, BarcodeFormat.dataMatrix],
-    // `autoStart: false` — the widget must be attached before start() is
-    // called, or the plugin throws `controllerNotAttached` after a 500 ms
-    // timeout. Starting it ourselves from the post-frame callback is the
-    // documented way to be sure.
+    // `autoStart: false` — start() is called by hand from a post-frame
+    // callback, once the platform view exists to attach to. Starting before
+    // that is the documented cause of a silent 500 ms timeout, and on 5.2.3
+    // it surfaces as a generic error indistinguishable from a real one.
     autoStart: false,
   );
 
@@ -138,31 +138,29 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
 
     try {
       await _controller.start();
-      if (mounted) setState(() {
-            _running = true;
-            _refused = false;
-          });
+      if (mounted) {
+        setState(() {
+          _running = true;
+          _refused = false;
+        });
+      }
     } on MobileScannerException catch (e) {
-      switch (e.errorCode) {
-        case MobileScannerErrorCode.permissionDenied:
-          // Scenario 2: refused. Not an error state to hide — a state with an
-          // action attached, so the user can change their mind later.
-          if (mounted) setState(() => _refused = true);
+      if (e.errorCode == MobileScannerErrorCode.permissionDenied) {
+        // Scenario 2: refused. Not an error state to hide — a state with an
+        // action attached, so the user can change their mind later.
+        if (mounted) setState(() => _refused = true);
+        return;
+      }
 
-        case MobileScannerErrorCode.controllerNotAttached:
-        case MobileScannerErrorCode.controllerInitializing:
-          // Documented, transient, and worth one retry: the platform view can
-          // lag the first frame on a cold start.
-          if (attempt < 2 && mounted) {
-            await Future<void>.delayed(const Duration(milliseconds: 300));
-            _starting = false;
-            return _start(attempt: attempt + 1);
-          }
-
-        default:
-          // No camera, another app holding it, an OEM quirk. The idle card is
-          // shown either way; it never pretends to be scanning.
-          break;
+      // mobile_scanner 5.2.3 does not distinguish "the platform view is not
+      // attached yet" from a real failure — that split only arrives in 7.x. So
+      // a bounded retry covers the transient case without pretending to know
+      // which one happened, and two attempts is enough for the one-frame lag
+      // that a cold start produces.
+      if (attempt < 2 && mounted) {
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        _starting = false;
+        return _start(attempt: attempt + 1);
       }
     } catch (_) {
       // Never let a camera failure take the dashboard down with it.
