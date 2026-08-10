@@ -94,9 +94,14 @@ class _TapPageState extends ConsumerState<TapPage> with WidgetsBindingObserver {
     }
   }
 
+  /// True while [_start] is mid-probe, so a resume that lands on top of the
+  /// opening probe cannot run a second one alongside it.
+  bool _probing = false;
+
   /// A full re-probe after the user has been somewhere they could have changed
   /// any of it. Idempotent: if we are already listening, only the card moves.
   Future<void> _recheck() async {
+    if (_probing) return;
     if (_state == _NfcState.listening) {
       await _refreshDefault();
       return;
@@ -116,6 +121,8 @@ class _TapPageState extends ConsumerState<TapPage> with WidgetsBindingObserver {
   }
 
   Future<void> _start() async {
+    if (_probing) return;
+    _probing = true;
     try {
       final status =
           await _method.invokeMapMethod<String, dynamic>('status');
@@ -149,6 +156,8 @@ class _TapPageState extends ConsumerState<TapPage> with WidgetsBindingObserver {
       // iOS: Apple permits host card emulation for contactless payments in the
       // EEA only, and India is not included. S-22 explains this properly.
       if (mounted) setState(() => _state = _NfcState.unsupportedPlatform);
+    } finally {
+      _probing = false;
     }
   }
 
