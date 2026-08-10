@@ -461,6 +461,56 @@ return from Android's contactless settings are still yours to confirm on the pho
 
 ---
 
+## Prompt 25 — 10 Aug 2026 · The deck, the ledger's way in, and one language per row
+
+### Screens changed
+
+| ID | Screen | Change | Serves |
+|---|---|---|---|
+| `S-01` | Dashboard | The **Capture** FAB is removed | `F-82` |
+| `S-01` | Dashboard | Condensed cards become a **deck**, not a carousel | `F-79` |
+| `S-01` | Dashboard | Tiles reweighted: **Scan QR** and **Tap POS** lead, Link dimmed | `F-81` |
+| `S-04` | Ledger | **Every row opens the capture sheet** | `F-83` |
+| row | Ledger + dashboard | Five competing signals cut to two facts and a place | `F-73`–`F-77` |
+
+### Element changes
+
+| Where | Before | After | Why |
+|---|---|---|---|
+| Condensed card | Three lines at a hand-tuned 86 px | Two lines at a fixed 72 px, vector as a tag | The third line overflowed by 4 px and painted hazard bars across the one reassuring surface in the app |
+| Card stack | `PageView` — a filmstrip of equals with a page indicator | A deck: one front card, two behind, inset and peeking, `IgnorePointer`ed | A collapsed music player is *one bar with the implication of more*, never a carousel |
+| Capture FAB | Bottom-right, gold, always on top | Gone | It docked exactly where the cards do, so finding something parked a button on the answer |
+| Ledger row tap | Nothing | The same sheet the capture showed | The row was an `InkWell` and rippled, so it *looked* tappable. Nothing was wired to `onTap` |
+| MCC cell | `20 px`, confidence four items away in another column | `26 px`, **Verified** captioned directly beneath | Confidence is a claim about the number, not the shop |
+| Missing MCC | `—` | **`NA`**, in grey | An em-dash is punctuation pretending to be a value — at a glance it reads as a minus or a rendering fault |
+| Category, unknown | "Category not written into this code" | **"No category"** | A row states; the sheet explains |
+| Third line | `● Unknown  Domestic  Pay…  ▣ ⚡` | 📍 the captured place | You know which country you are in. *"The Bandra one"* is how a capture is recalled |
+| Vector | `▣` `⌁` `🔗` glyphs + a bolt | `SCAN` · `POS` · `LINK` under the date | A private alphabet nobody was taught |
+| Acquirer | "Paytm" on the row | *Payment company* in the sheet | On a row it reads as the shop's name — the exact `F-42` confusion |
+| Tiles | Three equal, `Scan / QR` | `Scan QR` · `Tap POS` at `titleS`, Link dimmed to a third | Two of the three are how a category is actually read |
+
+### Code
+
+| File | Change |
+|---|---|
+| [`capture_detail.dart`](../app/lib/widgets/capture_detail.dart) | **New.** One `showCaptureDetail` for the ledger, the dashboard rows and the condensed cards, so the three cannot drift apart |
+| [`scan_stack.dart`](../app/lib/widgets/scan_stack.dart) | Rewritten as a `Stack` deck; height derived from `ScanFlashCard.height` |
+| [`scan_flash_card.dart`](../app/lib/widgets/scan_flash_card.dart) | Fixed height, two lines, `dimmed` state for the cards behind, ink painted *over* the card so the ripple is visible |
+| [`ledger_row.dart`](../app/lib/widgets/ledger_row.dart) | Rebuilt columns; `VectorTag` added; chips, glyphs, bolt, acquirer and verdict removed |
+| [`mcc_badge.dart`](../app/lib/widgets/mcc_badge.dart) | `NA` instead of `—`; `lg` grown to 26 px; new `ConfidenceCaption` |
+| [`capture_event.dart`](../app/lib/data/models/capture_event.dart) | `categoryFallback` cut to a phrase |
+| [`dashboard_page.dart`](../app/lib/features/dashboard/dashboard_page.dart) | Tile weights and copy; hero shows place and `NA`; `_VerdictChip` deleted |
+| [`ledger_page.dart`](../app/lib/features/ledger/ledger_page.dart) | Rows wired to `showCaptureDetail` |
+| [`main.dart`](../app/lib/main.dart) | FAB removed; `_expandFlash` delegates to the shared sheet |
+
+### Open
+
+- The place line renders only what was actually captured. Rows recorded while
+  location was off stay blank — that history cannot be recovered, only added to.
+- `F-58` wallet top-up, held. `F-59` still a blank row, not invented.
+
+---
+
 <!--
 Template for the next entry:
 

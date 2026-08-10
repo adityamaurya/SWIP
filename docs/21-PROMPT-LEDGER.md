@@ -351,7 +351,7 @@
 
 ---
 
-## Prompt 24 — one NFC card, and the camera told the truth *(current)*
+## Prompt 24 — one NFC card, and the camera told the truth
 
 **Original prompt, verbatim:**
 
@@ -394,6 +394,93 @@ Three more, from the same reading:
   dashboard camera** and leaving it convinced it was still running.
 * `_stop()` skipped `controller.stop()` whenever its own flag said "not running",
   which is exactly when that flag was wrong.
+
+---
+
+## Prompt 25 — the deck, the ledger's way in, and one language per row *(current)*
+
+**Original prompt, verbatim:**
+
+> As per the screens that you can see as of now, the card that is showing up
+> below, in the foreground or just behind the scanner icon, is overlapping. Also,
+> there is missing data in this.
+>
+> One important thing to notice is that the card that is being shown is in error.
+> What should happen is that these cards should be overlaid, as in the present. It
+> should be on the way to a hierarchy, with the scan button first. I think we
+> should remove the scan button as of now. You should only keep the floating tab,
+> like in Apple Music when the player is collapsed. In that case, that should be
+> the view, and in the very same case, it should look that way, very neat, below
+> also.
+>
+> Also, just fix that. One major change that we have to make is that whenever we
+> click each of the items in the ledger, we get to view the whole model that is
+> shown with the data that is supposed to be seen again when it is captured, also
+> in the screenshots that I'm seeing. Also, in the ledger, I can see:
+> 1. The MCC code
+> 2. The merchant name
+> 3. The category, not written into this code
+>
+> For the category, which is not in the MCC, you can simply say "no category" or
+> "unknown". Next is "domestic" and something "pay" or something. Also, there is
+> some flash icon and some other attachment icon. What is that? Can you please
+> define it if possible? You can remove it because it is not making sense. You can
+> maybe add a tag just below the date if it was POS or it was via NFC, so POS or
+> NFC. One could be "scan", that could be done.
+>
+> Also, in the domestic, I don't show "domestic" there. Instead, you can show
+> something like "location" and the real location where it was captured as the geo
+> location. What is that? I'm not sure what that is. Just let me check.
+> Okay, I'm just checking the screenshot as of now. As I can see, the merchant
+> category code number is properly visible in the ledger section. You have the
+> culinary brands India name, which is okay and captured. I guess I don't know
+> what method was used for that. Next is category, which is not written into this
+> code. You can simply say "no category defined" or "no category", and there would
+> be no unknown. In this thing, it will be only the domestic, but instead of
+> domestic, that will be a real location, as I had mentioned to you earlier.
+> Nothing is called domestic, nothing is called international. It will be a real
+> location where it was taken.
+>
+> Firstly, it would be the regional location, wherein hard copper and then Mumbai.
+> If it is in, let's say, some other countries, accordingly, we know where it was
+> taken. If interlaken, then Switzerland, in that side field, if that makes sense.
+> Accordingly, I am not sure about the international part, but on this, it doesn't
+> make sense. The verified aspect doesn't make sense. Maybe you can put that just
+> below the MCC code. You can make the MCC code bigger a bit, and just below it,
+> you can put verified, making the verified text the same or maybe smaller. Next
+> is domestic and Paytm. I am not sure what Paytm is, but you can maybe show it
+> inside the pop-up that shows up when you click on this item. Also, disable the
+> link thing for now and grey it out, but it will still be accessible on tapping
+> it. Just for now, prioritize and keep the similar "tap and scan" thing as a
+> priority. Also, can you just disable it and make it something like "Scan QR" in
+> both, and tap P and POS, or maybe something good copy for these two scenarios so
+> that people can understand? Also, make the text a bit bigger for tap and scan,
+> but yeah, makes sense. Also, remove the capture button, which I have mentioned
+> to you. Another thing is that capture is clashing with the hovercards, which
+> will pop up, so I'm not able to see that. Also, there will be no dash when MCC
+> is not there. You can simply say "NA". Yeah, that's it.
+
+| # | ID | To-do | Status |
+|---|---|---|---|
+| 25.1 | `F-78` | The condensed card overlaps the Capture button and overflows by 4 px | ✅ fixed — fixed-height two-line card, stack height derived from it |
+| 25.2 | `F-79` | Cards should be **overlaid in a hierarchy**, Apple-Music-collapsed-player style, not a carousel | ✅ rebuilt as a real deck in [`scan_stack.dart`](../app/lib/widgets/scan_stack.dart) |
+| 25.3 | `F-82` | **Remove the Capture button** — it clashes with the cards | ✅ removed from [`main.dart`](../app/lib/main.dart) |
+| 25.4 | `F-83` | **Tapping a ledger item opens the full model** shown at capture time | ✅ [`capture_detail.dart`](../app/lib/widgets/capture_detail.dart), one path for all three entry points |
+| 25.5 | `F-77` | "Category not written into this code" → **"No category"** | ✅ `categoryFallback` rewritten |
+| 25.6 | `F-75` | The flash and glyph icons — define or remove; add a **POS / NFC / SCAN tag under the date** | ✅ removed; `VectorTag` renders `SCAN` · `POS` · `LINK` |
+| 25.7 | `F-74` | **No "domestic", no "international"** — show the real captured location | ✅ removed from the row **and** the Last Capture hero; place label takes the slot |
+| 25.8 | `F-73` | **Verified** moves under a **bigger MCC**, at the same size or smaller | ✅ `MccBadgeSize.lg` + `ConfidenceCaption` |
+| 25.9 | — | **"Paytm"** moves into the pop-up | ✅ row drops the acquirer; the sheet lists it as *Payment company* |
+| 25.10 | — | Remove the `NATIONAL` / `INTL` chips from the row | ✅ they describe the code, not the visit — they stay on the sheet |
+| 25.11 | `F-81` | **Grey out Link**, still tappable; prioritise Tap and Scan | ✅ dimmed, narrower, still routes |
+| 25.12 | `F-81` | Better copy — **"Scan QR"**, **"Tap POS"** — and bigger text | ✅ `titleS`, with *The shop's code* / *The card machine* |
+| 25.13 | `F-76` | **No dash when there is no MCC — say "NA"** | ✅ `MccBadge`, the hero, and the condensed card |
+
+**Not done, and why:** the location line shows only what was actually captured.
+Where the geolocation permission was off at capture time there is no place to
+show, so the row shows nothing rather than inventing one. Rows captured before
+location was switched on will stay blank for ever — that history cannot be
+recovered, only added to from here.
 
 ---
 
