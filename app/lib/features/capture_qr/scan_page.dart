@@ -87,6 +87,7 @@ class _ScanPageState extends ConsumerState<ScanPage> {
         verdict: home?.verdictFor(resolved.countryCode,
             deviceCountry: event.placeCountry),
         payeeKind: resolved.payeeKind,
+        tier: resolved.tier,
         details: {
           // `F-42`. The payment company and the payee handle are listed as
           // what they are, so neither can be mistaken for the shop's name.

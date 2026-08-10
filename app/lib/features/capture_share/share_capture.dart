@@ -183,6 +183,7 @@ class _ShareCaptureListenerState extends ConsumerState<ShareCaptureListener>
         verdict: home?.verdictFor(resolved.countryCode,
             deviceCountry: event.placeCountry),
         payeeKind: resolved.payeeKind,
+        tier: resolved.tier,
         details: {
           if (resolved.acquirer != null) 'Payment company': resolved.acquirer!,
           if (resolved.merchantHandle != null)

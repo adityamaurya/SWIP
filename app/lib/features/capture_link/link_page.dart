@@ -90,6 +90,7 @@ class _LinkPageState extends ConsumerState<LinkPage> {
           verdict: home?.verdictFor(resolved.countryCode,
               deviceCountry: event.placeCountry),
           payeeKind: resolved.payeeKind,
+          tier: resolved.tier,
           details: {
             if (resolved.acquirer != null)
               'Payment provider': resolved.acquirer!,

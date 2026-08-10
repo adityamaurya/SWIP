@@ -10,6 +10,7 @@ import 'core/utils/swip_time.dart';
 import 'data/repositories/capture_repository.dart';
 import 'data/models/capture_event.dart';
 import 'data/sources/capture_resolver.dart';
+import 'data/sources/merchant_identity.dart';
 import 'features/capture_intent/intent_capture.dart';
 import 'features/capture_link/link_page.dart';
 import 'features/capture_nfc/tap_page.dart';
@@ -72,6 +73,10 @@ class _SwipShellState extends ConsumerState<SwipShell>
   /// True while a capture sheet is open, so the inline viewfinder cannot stack
   /// a second sheet on top of the first.
   bool _capturing = false;
+
+  /// `F-61`. The most recent ambient scan, shown as a condensed card under the
+  /// camera instead of a modal. Null once dismissed.
+  CaptureEvent? _flash;
 
   /// `D-07`. Global and shared by every time cell in the app, so tapping one
   /// switches them all. Persisted in [SettingsPage].
@@ -156,37 +161,51 @@ class _SwipShellState extends ConsumerState<SwipShell>
       ref.read(ledgerRevisionProvider.notifier).state++;
       if (!mounted) return;
 
-      final home = ref.read(homeMarketProvider).valueOrNull;
-      await showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: SwipColors.surfaceRaised,
-        builder: (_) => CaptureSheet(
-          event: event,
-          mcc: repo.lookup(event.mcc),
-          sourceLabel: resolved.sourceLabel,
-          rawPayload: raw,
-          verdict: home?.verdictFor(resolved.countryCode,
-              deviceCountry: event.placeCountry),
-          payeeKind: resolved.payeeKind,
-          details: {
-            if (resolved.acquirer != null)
-              'Payment company': resolved.acquirer!,
-            if (resolved.merchantHandle != null)
-              'Pays to': resolved.merchantHandle!,
-            if (resolved.merchantCity != null) 'City': resolved.merchantCity!,
-            if (resolved.countryCode != null)
-              'Country': resolved.countryCode!,
-            if (resolved.amount != null)
-              'Amount': '${resolved.currency ?? ''} ${resolved.amount}'.trim(),
-            if (resolved.terminalId != null)
-              'Terminal': resolved.terminalId!,
-          },
-        ),
-      );
+      // `F-60`, `F-61`. No modal here. An ambient scan the user did not ask
+      // for gets a quiet card under the camera; the full sheet is one tap
+      // away on its chevron. The full-screen scanner still opens the sheet,
+      // because there the scan was deliberate.
+      setState(() => _flash = event);
     } finally {
       if (mounted) setState(() => _capturing = false);
     }
+  }
+
+  /// The chevron on the condensed card — everything the old modal showed.
+  Future<void> _expandFlash(CaptureEvent event) async {
+    final repo = await ref.read(captureRepositoryProvider.future);
+    if (!mounted) return;
+    final home = ref.read(homeMarketProvider).valueOrNull;
+
+    final resolved = event.rawPayload == null
+        ? null
+        : CaptureResolver.resolve(event.rawPayload!);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: SwipColors.surfaceRaised,
+      builder: (_) => CaptureSheet(
+        event: event,
+        mcc: repo.lookup(event.mcc),
+        sourceLabel: resolved?.sourceLabel ?? event.vector.longLabel,
+        rawPayload: event.rawPayload,
+        verdict: home?.verdictFor(event.countryCode,
+            deviceCountry: event.placeCountry),
+        payeeKind: resolved?.payeeKind ?? PayeeKind.undetermined,
+        tier: resolved?.tier ?? MerchantTier.unknown,
+        details: {
+          if (event.acquirer != null) 'Payment company': event.acquirer!,
+          if (event.merchantHandle != null) 'Pays to': event.merchantHandle!,
+          if (event.merchantCity != null) 'City': event.merchantCity!,
+          if (event.countryCode != null) 'Country': event.countryCode!,
+          if (event.placeLabel != null) 'Where': event.placeLabel!,
+          if (event.amount != null)
+            'Amount': '${event.currency ?? ''} ${event.amount}'.trim(),
+          if (event.terminalId != null) 'Terminal': event.terminalId!,
+        },
+      ),
+    );
   }
 
   @override
@@ -215,6 +234,9 @@ class _SwipShellState extends ConsumerState<SwipShell>
           onOpenSettings: () => setState(() => _index = 2),
           onOpenCapture: _openCapture,
           onScanned: _onInlineScan,
+          flash: _flash,
+          onExpandFlash: _expandFlash,
+          onDismissFlash: () => setState(() => _flash = null),
         ),
       ),
       LedgerPage(timeFormat: _timeFormat, onToggleTime: _toggleTime),

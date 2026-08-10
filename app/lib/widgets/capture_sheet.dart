@@ -38,6 +38,7 @@ class CaptureSheet extends StatelessWidget {
     this.noCategoryBody,
     this.verdict,
     this.payeeKind = PayeeKind.undetermined,
+    this.tier = MerchantTier.unknown,
   });
 
   final CaptureEvent event;
@@ -69,6 +70,10 @@ class CaptureSheet extends StatelessWidget {
   /// what "no category" *means*, which is the whole difference between "this
   /// will not earn" and "this shop's bank did not publish it".
   final PayeeKind payeeKind;
+
+  /// `F-46`, `F-47`. P2M or P2PM. Drives the RuPay line and turns "no category
+  /// found" into "no category exists" where that is the truth.
+  final MerchantTier tier;
 
   @override
   Widget build(BuildContext context) {
@@ -130,37 +135,50 @@ class CaptureSheet extends StatelessWidget {
                   .fadeIn(delay: 240.ms, duration: 320.ms)
                   .moveY(begin: 10, curve: SwipMotion.captureCurve),
             ] else ...[
-              // No category — say what this is instead, in plain words.
+              // No category. `F-64` — say what this is in a headline you can
+              // read at a glance, and ONE short line under it.
               //
-              // `F-42`. A registered shop with no category is a completely
-              // different situation from a friend's personal code, and the old
-              // copy called both "unrecognised". Precedence: what the vector
-              // knows > what the handle proves > what the payload sniff guessed.
+              // The previous copy was four sentences per case. At a counter,
+              // with a queue behind you, four sentences is the same as nothing:
+              // the long version now lives behind "View technical details",
+              // where someone who wants it will go looking.
+              //
+              // Precedence: what the vector knows > what the handle proves >
+              // what the payload sniff guessed.
               Text(
-                noCategoryTitle ??
-                    (isRegisteredMerchant
-                        ? 'A real shop — its category was not in the code'
-                        : explanation?.title ?? 'No category in this code'),
+                noCategoryTitle ?? _emptyTitle(explanation, isRegisteredMerchant),
                 style: SwipType.titleM.copyWith(color: SwipColors.textPrimary),
               ),
-              const SizedBox(height: SwipSpace.sm),
+              const SizedBox(height: SwipSpace.xs),
               Text(
-                noCategoryBody ??
-                    (isRegisteredMerchant
-                        ? 'This is a registered business, not a person — so it '
-                            'can earn. But the category is set by the shop\'s '
-                            'bank and this sticker does not carry it. Tap the '
-                            'shop\'s card machine, or add the category yourself '
-                            'once you see it on your statement, and SWIP will '
-                            'know this shop from then on.'
-                        : explanation?.body ??
-                            'This code carried no category. SWIP will fill it '
-                                'in if anyone captures this merchant another '
-                                'way.'),
+                noCategoryBody ?? _emptyBody(explanation, isRegisteredMerchant),
                 style: SwipType.bodyM
                     .copyWith(color: SwipColors.textSecondary),
               ),
             ],
+
+            // `F-47` — the line CRED shows, with the reason attached.
+            //
+            // Whether a shop takes a RuPay credit card and whether it has a
+            // category are the SAME fact: both follow from its NPCI tier. So
+            // this is not a second lookup, it is the same finding said in the
+            // words the person is actually asking in.
+            if (tier.rupayNote != null) ...[
+              const SizedBox(height: SwipSpace.md),
+              _Note(
+                text: tier.rupayNote!,
+                icon: tier == MerchantTier.fullMerchant
+                    ? Icons.credit_score_outlined
+                    : Icons.credit_card_off_outlined,
+                good: tier == MerchantTier.fullMerchant,
+              ),
+            ],
+
+            // `F-53` — which mode of payment the category was read from.
+            // Asked for explicitly, and it is the difference between a number
+            // you can act on and a number you have to take on trust.
+            const SizedBox(height: SwipSpace.md),
+            _DetectionLine(vector: event.vector, hasMcc: known),
 
             // 3 ── the merchant, registered name where one exists.
             //
@@ -300,6 +318,48 @@ class CaptureSheet extends StatelessWidget {
     );
   }
 
+  /// `F-64`. A headline, four words or fewer where possible.
+  static String _emptyTitle(PayloadExplanation? e, bool isMerchant) {
+    if (isMerchant) return 'A real shop, no category published';
+    return switch (e?.kind) {
+      PayloadKind.personalUpi => 'A person, not a shop',
+      PayloadKind.webLink => 'A website',
+      PayloadKind.appStore => 'An app link',
+      PayloadKind.wifi => 'A wifi code',
+      PayloadKind.contact => 'A contact card',
+      PayloadKind.phone => 'A phone number',
+      PayloadKind.sms => 'A text message',
+      PayloadKind.location => 'A map pin',
+      PayloadKind.crypto => 'A crypto address',
+      PayloadKind.damaged => 'Damaged code',
+      PayloadKind.empty => 'Empty code',
+      PayloadKind.plainText => 'Just text',
+      _ => 'No category in this code',
+    };
+  }
+
+  /// One line. Says what it means for the person, not what it is technically.
+  static String _emptyBody(PayloadExplanation? e, bool isMerchant) {
+    if (isMerchant) {
+      return 'Tap their card machine to find it.';
+    }
+    return switch (e?.kind) {
+      PayloadKind.personalUpi => 'No category exists. Nothing to earn here.',
+      PayloadKind.webLink => 'Not a payment code.',
+      PayloadKind.appStore => 'Not a payment code.',
+      PayloadKind.wifi => 'Joins a network. Not a payment.',
+      PayloadKind.contact => 'Someone\'s details. Not a payment.',
+      PayloadKind.phone => 'Dials a number. Not a payment.',
+      PayloadKind.sms => 'Writes a message. Not a payment.',
+      PayloadKind.location => 'Opens a map. Not a payment.',
+      PayloadKind.crypto => 'Crypto skips card networks, so no category.',
+      PayloadKind.damaged => 'It failed its own checksum. Scan again.',
+      PayloadKind.empty => 'The code scanned, but held nothing.',
+      PayloadKind.plainText => 'Plain text, not payment details.',
+      _ => 'SWIP will fill this in if this shop is captured another way.',
+    };
+  }
+
   static bool _payloadIsTheCode(CaptureVector v) =>
       v == CaptureVector.qr ||
       v == CaptureVector.link ||
@@ -435,4 +495,113 @@ class _Badge extends StatelessWidget {
                     ? SwipColors.warningOnInk
                     : SwipColors.textSecondary)),
       );
+}
+
+/// `F-53` — which mode of payment produced the category.
+///
+/// Deliberately names the *physical thing that answered*, not the vector's
+/// internal name. "Read from the shop's card terminal" is checkable by someone
+/// standing at the counter; "Vector 2" is not.
+class _DetectionLine extends StatelessWidget {
+  const _DetectionLine({required this.vector, required this.hasMcc});
+
+  final CaptureVector vector;
+  final bool hasMcc;
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, what, how) = switch (vector) {
+      CaptureVector.nfc => (
+          Icons.contactless_rounded,
+          "Read from the shop's card terminal",
+          'EMV tag 9F15',
+        ),
+      CaptureVector.qr => (
+          Icons.qr_code_scanner_rounded,
+          'Read from the QR code',
+          'UPI mc / EMVCo tag 52',
+        ),
+      CaptureVector.intent => (
+          Icons.open_in_new_rounded,
+          "Read from the checkout's hand-off",
+          'UPI intent mc',
+        ),
+      CaptureVector.link => (
+          Icons.link_rounded,
+          'Worked out from a payment link',
+          'inferred — never verified',
+        ),
+      CaptureVector.graph => (
+          Icons.hub_outlined,
+          'Answered from what SWIP already knew',
+          'merchant graph',
+        ),
+      CaptureVector.manual => (
+          Icons.edit_outlined,
+          'You told SWIP this',
+          'from your statement',
+        ),
+      CaptureVector.probe => (
+          Icons.badge_outlined,
+          'Read from a declined authorisation',
+          'SWIP Probe',
+        ),
+    };
+
+    return Row(
+      children: [
+        Icon(icon, size: 15, color: SwipColors.gold500),
+        const SizedBox(width: SwipSpace.sm),
+        Expanded(
+          child: RichText(
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            text: TextSpan(children: [
+              TextSpan(
+                text: hasMcc ? what : what.replaceFirst('Read', 'Looked'),
+                style:
+                    SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
+              ),
+              TextSpan(
+                text: '  ·  $how',
+                style:
+                    SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
+              ),
+            ]),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A one-line coloured note. Green when the answer helps, amber when it warns.
+class _Note extends StatelessWidget {
+  const _Note({required this.text, required this.icon, required this.good});
+
+  final String text;
+  final IconData icon;
+  final bool good;
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = good ? SwipConfidenceColors.verifiedOnInk : SwipColors.warningOnInk;
+    return Container(
+      padding: const EdgeInsets.all(SwipSpace.md),
+      decoration: BoxDecoration(
+        color: good ? SwipColors.successFill : SwipColors.warningFill,
+        borderRadius: SwipRadius.inputAll,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: fg),
+          const SizedBox(width: SwipSpace.sm),
+          Expanded(
+            child: Text(text, style: SwipType.bodyS.copyWith(color: fg)),
+          ),
+        ],
+      ),
+    );
+  }
 }

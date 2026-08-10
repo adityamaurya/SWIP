@@ -48,17 +48,68 @@ enum PayeeKind {
   undetermined,
 }
 
+/// `F-46`, `F-47`. Which NPCI merchant tier a shop is on — the single fact that
+/// explains both halves of what you saw at the counter.
+///
+/// NPCI onboards merchants in two tiers, and **everything follows from which**:
+///
+/// | | P2M — full merchant | P2PM — small merchant |
+/// |---|---|---|
+/// | MCC | **assigned** | **none assigned** |
+/// | RuPay credit card on UPI | allowed | **not allowed** |
+///
+/// A merchant crossing ₹1,00,000 inward for three consecutive months must be
+/// re-acquired under P2M *"with applicable Merchant Category Codes"* — which is
+/// NPCI saying, in its own words, that a P2PM merchant does not have one.
+///
+/// So "this shop has no category" and "CRED greys out my RuPay card here" are
+/// not two problems. They are one fact seen twice.
+///
+/// See `docs/22-FEEDBACK-ROUND-3.md` for the evidence and the sources.
+enum MerchantTier {
+  /// Fully onboarded. Has an MCC somewhere, even when the QR does not carry it,
+  /// and can take a RuPay credit card on UPI.
+  fullMerchant,
+
+  /// Small-merchant tier. **No MCC exists**, and credit card on UPI is barred.
+  smallMerchant,
+
+  /// Not determinable from the handle alone.
+  unknown;
+
+  /// Whether a category could exist for this shop *at all*. The difference
+  /// between "SWIP could not find it" and "there is nothing to find", which is
+  /// the difference between a bug and a fact.
+  bool get canHaveMcc => this != MerchantTier.smallMerchant;
+
+  /// `F-47` — the line CRED shows, and now SWIP does too.
+  String? get rupayNote => switch (this) {
+        MerchantTier.fullMerchant =>
+          'RuPay credit card should work here — this looks like a fully '
+              'onboarded merchant.',
+        MerchantTier.smallMerchant =>
+          'RuPay credit card will not work here. NPCI does not allow credit '
+              'card on UPI at small-merchant codes — which is also why this '
+              'shop has no category.',
+        MerchantTier.unknown => null,
+      };
+}
+
 /// The result of looking at a payee handle and the QR around it.
 class MerchantIdentity {
   const MerchantIdentity({
     required this.kind,
     required this.handle,
+    this.tier = MerchantTier.unknown,
     this.psp,
     this.displayName,
     this.rawPayeeName,
   });
 
   final PayeeKind kind;
+
+  /// `F-46`. P2M or P2PM, worked out from the handle the PSP minted.
+  final MerchantTier tier;
 
   /// The VPA as written, lower-cased. `paytmqr6twbbd@ptys`.
   final String handle;
@@ -144,6 +195,34 @@ abstract final class MerchantIdentifier {
     RegExp(r'^merchant[.\-_]?[a-z0-9]*$'),
   ];
 
+  /// `F-46` — handle shapes that indicate the **full-merchant (P2M)** tier.
+  ///
+  /// `paytm.s…` is Paytm's Soundbox / All-in-One series: the box that announces
+  /// the amount aloud. A shop only gets one after full onboarding, so the handle
+  /// is a proxy for the tier that a shop cannot fake — it does not choose its
+  /// own prefix.
+  ///
+  /// **This is a hypothesis, n=3**, from three CRED screenshots at three real
+  /// counters:
+  ///
+  ///   `paytm.s28uaa5@pty`   Akruti Enterprise  → RuPay CC accepted
+  ///   `paytm.s233ffl@pty`   Snowberry          → RuPay CC accepted
+  ///   `paytmqr6twbbd@ptys`  "Best Wishes"      → "MERCHANT DOES NOT ACCEPT RUPAY CC"
+  ///
+  /// It is surfaced as *likely*, never as fact, and one counter-example kills
+  /// it. A `paytmqr…` shop that does take a RuPay credit card disproves the rule
+  /// outright, and that is a far better outcome than a rule nobody can falsify.
+  static final _fullMerchantPatterns = <RegExp>[
+    RegExp(r'^paytm\.s[a-z0-9]+$'), // Paytm Soundbox / All-in-One
+    RegExp(r'^bharatpe\.?[a-z0-9]*$'), // BharatPe onboards P2M
+  ];
+
+  /// Handle shapes that indicate the **small-merchant (P2PM)** tier: the basic
+  /// printed sticker, issued with light-touch onboarding and no MCC.
+  static final _smallMerchantPatterns = <RegExp>[
+    RegExp(r'^paytmqr[a-z0-9]+$'),
+  ];
+
   /// Names a QR printer or PSP fills in when it has nothing better. Treating
   /// any of these as the shop's name is how "Paytm" ended up on five ledger
   /// rows that were five different shops.
@@ -194,8 +273,17 @@ abstract final class MerchantIdentifier {
       kind = PayeeKind.undetermined;
     }
 
+    // `F-46`. Only ever claimed for a handle whose shape proves it; a signature
+    // and `mode=02` prove *a business*, not *which tier*.
+    final tier = _fullMerchantPatterns.any((p) => p.hasMatch(local))
+        ? MerchantTier.fullMerchant
+        : _smallMerchantPatterns.any((p) => p.hasMatch(local))
+            ? MerchantTier.smallMerchant
+            : MerchantTier.unknown;
+
     return MerchantIdentity(
       kind: kind,
+      tier: tier,
       handle: handle,
       psp: psp,
       displayName: name,

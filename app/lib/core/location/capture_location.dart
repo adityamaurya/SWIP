@@ -83,15 +83,27 @@ class LocationService {
         return null;
       }
 
-      // Low accuracy on purpose — it matches what is stored, and it returns
-      // far faster and on far less battery than a GPS lock the result would
-      // only throw away.
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.low,
-          timeLimit: Duration(seconds: 8),
-        ),
-      );
+      // `F-51`. Medium, not low. Low resolves to the cell-tower fix, which
+      // indoors at a counter is frequently a whole town away — and a
+      // neighbourhood label computed from a town-sized fix is worse than no
+      // label. Medium still needs only COARSE permission.
+      Position? position;
+      try {
+        position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium,
+            timeLimit: Duration(seconds: 10),
+          ),
+        );
+      } catch (_) {
+        // `F-51`, cause 3. A live fix inside a shop often never arrives. The
+        // old code gave up here and returned nothing, which is most of why
+        // location "was not working" — the last known position is minutes old
+        // and a few hundred metres out, which at this precision is the same
+        // answer.
+        position = await Geolocator.getLastKnownPosition();
+      }
+      if (position == null) return null;
 
       final hash = Geohash.encode(position.latitude, position.longitude);
       final place = await _describe(position.latitude, position.longitude);
@@ -108,22 +120,55 @@ class LocationService {
     }
   }
 
-  /// Best-effort reverse geocode. Returns (label, ISO country) or null.
+  /// `F-52`. Best-effort reverse geocode, at neighbourhood granularity.
+  /// Returns (label, ISO country) or null.
+  ///
+  /// The ask was exact: **"Kasarvadavali, Thane"**, **"Pant Nagar,
+  /// Ghatkopar"** — not "Mumbai, Maharashtra". So the label is composed of the
+  /// **two most specific** non-empty administrative parts the device can name,
+  /// from finest to coarsest:
+  ///
+  ///     subLocality      Kasarvadavali · Pant Nagar   ← the neighbourhood
+  ///     locality         Thane · Mumbai               ← the town
+  ///     subAdministrative Thane district
+  ///     administrativeArea Maharashtra                ← last resort only
+  ///
+  /// The old version took the *first* of these and printed it with the country,
+  /// so at best it said "Kasarvadavali, IN" and at worst just "Maharashtra".
+  ///
+  /// Falls back gracefully anywhere in the world: not every country populates
+  /// `subLocality`, so this degrades to town + region rather than to nothing.
   Future<(String, String?)?> _describe(double lat, double lon) async {
     try {
       final marks = await placemarkFromCoordinates(lat, lon);
       if (marks.isEmpty) return null;
       final m = marks.first;
 
-      final area = [m.subLocality, m.locality, m.administrativeArea]
-          .where((s) => s != null && s.trim().isNotEmpty)
-          .cast<String>()
-          .toList();
-      final country = m.isoCountryCode?.trim().toUpperCase();
+      final parts = <String>[
+        for (final v in [
+          m.subLocality,
+          m.locality,
+          m.subAdministrativeArea,
+          m.administrativeArea,
+        ])
+          if (v != null && v.trim().isNotEmpty) v.trim(),
+      ];
 
-      if (area.isEmpty && country == null) return null;
-      final label = [if (area.isNotEmpty) area.first, if (country != null) country]
-          .join(', ');
+      // De-duplicate: Thane is frequently both locality and subAdministrative,
+      // and "Thane, Thane" reads like a bug.
+      final unique = <String>[];
+      for (final p in parts) {
+        if (!unique.any((u) => u.toLowerCase() == p.toLowerCase())) {
+          unique.add(p);
+        }
+      }
+
+      final country = m.isoCountryCode?.trim().toUpperCase();
+      if (unique.isEmpty) return country == null ? null : (country, country);
+
+      // Two parts: the neighbourhood and the place it is in. Any more and the
+      // ledger row cannot hold it.
+      final label = unique.take(2).join(', ');
       return (label, country);
     } catch (_) {
       return null; // Offline, or no geocoder on the device. Cosmetic.

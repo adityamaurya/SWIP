@@ -66,6 +66,7 @@ abstract final class CaptureResolver {
               (vpa == null ? upi.payeeName : null),
           merchantHandle: vpa?.toLowerCase(),
           payeeKind: identity?.kind ?? PayeeKind.undetermined,
+          tier: identity?.tier ?? MerchantTier.unknown,
           acquirer: identity?.psp,
           merchantKey: vpa == null ? null : 'upi:${vpa.toLowerCase()}',
           amount: upi.amount,
@@ -342,6 +343,7 @@ class ResolvedCapture {
     this.rawPayload,
     this.merchantHandle,
     this.payeeKind = PayeeKind.undetermined,
+    this.tier = MerchantTier.unknown,
   });
 
   final CaptureVector vector;
@@ -370,6 +372,10 @@ class ResolvedCapture {
 
   /// Whether the payee is a registered business, a person, or undetermined.
   final PayeeKind payeeKind;
+
+  /// `F-46`. P2M or P2PM. Decides whether a category can exist at all, and
+  /// whether a RuPay credit card will be accepted.
+  final MerchantTier tier;
 
   bool get hasMcc => mcc != null && mcc!.length == 4 && mcc != '0000';
 

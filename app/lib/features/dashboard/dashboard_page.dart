@@ -10,6 +10,7 @@ import '../../data/models/mcc.dart';
 import '../../widgets/ledger_row.dart';
 import '../../widgets/live_viewfinder.dart';
 import '../../widgets/mcc_badge.dart';
+import '../../widgets/scan_flash_card.dart';
 
 /// S-01 — Dashboard.
 ///
@@ -47,6 +48,9 @@ class DashboardPage extends StatefulWidget {
     this.onOpenLedger,
     this.onOpenSettings,
     this.onOpenEvent,
+    this.flash,
+    this.onExpandFlash,
+    this.onDismissFlash,
   });
 
   /// Newest first. At most [_recentCount] are rendered.
@@ -76,6 +80,12 @@ class DashboardPage extends StatefulWidget {
   final VoidCallback? onOpenLedger;
   final VoidCallback? onOpenSettings;
   final void Function(CaptureEvent)? onOpenEvent;
+
+  /// `F-61`. The most recent ambient scan, shown as a condensed card under the
+  /// camera instead of a modal that covers it.
+  final CaptureEvent? flash;
+  final void Function(CaptureEvent)? onExpandFlash;
+  final VoidCallback? onDismissFlash;
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
@@ -156,6 +166,19 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
           const SizedBox(height: SwipSpace.md),
           _Dots(count: cards.length, index: _page),
+
+          // `F-61`. Sits directly under the viewfinder, so the answer appears
+          // where the eye already is and never covers the camera.
+          if (widget.flash != null) ...[
+            const SizedBox(height: SwipSpace.md),
+            ScanFlashCard(
+              key: ValueKey(widget.flash!.id),
+              event: widget.flash!,
+              mcc: widget.mccFor(widget.flash!.mcc),
+              onExpand: () => widget.onExpandFlash?.call(widget.flash!),
+              onDismiss: widget.onDismissFlash,
+            ),
+          ],
         ],
       ),
     );

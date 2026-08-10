@@ -36,6 +36,11 @@ class _TapPageState extends ConsumerState<TapPage> {
   _NfcState _state = _NfcState.checking;
   bool _handling = false;
 
+  /// `F-55`, `F-56`. Whether SWIP holds Android's default contactless-payment
+  /// slot. Without it the terminal talks to Google Wallet and SWIP never sees a
+  /// single byte — the feature is not broken, it is simply not being routed to.
+  bool _isDefaultPayment = false;
+
   @override
   void initState() {
     super.initState();
@@ -53,6 +58,20 @@ class _TapPageState extends ConsumerState<TapPage> {
     // problem for the user's actual wallet.
     unawaited(_stop());
     super.dispose();
+  }
+
+  /// Re-read the default-payment slot. Called on the way back from Settings
+  /// and on every resume, because the user can change it outside SWIP.
+  Future<void> _refreshDefault() async {
+    try {
+      final status = await _method.invokeMapMethod<String, dynamic>('status');
+      if (!mounted || status == null) return;
+      setState(() => _isDefaultPayment = status['isDefaultPayment'] == true);
+    } on PlatformException {
+      // Leave the last known state; a failed probe is not a change.
+    } on MissingPluginException {
+      // iOS.
+    }
   }
 
   Future<void> _stop() async {
@@ -78,6 +97,8 @@ class _TapPageState extends ConsumerState<TapPage> {
         setState(() => _state = _NfcState.noHce);
         return;
       }
+      _isDefaultPayment = status['isDefaultPayment'] == true;
+
       if (status['enabled'] != true) {
         setState(() => _state = _NfcState.disabled);
         return;
@@ -216,6 +237,15 @@ class _TapPageState extends ConsumerState<TapPage> {
 
   Widget _listening() => Column(
         children: [
+          _DefaultPaymentCard(
+            isDefault: _isDefaultPayment,
+            onFix: () async {
+              await _method.invokeMethod<void>('openPaymentSettings');
+              // Re-read on the way back rather than trusting that the user
+              // did it — the card must show what is true, not what was asked.
+              await _refreshDefault();
+            },
+          ),
           const Spacer(),
           Container(
             width: 190,
@@ -320,4 +350,92 @@ enum _NfcState {
   noHardware,
   noHce,
   unsupportedPlatform,
+}
+
+/// `F-55`, `F-56` — the warning that decides whether tapping works at all.
+///
+/// Android hands the contactless field to whichever app holds the default
+/// payment slot. On a phone with Google Wallet set up that is Wallet, so the
+/// terminal's APDUs never reach SWIP and the screen sits there saying "hold
+/// your phone to the terminal" for ever. `setPreferredService` helps only while
+/// SWIP is already foreground, and on many devices the default still wins.
+///
+/// **Red until it is right, green the moment it is.** A warning that cannot
+/// turn green is just noise, and this one is checked again every time the user
+/// comes back from Settings.
+class _DefaultPaymentCard extends StatelessWidget {
+  const _DefaultPaymentCard({required this.isDefault, this.onFix});
+
+  final bool isDefault;
+  final VoidCallback? onFix;
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = isDefault
+        ? SwipConfidenceColors.verifiedOnInk
+        : SwipColors.dangerOnInk;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(SwipSpace.md),
+      decoration: BoxDecoration(
+        color: isDefault ? SwipColors.successFill : SwipColors.dangerFill,
+        borderRadius: SwipRadius.inputAll,
+        border: Border.all(color: fg.withValues(alpha: .45)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isDefault
+                    ? Icons.check_circle_rounded
+                    : Icons.warning_amber_rounded,
+                size: 18,
+                color: fg,
+              ),
+              const SizedBox(width: SwipSpace.sm),
+              Expanded(
+                child: Text(
+                  isDefault
+                      ? 'SWIP is your default contactless app'
+                      : 'SWIP is not your default contactless app',
+                  style: SwipType.label.copyWith(color: fg),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: SwipSpace.xs),
+          Text(
+            isDefault
+                ? 'Taps come to SWIP. Nothing is paid — it reads the category '
+                    'and stops.'
+                : 'Your phone will send the tap to Google Pay or whichever '
+                    'wallet is set, and SWIP will never see the terminal. Set '
+                    'SWIP under Contactless payments to fix it.',
+            style: SwipType.bodyS.copyWith(color: fg.withValues(alpha: .92)),
+          ),
+          if (!isDefault) ...[
+            const SizedBox(height: SwipSpace.md),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: onFix,
+                icon: const Icon(Icons.settings_outlined, size: 18),
+                label: const Text('Open contactless payment settings'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: fg,
+                  side: BorderSide(color: fg.withValues(alpha: .55)),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    )
+        .animate()
+        .fadeIn(duration: 320.ms)
+        .moveY(begin: -8, curve: SwipMotion.captureCurve);
+  }
 }

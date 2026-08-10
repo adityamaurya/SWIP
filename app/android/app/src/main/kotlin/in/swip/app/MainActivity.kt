@@ -152,9 +152,41 @@ class MainActivity : FlutterFragmentActivity() {
                             "enabled" to (adapter?.isEnabled == true),
                             "hasHce" to packageManager.hasSystemFeature(
                                 android.content.pm.PackageManager.FEATURE_NFC_HOST_CARD_EMULATION
-                            )
+                            ),
+                            // F-55, F-56. THE thing that decides whether a tap
+                            // reaches SWIP at all.
+                            //
+                            // Android routes the contactless field to whichever
+                            // app holds the default-payment slot. On any phone
+                            // with Google Wallet set up, that is Wallet — so the
+                            // terminal's APDUs go there and SWIP never sees them.
+                            // setPreferredService covers only the foreground
+                            // case and only once the screen is already open.
+                            //
+                            // Nothing in the app said so, which made a correctly
+                            // configured feature look broken.
+                            "isDefaultPayment" to (
+                                cardEmulation?.isDefaultServiceForCategory(
+                                    ComponentName(this, SwipListenService::class.java),
+                                    CardEmulation.CATEGORY_PAYMENT
+                                ) == true
+                                )
                         )
                     )
+
+                    // Deep-link to Settings ▸ Connected devices ▸ NFC ▸
+                    // Contactless payments, where the default is chosen.
+                    "openPaymentSettings" -> {
+                        val opened = runCatching {
+                            startActivity(
+                                Intent(android.provider.Settings.ACTION_NFC_PAYMENT_SETTINGS)
+                            )
+                        }.isSuccess || runCatching {
+                            // Some OEM skins do not expose the payment screen.
+                            startActivity(Intent(android.provider.Settings.ACTION_NFC_SETTINGS))
+                        }.isSuccess
+                        result.success(opened)
+                    }
 
                     "startListening" -> {
                         listening = true

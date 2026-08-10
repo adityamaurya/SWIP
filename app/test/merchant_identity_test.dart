@@ -109,4 +109,56 @@ void main() {
           reason: 'case must not fork the merchant graph');
     });
   });
+
+  /// `F-46`, `F-47`. Three real counters, three CRED verdicts. This is the
+  /// hypothesis stated as a test so that a counter-example fails loudly rather
+  /// than quietly making the app confidently wrong.
+  group('merchant tier — the P2M / P2PM split', () {
+    test('a Paytm Soundbox handle is full-merchant tier', () {
+      // Akruti Enterprise and Snowberry. CRED offered RuPay credit cards at
+      // both, so both are P2M — and a P2M merchant has an MCC somewhere.
+      for (final handle in ['paytm.s28uaa5@pty', 'paytm.s233ffl@pty']) {
+        final id = MerchantIdentifier.of(handle, payeeName: 'Paytm');
+        expect(id.tier, MerchantTier.fullMerchant, reason: handle);
+        expect(id.tier.canHaveMcc, isTrue);
+        expect(id.tier.rupayNote, contains('should work'));
+      }
+    });
+
+    test('a basic Paytm sticker handle is small-merchant tier', () {
+      // "Best Wishes". CRED: "MERCHANT DOES NOT ACCEPT RUPAY CC".
+      final id = MerchantIdentifier.of('paytmqr6twbbd@ptys', payeeName: 'Paytm');
+      expect(id.tier, MerchantTier.smallMerchant);
+      // The finding that matters: there is nothing to find, so SWIP must stop
+      // implying the category is merely missing.
+      expect(id.tier.canHaveMcc, isFalse);
+      expect(id.tier.rupayNote, contains('will not work'));
+    });
+
+    test('both tiers are still registered merchants, not people', () {
+      for (final handle in ['paytm.s28uaa5@pty', 'paytmqr6twbbd@ptys']) {
+        expect(MerchantIdentifier.of(handle).kind,
+            PayeeKind.registeredMerchant, reason: handle);
+      }
+    });
+
+    test('an unrecognised handle claims no tier', () {
+      final id = MerchantIdentifier.of('somebody@okaxis');
+      expect(id.tier, MerchantTier.unknown);
+      expect(id.tier.rupayNote, isNull,
+          reason: 'no claim is better than a guess about someone money');
+      expect(id.tier.canHaveMcc, isTrue,
+          reason: 'unknown must not be read as "no MCC exists"');
+    });
+
+    test('the tier reaches the resolver', () {
+      final small = CaptureResolver.resolve(
+          'upi://pay?pa=paytmqr6twbbd@ptys&pn=Paytm&mode=02');
+      expect(small.tier, MerchantTier.smallMerchant);
+
+      final full = CaptureResolver.resolve(
+          'upi://pay?pa=paytm.s233ffl@pty&pn=Paytm&mode=02');
+      expect(full.tier, MerchantTier.fullMerchant);
+    });
+  });
 }
