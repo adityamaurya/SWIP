@@ -11,6 +11,7 @@ import 'data/repositories/capture_repository.dart';
 import 'data/models/capture_event.dart';
 import 'data/sources/capture_resolver.dart';
 import 'data/sources/merchant_identity.dart';
+import 'data/sources/merchant_reconciler.dart';
 import 'features/capture_intent/intent_capture.dart';
 import 'features/capture_link/link_page.dart';
 import 'features/capture_nfc/tap_page.dart';
@@ -21,6 +22,7 @@ import 'features/ledger/ledger_page.dart';
 import 'features/onboarding/home_market_page.dart';
 import 'features/settings/settings_page.dart';
 import 'widgets/capture_sheet.dart';
+import 'widgets/scan_stack.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -74,9 +76,27 @@ class _SwipShellState extends ConsumerState<SwipShell>
   /// a second sheet on top of the first.
   bool _capturing = false;
 
-  /// `F-61`. The most recent ambient scan, shown as a condensed card under the
-  /// camera instead of a modal. Null once dismissed.
-  CaptureEvent? _flash;
+  /// `F-61`, `F-62`. Recent ambient scans, newest first, shown as a stack
+  /// docked at the bottom of the screen instead of a modal.
+  ///
+  /// Pruned to the last minute on every render. The ledger keeps everything for
+  /// ever; this is a toast, and a toast that never expires is a wall.
+  final List<CaptureEvent> _flashes = [];
+
+  static const _flashWindow = Duration(minutes: 1);
+
+  /// `F-49`. Proposals the user has said no to. Kept in memory only — saying
+  /// "different shops" once should not be permanent if the evidence changes,
+  /// but it must not re-ask on the same screen.
+  final Set<String> _dismissedLinks = {};
+
+  List<CaptureEvent> get _liveFlashes {
+    final cutoff = DateTime.now().toUtc().subtract(_flashWindow);
+    return [
+      for (final e in _flashes)
+        if (e.capturedAt.isAfter(cutoff)) e,
+    ];
+  }
 
   /// `D-07`. Global and shared by every time cell in the app, so tapping one
   /// switches them all. Persisted in [SettingsPage].
@@ -165,10 +185,30 @@ class _SwipShellState extends ConsumerState<SwipShell>
       // for gets a quiet card under the camera; the full sheet is one tap
       // away on its chevron. The full-screen scanner still opens the sheet,
       // because there the scan was deliberate.
-      setState(() => _flash = event);
+      setState(() {
+        _flashes.insert(0, event);
+        // Ten is more than anyone swipes through; beyond that the stack is
+        // just memory being held for nothing.
+        if (_flashes.length > 10) _flashes.removeRange(10, _flashes.length);
+      });
     } finally {
       if (mounted) setState(() => _capturing = false);
     }
+  }
+
+  /// `F-49`. Link two identities of one shop, and hand the category across.
+  Future<void> _confirmLink(MerchantLinkProposal p) async {
+    final repo = await ref.read(captureRepositoryProvider.future);
+    final filled = await repo.confirmLink(p);
+    ref.read(ledgerRevisionProvider.notifier).state++;
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(filled == 0
+          ? 'Linked. That QR will answer ${p.mcc} from now on.'
+          : 'Linked, and filled in $filled past '
+              '${filled == 1 ? "capture" : "captures"}.'),
+    ));
   }
 
   /// The chevron on the condensed card — everything the old modal showed.
@@ -214,6 +254,11 @@ class _SwipShellState extends ConsumerState<SwipShell>
     final repo = ref.watch(captureRepositoryProvider);
     final count = ref.watch(captureCountProvider).valueOrNull ?? 0;
     final home = ref.watch(homeMarketProvider).valueOrNull;
+    final links = [
+      for (final p
+          in ref.watch(merchantLinkProposalsProvider).valueOrNull ?? const [])
+        if (!_dismissedLinks.contains(p.aliasKey)) p,
+    ];
 
     final pages = [
       recent.when(
@@ -234,17 +279,47 @@ class _SwipShellState extends ConsumerState<SwipShell>
           onOpenSettings: () => setState(() => _index = 2),
           onOpenCapture: _openCapture,
           onScanned: _onInlineScan,
-          flash: _flash,
-          onExpandFlash: _expandFlash,
-          onDismissFlash: () => setState(() => _flash = null),
+          // `F-49`. At most one at a time: a dashboard that asks the same
+          // question three times gets all three dismissed.
+          linkProposal: links.isEmpty ? null : links.first,
+          onConfirmLink: _confirmLink,
+          onDismissLink: (p) =>
+              setState(() => _dismissedLinks.add(p.aliasKey)),
         ),
       ),
       LedgerPage(timeFormat: _timeFormat, onToggleTime: _toggleTime),
       const SettingsPage(),
     ];
 
+    final flashes = _liveFlashes;
+
     return Scaffold(
-      body: IndexedStack(index: _index, children: pages),
+      body: Stack(
+        children: [
+          IndexedStack(index: _index, children: pages),
+
+          // `F-62`. Docked at the bottom, over everything, like a condensed
+          // music player: always the same place, nothing behind it moves when
+          // it appears, one tap from the full thing.
+          if (_index == 0 && flashes.isNotEmpty)
+            Positioned(
+              left: SwipSpace.gutter,
+              right: SwipSpace.gutter,
+              bottom: SwipSpace.sm,
+              child: ScanStack(
+                events: flashes,
+                mccFor: (code) => repo.valueOrNull?.lookup(code),
+                onExpand: _expandFlash,
+                onDismiss: (e) =>
+                    setState(() => _flashes.removeWhere((x) => x.id == e.id)),
+                onOpenLedger: () => setState(() {
+                  _flashes.clear();
+                  _index = 1;
+                }),
+              ),
+            ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openScan,
         backgroundColor: SwipColors.gold500,

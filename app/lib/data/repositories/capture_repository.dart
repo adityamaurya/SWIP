@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/location/capture_location.dart';
 import '../models/capture_event.dart';
 import '../models/mcc.dart';
+import '../sources/merchant_reconciler.dart';
 import '../sources/statement_parser.dart';
 import '../sources/swip_database.dart';
 import 'mcc_repository.dart';
@@ -147,6 +148,28 @@ class CaptureRepository {
     return (learned: entries.length, backfilled: backfilled);
   }
 
+  /// `F-49`. Links a shop's two identities and hands the category across.
+  ///
+  /// Returns how many past captures gained a category as a result.
+  Future<int> confirmLink(MerchantLinkProposal p) async {
+    await _db.linkMerchants(p.aliasKey, p.canonicalKey);
+    return _db.backfillMcc(p.aliasKey, p.mcc!);
+  }
+
+  /// Candidate links among recent captures. Empty is the normal case — this
+  /// only fires when a tap and a scan land in the same place, in one visit,
+  /// and exactly one of them knows the category.
+  Future<List<MerchantLinkProposal>> proposedLinks() async {
+    final recent = await _db.captures(limit: 60);
+    final linked = <String>{};
+    for (final e in recent) {
+      final key = e.merchantKey;
+      if (key == null) continue;
+      if (await _db.resolveMerchantKey(key) != key) linked.add(key);
+    }
+    return MerchantReconciler.propose(recent, alreadyLinked: linked);
+  }
+
   Future<List<CaptureEvent>> recent({int limit = 5}) =>
       _db.captures(limit: limit);
 
@@ -223,6 +246,16 @@ final allCapturesProvider =
   ref.watch(ledgerRevisionProvider);
   final repo = await ref.watch(captureRepositoryProvider.future);
   return repo.all(vector: v);
+});
+
+/// `F-49`. Surfaced on the dashboard when SWIP thinks two captures are one
+/// shop. Deliberately re-read on every ledger change, so confirming one makes
+/// it disappear immediately.
+final merchantLinkProposalsProvider =
+    FutureProvider<List<MerchantLinkProposal>>((ref) async {
+  ref.watch(ledgerRevisionProvider);
+  final repo = await ref.watch(captureRepositoryProvider.future);
+  return repo.proposedLinks();
 });
 
 final captureCountProvider = FutureProvider<int>((ref) async {

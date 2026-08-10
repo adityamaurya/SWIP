@@ -30,7 +30,7 @@ class SwipDatabase {
   /// v2 adds the F-40 location columns. Never edit [_create] for a change
   /// like this — bump the version and add a numbered block to [_upgrade], or
   /// fresh installs and existing ones diverge.
-  static const _version = 2;
+  static const _version = 3;
 
   static Future<SwipDatabase> open() async {
     if (_instance != null) return _instance!;
@@ -101,6 +101,20 @@ class SwipDatabase {
       )
     ''');
 
+    // `F-49`. One shop, two identities. A POS tap keys on the terminal's
+    // merchant id and a QR keys on the payee handle; both are correct and they
+    // never match. This table says "these are the same shop", so knowledge
+    // captured through one reaches the other.
+    await db.execute('''
+      CREATE TABLE merchant_alias (
+        alias_key     TEXT PRIMARY KEY,
+        canonical_key TEXT NOT NULL,
+        linked_at     INTEGER NOT NULL
+      )
+    ''');
+    await db.execute(
+        'CREATE INDEX idx_alias_canonical ON merchant_alias (canonical_key)');
+
     // Key/value for preferences that must survive a reinstall via backup.
     await db.execute('''
       CREATE TABLE prefs (
@@ -124,6 +138,53 @@ class SwipDatabase {
         await db.execute('ALTER TABLE captures ADD COLUMN $column');
       }
     }
+
+    // v2 → v3: F-49 merchant reconciliation.
+    if (from < 3) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS merchant_alias (
+          alias_key     TEXT PRIMARY KEY,
+          canonical_key TEXT NOT NULL,
+          linked_at     INTEGER NOT NULL
+        )
+      ''');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_alias_canonical '
+          'ON merchant_alias (canonical_key)');
+    }
+  }
+
+  // ── merchant aliases — F-49 ─────────────────────────────────────────
+
+  /// Declare that two merchant keys are the same shop.
+  ///
+  /// Directional on purpose: [aliasKey] resolves *to* [canonicalKey], never the
+  /// reverse, so a chain cannot form a cycle. The canonical side is whichever
+  /// identity carries the category, because that is the one with something to
+  /// give.
+  Future<void> linkMerchants(String aliasKey, String canonicalKey) async {
+    if (aliasKey == canonicalKey) return;
+    await _db.insert(
+      'merchant_alias',
+      {
+        'alias_key': aliasKey,
+        'canonical_key': canonicalKey,
+        'linked_at': DateTime.now().toUtc().millisecondsSinceEpoch,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  /// Follow an alias to the identity that holds the knowledge. One hop only —
+  /// deliberately. Chains are how a merchant graph quietly merges two unrelated
+  /// shops, and one hop covers the real case (a tap and a QR at one counter)
+  /// without opening that door.
+  Future<String> resolveMerchantKey(String key) async {
+    final rows = await _db.query('merchant_alias',
+        columns: ['canonical_key'],
+        where: 'alias_key = ?',
+        whereArgs: [key],
+        limit: 1);
+    return rows.isEmpty ? key : rows.first['canonical_key'] as String;
   }
 
   // ── captures ────────────────────────────────────────────────────────
@@ -194,6 +255,7 @@ class SwipDatabase {
   Future<void> deleteAll() async {
     await _db.delete('captures');
     await _db.delete('merchant_graph');
+    await _db.delete('merchant_alias');
   }
 
   // ── merchant graph ──────────────────────────────────────────────────
@@ -249,12 +311,16 @@ class SwipDatabase {
 
   /// What SWIP knows about a merchant, or null.
   Future<MerchantKnowledge?> knownMerchant(String merchantKey) async {
+    // `F-49`. Follow the alias first: a QR key that has been linked to a POS
+    // key must answer with what the terminal taught, which is the entire point
+    // of linking them.
+    final key = await resolveMerchantKey(merchantKey);
     final rows = await _db.query('merchant_graph',
-        where: 'merchant_key = ?', whereArgs: [merchantKey], limit: 1);
+        where: 'merchant_key = ?', whereArgs: [key], limit: 1);
     if (rows.isEmpty) return null;
     final r = rows.first;
     return MerchantKnowledge(
-      merchantKey: merchantKey,
+      merchantKey: key,
       displayName: r['display_name'] as String?,
       city: r['city'] as String?,
       countryCode: r['country_code'] as String?,

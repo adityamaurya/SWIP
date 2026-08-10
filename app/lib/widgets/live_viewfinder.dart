@@ -34,6 +34,8 @@ class LiveViewfinder extends StatefulWidget {
     required this.active,
     required this.onDetect,
     this.onExpand,
+    this.onToggleShape,
+    this.squared = false,
     this.height = 208,
   });
 
@@ -43,8 +45,14 @@ class LiveViewfinder extends StatefulWidget {
   /// Fired once per code. The parent stops the camera while it handles it.
   final void Function(String raw) onDetect;
 
-  /// `F-02` — tap the viewfinder for the full-screen scanner.
+  /// `F-67` — **double** tap opens the full-screen scanner.
   final VoidCallback? onExpand;
+
+  /// `F-66` — **single** tap morphs the band into a square and back.
+  final VoidCallback? onToggleShape;
+
+  /// Whether the band is currently the square shape.
+  final bool squared;
 
   final double height;
 
@@ -56,6 +64,21 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
   MobileScannerController? _controller;
   bool _refused = false;
   bool _handling = false;
+
+  /// `F-68`. Where the last tap landed, and whether it was a double. Rendered
+  /// as an expanding ring plus a hand glyph, so the gesture teaches itself:
+  /// people discover double-tap by seeing single-tap acknowledged.
+  Offset? _tapAt;
+  bool _tapWasDouble = false;
+  int _tapSeq = 0;
+
+  void _ripple(Offset at, {required bool double_}) {
+    setState(() {
+      _tapAt = at;
+      _tapWasDouble = double_;
+      _tapSeq++;
+    });
+  }
 
   @override
   void initState() {
@@ -118,7 +141,17 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
     final controller = _controller;
 
     return GestureDetector(
-      onTap: widget.onExpand,
+      // `F-66`, `F-67`. One tap reshapes, two taps go full screen.
+      //
+      // Flutter waits ~300 ms after a single tap before it can rule out a
+      // double, so the ripple fires immediately on tap-down and the actions
+      // follow. Without that the screen feels dead for a third of a second and
+      // people tap again — which then registers as the double they did not
+      // want.
+      onTapDown: (d) => _ripple(d.localPosition, double_: false),
+      onTap: widget.onToggleShape,
+      onDoubleTapDown: (d) => _ripple(d.localPosition, double_: true),
+      onDoubleTap: widget.onExpand,
       child: Container(
         height: widget.height,
         width: double.infinity,
@@ -160,6 +193,32 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
               const _SweepLine()
             else
               _Idle(refused: _refused),
+
+            // `F-68` — the tap acknowledgement.
+            if (_tapAt != null)
+              _TapRipple(
+                key: ValueKey(_tapSeq),
+                at: _tapAt!,
+                isDouble: _tapWasDouble,
+              ),
+
+            // `F-66` — what the gestures do, faint, only while idle-ish.
+            if (!_handling)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: SwipSpace.sm,
+                child: IgnorePointer(
+                  child: Text(
+                    widget.squared
+                        ? 'Tap to widen  ·  Double-tap for full screen'
+                        : 'Tap to square up  ·  Double-tap for full screen',
+                    textAlign: TextAlign.center,
+                    style: SwipType.bodyS
+                        .copyWith(color: SwipColors.textTertiary),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -303,6 +362,63 @@ class _Idle extends StatelessWidget {
               style: SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
             ).animate().fadeIn(delay: 120.ms, duration: 400.ms),
           ],
+        ),
+      );
+}
+
+/// `F-68` — a gold ring expanding from the touch point, with a hand glyph.
+///
+/// Two rings for a double tap rather than a different colour: the count is the
+/// information, and a second ring reads as "two" without anyone being taught a
+/// legend.
+class _TapRipple extends StatelessWidget {
+  const _TapRipple({super.key, required this.at, required this.isDouble});
+
+  final Offset at;
+  final bool isDouble;
+
+  @override
+  Widget build(BuildContext context) => Positioned(
+        left: at.dx - 40,
+        top: at.dy - 40,
+        child: IgnorePointer(
+          child: SizedBox(
+            width: 80,
+            height: 80,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                for (var ring = 0; ring < (isDouble ? 2 : 1); ring++)
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: SwipColors.gold500, width: 2),
+                    ),
+                  )
+                      .animate()
+                      .scaleXY(
+                          begin: .25,
+                          end: 1,
+                          delay: (ring * 130).ms,
+                          duration: 420.ms,
+                          curve: Curves.easeOutCubic)
+                      .fadeOut(
+                          delay: (ring * 130).ms, duration: 420.ms),
+                Icon(
+                  isDouble
+                      ? Icons.open_in_full_rounded
+                      : Icons.touch_app_rounded,
+                  size: 22,
+                  color: SwipColors.gold300,
+                )
+                    .animate()
+                    .fadeIn(duration: 120.ms)
+                    .scaleXY(begin: .7, end: 1.05, duration: 220.ms)
+                    .then()
+                    .fadeOut(duration: 260.ms),
+              ],
+            ),
+          ),
         ),
       );
 }

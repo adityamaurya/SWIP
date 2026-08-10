@@ -9,8 +9,9 @@ import '../../data/models/capture_event.dart';
 import '../../data/models/mcc.dart';
 import '../../widgets/ledger_row.dart';
 import '../../widgets/live_viewfinder.dart';
+import '../../data/sources/merchant_reconciler.dart';
 import '../../widgets/mcc_badge.dart';
-import '../../widgets/scan_flash_card.dart';
+import '../../widgets/merchant_link_card.dart';
 
 /// S-01 — Dashboard.
 ///
@@ -48,9 +49,9 @@ class DashboardPage extends StatefulWidget {
     this.onOpenLedger,
     this.onOpenSettings,
     this.onOpenEvent,
-    this.flash,
-    this.onExpandFlash,
-    this.onDismissFlash,
+    this.linkProposal,
+    this.onConfirmLink,
+    this.onDismissLink,
   });
 
   /// Newest first. At most [_recentCount] are rendered.
@@ -81,11 +82,11 @@ class DashboardPage extends StatefulWidget {
   final VoidCallback? onOpenSettings;
   final void Function(CaptureEvent)? onOpenEvent;
 
-  /// `F-61`. The most recent ambient scan, shown as a condensed card under the
-  /// camera instead of a modal that covers it.
-  final CaptureEvent? flash;
-  final void Function(CaptureEvent)? onExpandFlash;
-  final VoidCallback? onDismissFlash;
+  /// `F-49`. "Is this the same shop?" — shown above the capture tiles, where
+  /// it is unmissable but not modal.
+  final MerchantLinkProposal? linkProposal;
+  final void Function(MerchantLinkProposal)? onConfirmLink;
+  final void Function(MerchantLinkProposal)? onDismissLink;
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
@@ -97,6 +98,12 @@ class _DashboardPageState extends State<DashboardPage> {
 
   final _pages = PageController();
   int _page = 0;
+
+  /// `F-66`. Whether the camera band is the square shape. A square matches the
+  /// shape of the thing being looked at, so a stubborn code lines up far more
+  /// easily — and it is one tap back to the wide band that fits more of the
+  /// dashboard on screen.
+  bool _squared = false;
 
   @override
   void dispose() {
@@ -114,6 +121,20 @@ class _DashboardPageState extends State<DashboardPage> {
           slivers: [
             SliverToBoxAdapter(child: _header(context)),
             SliverToBoxAdapter(child: _band(last)),
+            if (widget.linkProposal != null)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(SwipSpace.gutter, 0,
+                      SwipSpace.gutter, SwipSpace.section),
+                  child: MerchantLinkCard(
+                    proposal: widget.linkProposal!,
+                    onConfirm: () =>
+                        widget.onConfirmLink?.call(widget.linkProposal!),
+                    onDismiss: () =>
+                        widget.onDismissLink?.call(widget.linkProposal!),
+                  ),
+                ),
+              ),
             SliverToBoxAdapter(child: _captureTiles()),
             if (widget.recent.isNotEmpty) ...[
               SliverToBoxAdapter(child: _recentHeader()),
@@ -129,13 +150,17 @@ class _DashboardPageState extends State<DashboardPage> {
 
   /// `F-03` — the swipeable band. Card 1 is always the camera.
   Widget _band(CaptureEvent? last) {
+    final bandHeight = _squared ? _squareHeight(context) : _bandHeight;
+
     final cards = <Widget>[
       LiveViewfinder(
         // The camera runs only when the dashboard is foreground *and* this
         // page of the carousel is the one on screen.
         active: widget.active && _page == 0,
-        height: _bandHeight,
+        height: bandHeight,
+        squared: _squared,
         onDetect: (raw) => widget.onScanned?.call(raw),
+        onToggleShape: () => setState(() => _squared = !_squared),
         onExpand: () => widget.onOpenCapture?.call(CaptureVector.qr),
       ),
       if (last != null)
@@ -144,11 +169,11 @@ class _DashboardPageState extends State<DashboardPage> {
           mcc: widget.mccFor(last.mcc),
           verdict: widget.homeMarket?.verdictFor(last.countryCode,
               deviceCountry: last.placeCountry),
-          height: _bandHeight,
+          height: bandHeight,
           onTap: () => widget.onOpenEvent?.call(last),
         )
       else
-        const _FirstRunCard(height: _bandHeight),
+        _FirstRunCard(height: bandHeight),
     ];
 
     return Padding(
@@ -156,32 +181,32 @@ class _DashboardPageState extends State<DashboardPage> {
           SwipSpace.gutter, 0, SwipSpace.gutter, SwipSpace.section),
       child: Column(
         children: [
-          SizedBox(
-            height: _bandHeight,
+          // `F-66`. Animated so the morph is a movement rather than a jump —
+          // a card that changes size instantly reads as a layout bug.
+          AnimatedSize(
+            duration: SwipMotion.standard,
+            curve: SwipMotion.captureCurve,
+            child: SizedBox(
+            height: bandHeight,
             child: PageView(
               controller: _pages,
               onPageChanged: (i) => setState(() => _page = i),
               children: cards,
             ),
           ),
+          ),
           const SizedBox(height: SwipSpace.md),
           _Dots(count: cards.length, index: _page),
-
-          // `F-61`. Sits directly under the viewfinder, so the answer appears
-          // where the eye already is and never covers the camera.
-          if (widget.flash != null) ...[
-            const SizedBox(height: SwipSpace.md),
-            ScanFlashCard(
-              key: ValueKey(widget.flash!.id),
-              event: widget.flash!,
-              mcc: widget.mccFor(widget.flash!.mcc),
-              onExpand: () => widget.onExpandFlash?.call(widget.flash!),
-              onDismiss: widget.onDismissFlash,
-            ),
-          ],
         ],
       ),
     );
+  }
+
+  /// The square. Capped so it never eats the whole screen on a tall phone —
+  /// the tiles and the recent list have to stay reachable without scrolling.
+  static double _squareHeight(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width - SwipSpace.gutter * 2;
+    return width.clamp(220.0, 340.0);
   }
 
   Widget _header(BuildContext context) => Padding(
