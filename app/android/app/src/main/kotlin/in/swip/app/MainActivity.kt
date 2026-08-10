@@ -200,6 +200,23 @@ class MainActivity : FlutterFragmentActivity() {
                         result.success(null)
                     }
 
+                    // Camera permission, permanently denied. Android stops
+                    // showing the prompt after two refusals, so app settings is
+                    // the only remaining route back — and an app that cannot
+                    // offer that route has simply lost the feature.
+                    "openAppSettings" -> {
+                        val ok = runCatching {
+                            startActivity(
+                                Intent(
+                                    android.provider.Settings
+                                        .ACTION_APPLICATION_DETAILS_SETTINGS,
+                                    android.net.Uri.fromParts("package", packageName, null)
+                                )
+                            )
+                        }.isSuccess
+                        result.success(ok)
+                    }
+
                     "openNfcSettings" -> {
                         startActivity(Intent(android.provider.Settings.ACTION_NFC_SETTINGS))
                         result.success(null)

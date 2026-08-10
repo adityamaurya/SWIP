@@ -76,6 +76,18 @@ class _SwipShellState extends ConsumerState<SwipShell>
   /// a second sheet on top of the first.
   bool _capturing = false;
 
+  /// **The camera is a single, exclusive piece of hardware.**
+  ///
+  /// Pushing the full-screen scanner does not unmount the dashboard — the route
+  /// sits on top and the dashboard's `IndexedStack` page stays alive. So the
+  /// inline viewfinder kept its camera session open, the scanner's controller
+  /// could not acquire the device, and the full-screen scanner showed a black
+  /// rectangle for ever.
+  ///
+  /// This flag is the hand-off: the dashboard releases the camera before the
+  /// scanner is pushed and takes it back when the scanner pops.
+  bool _cameraHandedOver = false;
+
   /// `F-61`, `F-62`. Recent ambient scans, newest first, shown as a stack
   /// docked at the bottom of the screen instead of a modal.
   ///
@@ -149,7 +161,20 @@ class _SwipShellState extends ConsumerState<SwipShell>
       CaptureVector.link => const LinkPage(),
       _ => const ScanPage(),
     };
+
+    // Release the camera *before* pushing, and give the platform a frame to
+    // actually let go. Handing over on the same frame as the push loses the
+    // race about half the time on a real device.
+    final needsCamera = vector == CaptureVector.qr;
+    if (needsCamera) {
+      setState(() => _cameraHandedOver = true);
+      await Future<void>.delayed(const Duration(milliseconds: 220));
+    }
+
+    if (!mounted) return;
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+
+    if (mounted && needsCamera) setState(() => _cameraHandedOver = false);
   }
 
   /// `F-01`. A code read by the dashboard's inline viewfinder. Identical
@@ -269,7 +294,10 @@ class _SwipShellState extends ConsumerState<SwipShell>
           mccFor: (code) => repo.valueOrNull?.lookup(code),
           timeFormat: _timeFormat,
           homeMarket: home,
-          active: _index == 0 && _resumed && !_capturing,
+          active: _index == 0 &&
+              _resumed &&
+              !_capturing &&
+              !_cameraHandedOver,
           // Vector 2 is Android-only: Apple permits host card emulation for
           // contactless transactions in the EEA only, and India is not
           // included. The tile is dimmed and explained, never hidden.

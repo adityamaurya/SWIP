@@ -137,8 +137,12 @@ class _ShareCaptureListenerState extends ConsumerState<ShareCaptureListener>
   /// once per share and holding a scanner alive between them would keep the
   /// camera pipeline warm for nothing.
   Future<String?> _readQrFromImage(String path) async {
+    // `autoStart: false` matters here: analysing an image needs no camera
+    // session at all, and starting one would fight the dashboard viewfinder
+    // for hardware it is not going to use.
     final controller = MobileScannerController(
       formats: const [BarcodeFormat.qrCode, BarcodeFormat.dataMatrix],
+      autoStart: false,
     );
     try {
       final result = await controller.analyzeImage(path);

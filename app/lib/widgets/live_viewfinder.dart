@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
@@ -61,8 +64,30 @@ class LiveViewfinder extends StatefulWidget {
 }
 
 class _LiveViewfinderState extends State<LiveViewfinder> {
-  MobileScannerController? _controller;
+  /// **One controller for the widget's whole life.**
+  ///
+  /// The previous version created a controller when the band became active and
+  /// `dispose()`d it when it went inactive — and `active` flips on every single
+  /// capture. Disposing a camera and immediately re-acquiring it is a race:
+  /// Android has not released the hardware yet, the new session fails to
+  /// acquire, and the preview stays black with no error anyone can see. That is
+  /// the bug you hit.
+  ///
+  /// `start()` and `stop()` are what the API is for. `dispose()` happens once,
+  /// here, when the widget really goes away.
+  late final MobileScannerController _controller = MobileScannerController(
+    detectionSpeed: DetectionSpeed.noDuplicates,
+    formats: const [BarcodeFormat.qrCode, BarcodeFormat.dataMatrix],
+    // `autoStart: false` — the widget must be attached before start() is
+    // called, or the plugin throws `controllerNotAttached` after a 500 ms
+    // timeout. Starting it ourselves from the post-frame callback is the
+    // documented way to be sure.
+    autoStart: false,
+  );
+
+  bool _running = false;
   bool _refused = false;
+  bool _starting = false;
   bool _handling = false;
 
   /// `F-68`. Where the last tap landed, and whether it was a double. Rendered
@@ -83,7 +108,10 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
   @override
   void initState() {
     super.initState();
-    if (widget.active) _start();
+    // After the first frame, so the platform view exists to attach to.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.active) _start();
+    });
   }
 
   @override
@@ -98,27 +126,78 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
 
   @override
   void dispose() {
-    _stop();
+    unawaited(_controller.dispose());
     super.dispose();
   }
 
-  void _start() {
-    if (_controller != null || _refused) return;
-    final c = MobileScannerController(
-      detectionSpeed: DetectionSpeed.noDuplicates,
-      formats: const [BarcodeFormat.qrCode, BarcodeFormat.dataMatrix],
-      // The dashboard preview runs at a lower resolution than the full-screen
-      // scanner: it is a wide, short strip and does not need 1080p to find a
-      // shop sticker held 30 cm away. This is most of the battery saving.
-      cameraResolution: const Size(1280, 720),
-    );
-    setState(() => _controller = c);
+  /// Start the camera, handling every documented failure rather than letting a
+  /// black rectangle stand in for an explanation.
+  Future<void> _start({int attempt = 0}) async {
+    if (_starting || _running || !mounted) return;
+    _starting = true;
+
+    try {
+      await _controller.start();
+      if (mounted) setState(() {
+            _running = true;
+            _refused = false;
+          });
+    } on MobileScannerException catch (e) {
+      switch (e.errorCode) {
+        case MobileScannerErrorCode.permissionDenied:
+          // Scenario 2: refused. Not an error state to hide — a state with an
+          // action attached, so the user can change their mind later.
+          if (mounted) setState(() => _refused = true);
+
+        case MobileScannerErrorCode.controllerNotAttached:
+        case MobileScannerErrorCode.controllerInitializing:
+          // Documented, transient, and worth one retry: the platform view can
+          // lag the first frame on a cold start.
+          if (attempt < 2 && mounted) {
+            await Future<void>.delayed(const Duration(milliseconds: 300));
+            _starting = false;
+            return _start(attempt: attempt + 1);
+          }
+
+        default:
+          // No camera, another app holding it, an OEM quirk. The idle card is
+          // shown either way; it never pretends to be scanning.
+          break;
+      }
+    } catch (_) {
+      // Never let a camera failure take the dashboard down with it.
+    } finally {
+      _starting = false;
+    }
   }
 
-  void _stop() {
-    final c = _controller;
-    _controller = null;
-    c?.dispose();
+  Future<void> _stop() async {
+    if (!_running) return;
+    _running = false;
+    try {
+      await _controller.stop();
+    } catch (_) {
+      // Already stopped, or disposed mid-flight. Nothing to recover.
+    }
+    if (mounted) setState(() {});
+  }
+
+  /// The tap on the refused card. `F-69`.
+  ///
+  /// On Android a denied permission can be asked for again, so the first move
+  /// is simply to try. Only when Android silently refuses to prompt — the
+  /// "don't ask again" state — is the user sent to app settings, because
+  /// sending them there when a prompt would have worked is two extra screens
+  /// for nothing.
+  Future<void> _requestPermission() async {
+    setState(() => _refused = false);
+    await _start();
+    if (!mounted || _running) return;
+
+    setState(() => _refused = true);
+    await const MethodChannel('in.swip.app/nfc')
+        .invokeMethod<void>('openAppSettings')
+        .catchError((_) {});
   }
 
   Future<void> _onDetect(BarcodeCapture capture) async {
@@ -138,8 +217,6 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
 
   @override
   Widget build(BuildContext context) {
-    final controller = _controller;
-
     return GestureDetector(
       // `F-66`, `F-67`. One tap reshapes, two taps go full screen.
       //
@@ -149,7 +226,9 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
       // people tap again — which then registers as the double they did not
       // want.
       onTapDown: (d) => _ripple(d.localPosition, double_: false),
-      onTap: widget.onToggleShape,
+      // `F-69`. When the camera is refused, a tap is a request for it — not a
+      // reshape. Nothing else on this card is worth tapping in that state.
+      onTap: _refused ? _requestPermission : widget.onToggleShape,
       onDoubleTapDown: (d) => _ripple(d.localPosition, double_: true),
       onDoubleTap: widget.onExpand,
       child: Container(
@@ -164,9 +243,9 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            if (controller != null && !_refused)
+            if (!_refused)
               MobileScanner(
-                controller: controller,
+                controller: _controller,
                 onDetect: _onDetect,
                 errorBuilder: (context, error, child) {
                   // Permission refused, or no camera. Rendered as the same
@@ -183,16 +262,16 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
             IgnorePointer(
               child: Container(
                 color: SwipColors.bg
-                    .withValues(alpha: controller == null ? .92 : .58),
+                    .withValues(alpha: _running ? .58 : .92),
               ),
             ),
 
             const _GoldFrame(),
 
-            if (controller != null && !_refused)
+            if (_running && !_refused)
               const _SweepLine()
             else
-              _Idle(refused: _refused),
+              _Idle(refused: _refused, starting: _starting),
 
             // `F-68` — the tap acknowledgement.
             if (_tapAt != null)
@@ -203,7 +282,7 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
               ),
 
             // `F-66` — what the gestures do, faint, only while idle-ish.
-            if (!_handling)
+            if (!_handling && _running)
               Positioned(
                 left: 0,
                 right: 0,
@@ -325,8 +404,9 @@ class _SweepLine extends StatelessWidget {
 
 /// The first-run / no-permission face of the card.
 class _Idle extends StatelessWidget {
-  const _Idle({required this.refused});
+  const _Idle({required this.refused, this.starting = false});
   final bool refused;
+  final bool starting;
 
   @override
   Widget build(BuildContext context) => Center(
@@ -348,7 +428,11 @@ class _Idle extends StatelessWidget {
                     curve: Curves.easeInOut),
             const SizedBox(height: SwipSpace.md),
             Text(
-              refused ? 'Camera access is off' : 'Tap to scan',
+              refused
+                  ? 'Camera access is off'
+                  : starting
+                      ? 'Waking the camera…'
+                      : 'Tap to scan',
               style: SwipType.titleS.copyWith(color: SwipColors.textPrimary),
             )
                 .animate()
@@ -357,9 +441,14 @@ class _Idle extends StatelessWidget {
             const SizedBox(height: SwipSpace.xs),
             Text(
               refused
-                  ? 'Allow it in Settings and the camera lives here'
-                  : 'Point at any payment QR',
-              style: SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
+                  ? 'Tap here to allow it — the camera lives on this card'
+                  : starting
+                      ? 'One moment'
+                      : 'Point at any payment QR',
+              style: SwipType.bodyS.copyWith(
+                  color: refused
+                      ? SwipColors.gold500
+                      : SwipColors.textTertiary),
             ).animate().fadeIn(delay: 120.ms, duration: 400.ms),
           ],
         ),

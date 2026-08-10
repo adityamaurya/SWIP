@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -26,18 +27,58 @@ class _ScanPageState extends ConsumerState<ScanPage> {
   final _controller = MobileScannerController(
     detectionSpeed: DetectionSpeed.noDuplicates,
     formats: const [BarcodeFormat.qrCode, BarcodeFormat.dataMatrix],
+    // Started by hand once the widget is attached — see [_start].
+    autoStart: false,
   );
 
   bool _handling = false;
+  bool _refused = false;
 
   @override
   void initState() {
     super.initState();
     // The explanation arrives ahead of the camera permission dialog, not on
     // top of it — a permission prompt with no context is how apps get denied.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) showPrimer(context, ref, SwipPrimer.scanQr);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (mounted) await showPrimer(context, ref, SwipPrimer.scanQr);
+      await _start();
     });
+  }
+
+  /// Start the camera, retrying the two documented transient failures.
+  ///
+  /// `controllerNotAttached` is real and common here: the primer sheet is on
+  /// screen when this runs on a first launch, so the scanner's platform view
+  /// may not be attached yet.
+  Future<void> _start({int attempt = 0}) async {
+    try {
+      await _controller.start();
+      if (mounted) setState(() => _refused = false);
+    } on MobileScannerException catch (e) {
+      switch (e.errorCode) {
+        case MobileScannerErrorCode.permissionDenied:
+          if (mounted) setState(() => _refused = true);
+        case MobileScannerErrorCode.controllerNotAttached:
+        case MobileScannerErrorCode.controllerInitializing:
+          if (attempt < 3 && mounted) {
+            await Future<void>.delayed(const Duration(milliseconds: 300));
+            return _start(attempt: attempt + 1);
+          }
+        default:
+          break;
+      }
+    } catch (_) {
+      // A scanner that cannot open must still be a screen you can back out of.
+    }
+  }
+
+  Future<void> _requestPermission() async {
+    await _start();
+    if (!mounted || !_refused) return;
+    // Android has stopped prompting. Settings is the only way back.
+    await const MethodChannel('in.swip.app/nfc')
+        .invokeMethod<void>('openAppSettings')
+        .catchError((_) {});
   }
 
   @override
@@ -127,11 +168,15 @@ class _ScanPageState extends ConsumerState<ScanPage> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          MobileScanner(
-            controller: _controller,
-            onDetect: _onDetect,
-            errorBuilder: (context, error, child) => _CameraError(error: error),
-          ),
+          if (!_refused)
+            MobileScanner(
+              controller: _controller,
+              onDetect: _onDetect,
+              errorBuilder: (context, error, child) =>
+                  _CameraError(onAllow: _requestPermission),
+            )
+          else
+            _CameraError(onAllow: _requestPermission),
 
           // Ink scrim — the camera feed is information, not decoration, so it
           // is dimmed rather than hidden.
@@ -173,8 +218,11 @@ class _ScanPageState extends ConsumerState<ScanPage> {
 }
 
 class _CameraError extends StatelessWidget {
-  const _CameraError({required this.error});
-  final MobileScannerException error;
+  const _CameraError({this.onAllow});
+
+  /// `F-69`. Never a dead end: asking again is one tap, and if Android has
+  /// stopped prompting this opens app settings instead.
+  final VoidCallback? onAllow;
 
   @override
   Widget build(BuildContext context) => Center(
@@ -193,12 +241,17 @@ class _CameraError extends StatelessWidget {
               ),
               const SizedBox(height: SwipSpace.sm),
               Text(
-                'Allow camera access in your phone settings, then come back to '
-                'this screen. Nothing is recorded or uploaded — the camera is '
-                'used only to read the code in front of you.',
+                'Nothing is recorded or uploaded — the camera is used only to '
+                'read the code in front of you.',
                 style:
                     SwipType.bodyM.copyWith(color: SwipColors.textSecondary),
                 textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: SwipSpace.xl),
+              FilledButton.icon(
+                onPressed: onAllow,
+                icon: const Icon(Icons.photo_camera_outlined, size: 18),
+                label: const Text('Allow camera'),
               ),
             ],
           ),
