@@ -327,6 +327,59 @@ they share the first five characters, so the cell cannot identify a building.
 
 ---
 
+## Prompt 19 — 10 Aug 2026 · Cracking the Paytm QR
+
+> The counter test, part two. Full prompt and all 24 to-dos:
+> [21-PROMPT-LEDGER § Prompt 19](21-PROMPT-LEDGER.md#prompt-19--the-counter-test-part-two-current).
+> Findings: [22-FEEDBACK-ROUND-3](22-FEEDBACK-ROUND-3.md).
+
+### The finding
+
+**The missing MCC and CRED's RuPay line are the same fact.** NPCI onboards merchants
+in two tiers: **P2M** has an MCC and can take a RuPay credit card on UPI; **P2PM** has
+neither. "Best Wishes" is P2PM — so there was never a category to read, and that is
+also why CRED greyed out the RuPay cards. SWIP was not failing to parse.
+
+### Screens changed
+
+| ID | Screen | Change | Serves |
+|---|---|---|---|
+| `S-01` | Dashboard | Ambient scans produce a **condensed card**, not a modal | `F-60`, `F-61` |
+| `S-03` | Tap POS | **Red/green default-payment-app card** | `F-54`–`F-56` |
+| `S-12` | Settings | — | |
+| capture sheet | Every vector | Detection-mode line; RuPay note; one-glance uncategorised copy | `F-53`, `F-47`, `F-64` |
+
+### Element changes
+
+| Where | Before | After | Why |
+|---|---|---|---|
+| Ambient scan | Full-height modal on every code in frame | Condensed card under the camera, chevron to expand | A modal is the most interrupting pattern there is, and the wrong answer to scanning nobody asked for |
+| Sheet, no category | "SWIP could not find it" in four sentences | **"A person, not a shop"** + one line, or **"A real shop, no category published"** | At a counter, four sentences is the same as nothing |
+| Sheet | No provenance line | *"Read from the shop's card terminal · EMV tag 9F15"* | `F-53` |
+| Sheet | Nothing about card acceptance | RuPay note, green or amber, with the reason | `F-47` |
+| Tap screen | No mention of the default-payment slot | Red until SWIP holds it, green after | Android sends taps to whichever app owns the slot. Without it the feature cannot work, and nothing said so |
+| Location label | "Kasarvadavali, IN" at best | **"Kasarvadavali, Thane"** | `F-52`, the requested format |
+
+### Code
+
+| File | Change |
+|---|---|
+| `merchant_identity.dart` | `MerchantTier` — P2M/P2PM from the handle the PSP mints |
+| [`scan_flash_card.dart`](../app/lib/widgets/scan_flash_card.dart) | **New.** The condensed card |
+| `capture_location.dart` | Medium accuracy, last-known fallback, two-part de-duplicated label |
+| `MainActivity.kt` | `isDefaultPayment` in `status`; `openPaymentSettings` |
+| `tap_page.dart` | The red/green card, re-checked on return |
+| `merchant_identity_test.dart` | +6 tests pinning the tier hypothesis against the three real counters |
+
+### Open
+
+- `F-49` merchant reconciliation and `F-50` the ₹1 statement loop — the two routes that would have given Snowberry's QR the category its own terminal already gave up.
+- `F-62`, `F-63`, `F-66`–`F-68` — card stacking, the pull-string, camera morph and ripple.
+- `F-43` — the trusted-apps screenshot was not among the images sent.
+- `F-59` — held blank for the scenario that was forgotten. Not invented.
+
+---
+
 <!--
 Template for the next entry:
 
