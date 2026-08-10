@@ -174,6 +174,14 @@ class _SwipShellState extends ConsumerState<SwipShell>
     if (!mounted) return;
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
 
+    // And take it back only once the scanner has let go. `ScanPage.dispose()`
+    // releases the camera asynchronously and the Navigator does not wait for
+    // it, so clearing this on the same frame as the pop had the dashboard ask
+    // for a camera that was still claimed. The viewfinder retries anyway now,
+    // but starting from a settled state means no visible stumble either.
+    if (needsCamera) {
+      await Future<void>.delayed(const Duration(milliseconds: 320));
+    }
     if (mounted && needsCamera) setState(() => _cameraHandedOver = false);
   }
 

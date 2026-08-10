@@ -150,7 +150,7 @@
 
 ---
 
-## Prompt 19 — the counter test, part two *(current)*
+## Prompt 19 — the counter test, part two
 
 **Original prompt, verbatim:**
 
@@ -266,6 +266,134 @@
 | 19.22 | `F-66` | Single tap on the dashboard camera **morphs it into a square** | 📋 next pass |
 | 19.23 | `F-67` | Double tap enters the **standalone camera screen** | 📋 next pass |
 | 19.24 | `F-68` | Tap and double-tap **ripple + hand indicator** animation | 📋 next pass |
+
+---
+
+## Prompt 20 — the Federal Bank statement
+
+**Original prompt, verbatim:**
+
+> check the screenshot above the mcc is shown in bank statement like this
+
+*(with a screenshot of a Federal Bank statement row:*
+`UPIOUT/658724829452/paytm.s233ffl@pty/Demo/5451`*)*
+
+| # | ID | To-do | Status |
+|---|---|---|---|
+| 20.1 | `F-50` | Read the MCC out of a bank statement line and key it to the VPA beside it | ✅ [`statement_parser.dart`](../app/lib/data/sources/statement_parser.dart), `S-25` |
+| 20.2 | `F-50` | Backfill past captures of that merchant once learned | ✅ `backfillMcc()` in [`swip_database.dart`](../app/lib/data/sources/swip_database.dart) |
+
+---
+
+## Prompt 21 — trusted apps, card stacking, wallet top-up
+
+**Original prompt, verbatim:**
+
+> this is the trusted app if there is a redirection happening (ss1) to choose a UPI
+> app then it shows up, thats good but imside the the apps as a listing its still
+> not visible (ss2) shared above, go ahead and build the card staking thing also the
+> card atackign will be not just below the xamera area / but at the bottom of screen
+> like a toast of condensed music player in apple also there will be somgle tap to
+> morp to squarish and double tap on camera area to open full camer app screen /
+> research and hold on to the waller top up, research and let me know how would you
+> capture the mcc on this direction once you get the ss1 modal with swip as listed /
+> f49 do some more indepth research from finance app and world and their infra and
+> then make it with all the context and ss you have now
+
+| # | ID | To-do | Status |
+|---|---|---|---|
+| 21.1 | `F-43` | Correct the Vector 7 record — the system chooser **does** list SWIP | ✅ correction at the **top** of [20-FEEDBACK-ROUND-2](20-FEEDBACK-ROUND-2.md) |
+| 21.2 | `F-62` | Card stacking **at the bottom of the screen**, Apple condensed-music-player style | ✅ [`scan_stack.dart`](../app/lib/widgets/scan_stack.dart) |
+| 21.3 | `F-63` | Pull-string — *"vieeeeewww older scans"* | ✅ same file |
+| 21.4 | `F-66` | Single tap morphs the camera band to a square | ✅ [`live_viewfinder.dart`](../app/lib/widgets/live_viewfinder.dart) |
+| 21.5 | `F-67` | Double tap opens the standalone camera screen | ✅ same file |
+| 21.6 | `F-68` | Tap / double-tap ripple + hand indicator | ✅ `_TapRipple` |
+| 21.7 | `F-58` | Wallet top-up — research, then **hold** | ✅ researched, held: it posts as MCC 6540 and most Indian issuers exclude it |
+| 21.8 | `F-49` | Deeper research, then build merchant reconciliation | ✅ [`merchant_reconciler.dart`](../app/lib/data/sources/merchant_reconciler.dart) |
+
+---
+
+## Prompt 22 — the camera does not work
+
+**Original prompt, verbatim:**
+
+> one major bug is happening, the camera is not working despite asking and getting
+> the permission on dash and inside the full camera screen , do a sanity check of the
+> code surrounding the camera region, also there could be two scenarios furthermore,
+> one where in
+> * the use give the permission and the above bugs happen
+> * second the
+> user of fear denies the permission, then enters the country and the currency gets
+> mapped as per the country selection, later on when he enters the app the always on
+> camera region willl have and inside trigger where the user can tap and get
+> redirected to give the camera permission
+
+| # | ID | To-do | Status |
+|---|---|---|---|
+| 22.1 | `F-69` | Sanity-check the whole camera surface | ✅ done twice — the second pass (prompt 24) is the one that found the real cause |
+| 22.2 | `F-69` | Scenario 1: permission granted, camera still dead | ✅ fixed — two controllers were fighting for one platform texture |
+| 22.3 | `F-69` | Scenario 2: permission refused, then a tap on the band to grant it later | ✅ fixed — and in prompt 24 made to actually work, because a refused controller in 5.2.3 can never be restarted |
+
+---
+
+## Prompt 23 — "Camera access is off" after the full screen
+
+**Original prompt, verbatim:**
+
+> there is another bug where in once you go inside the full camera screen by double
+> tapping it says on the dashboard camera this - as sahred in screenshot above
+
+*(screenshot: the dashboard band reading "Camera access is off / Tap here to allow it")*
+
+| # | ID | To-do | Status |
+|---|---|---|---|
+| 23.1 | `F-70` | The dashboard band must not claim permission was denied when it was only handed over | ✅ fixed in prompt 24 |
+
+---
+
+## Prompt 24 — one NFC card, and the camera told the truth *(current)*
+
+**Original prompt, verbatim:**
+
+> streamline the copy above and below make it in one and turne to red and green
+> status as the permissions enable / Also, one thing I'm observing is that whenever I
+> give the permission of NFC from the native Android system and once I redirect back
+> to the application, I have to do a back and again have to check if the status has
+> to be updated on the screen. Once I do back from the system's app of an Android app
+> and go back to the swipe app, it doesn't auto-detect if I've given the permissions
+> or not. I have to do back again and I have to again sort of check if the permission
+> has been captured. / Can you please fix this and get it captured on the back? Fix
+> all the problems and just make sure that there is no bug around it. Sanity check
+> once.
+
+| # | ID | To-do | Status |
+|---|---|---|---|
+| 24.1 | `F-71` | Merge the NFC screen's two copy blocks into **one** card | ✅ `_StatusCard` in [`tap_page.dart`](../app/lib/features/capture_nfc/tap_page.dart) |
+| 24.2 | `F-71` | That one card turns **red / green** with the permission state | ✅ red when the tap would go elsewhere, green when it comes to SWIP |
+| 24.3 | `F-72` | Auto-detect the default-payment status **on return from Android settings** — no more going back and re-entering | ✅ `WidgetsBindingObserver` + `didChangeAppLifecycleState` → `_recheck()` |
+| 24.4 | `F-70` | Fix "Camera access is off" after the full-screen scanner | ✅ **root cause found by reading the 5.2.3 source** — see below |
+| 24.5 | `F-69` | Sanity check the whole camera surface | ✅ three further defects found and fixed |
+
+**What the sanity check actually found.** `mobile_scanner` 5.2.3's `MobileScannerController.start()`
+**does not throw** — it catches its own exception and parks it in `value.error`. Every
+`catch (permissionDenied)` block in this app was therefore dead code, and `_running`
+was being set true on starts that had failed. On top of that,
+`MobileScannerPlatform.instance` is a **process-wide singleton holding a single
+texture id**, so the dashboard band and the full-screen scanner were always
+competing for one slot, and the loser got `controllerAlreadyInitialized` — which
+the old `errorBuilder` reported as "Camera access is off".
+
+Three more, from the same reading:
+
+* A controller whose error is `permissionDenied` can **never** be restarted —
+  `start()` returns early for ever, and `stop()`, the only thing that clears the
+  error, bails out because nothing is running. Granting permission afterwards did
+  nothing. Fixed by fitting a fresh controller.
+* Sharing a screenshot to SWIP built a controller and disposed it, and disposing
+  *any* controller disposes the shared platform — **silently stopping the
+  dashboard camera** and leaving it convinced it was still running.
+* `_stop()` skipped `controller.stop()` whenever its own flag said "not running",
+  which is exactly when that flag was wrong.
 
 ---
 

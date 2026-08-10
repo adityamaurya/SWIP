@@ -380,6 +380,87 @@ also why CRED greyed out the RuPay cards. SWIP was not failing to parse.
 
 ---
 
+## Prompts 20–23 — 10 Aug 2026 · The statement route, the stack, and a camera that would not open
+
+### Code
+
+| File | Change |
+|---|---|
+| [`statement_parser.dart`](../app/lib/data/sources/statement_parser.dart) | **New.** `F-50` — pulls the VPA and the MCC out of a statement narration line |
+| [`merchant_reconciler.dart`](../app/lib/data/sources/merchant_reconciler.dart) | **New.** `F-49` — proposes that a POS tap and a QR twenty minutes and one geohash cell apart are the same shop |
+| [`scan_stack.dart`](../app/lib/widgets/scan_stack.dart) | **New.** `F-62`, `F-63` — bottom-docked condensed cards, and the *"vieeeeewww older scans"* pull-string |
+| [`live_viewfinder.dart`](../app/lib/widgets/live_viewfinder.dart) | `F-66`–`F-68` — tap to morph, double-tap for full screen, ripple |
+| [`swip_database.dart`](../app/lib/data/sources/swip_database.dart) | v3: `merchant_alias`, `linkMerchants()`, `backfillMcc()` |
+
+### Open at the end of prompt 23
+
+The camera. Fixed twice and still wrong — because both fixes were reasoning about
+an API that does not behave the way its documentation reads.
+
+---
+
+## Prompt 24 — 10 Aug 2026 · One card on the tap screen, and a camera that tells the truth
+
+### Screens changed
+
+| ID | Screen | Change | Serves |
+|---|---|---|---|
+| `S-03` | Tap POS | Two blocks of copy at opposite ends become **one red/green card** | `F-71` |
+| `S-03` | Tap POS | Status re-probed **on resume**, so returning from Android settings updates it | `F-72` |
+| `S-01` | Dashboard | The band stops claiming permission was denied when it was only handed over | `F-70` |
+| `S-02` | Scan a QR | Retries through contention instead of showing the permission screen | `F-69` |
+
+### Element changes
+
+| Where | Before | After | Why |
+|---|---|---|---|
+| Tap screen | Red warning at the top, blue "the terminal will error" note at the bottom | **One card.** Red: the tap will go to your wallet app, here is the button. Green: taps come to SWIP, and the terminal's error is the expected ending | One screen, one question — *is this going to work?* Two blocks at opposite ends is two things to parse when there is one thing to know. The reassurance also belongs only in the green state: told to someone whose taps are being routed elsewhere, it explains an error they will never see |
+| Tap screen | Status read once, on open | Re-read on every resume | Everything on that screen is set *outside* that screen. Going back a screen and coming in again to see the truth reads as "SWIP did not notice" — because it had not |
+| Dashboard band | "Camera access is off" after using the full-screen scanner | The band's state is read from the controller, and only `permissionDenied` reads as refused | It was never a permission problem |
+
+### The bug, and why the first two fixes missed it
+
+Read out of the `mobile_scanner` 5.2.3 source rather than its docs:
+
+1. **`start()` does not throw.** It catches its own `MobileScannerException` and
+   parks it in `value.error`. Every `catch (permissionDenied)` in this app was
+   dead code, and `_running` was being set true on starts that had failed.
+2. **`MobileScannerPlatform.instance` is a process-wide singleton with one
+   texture id.** The dashboard band and the full-screen scanner can never both
+   hold it; the loser gets `controllerAlreadyInitialized`. The old `errorBuilder`
+   reported that ordinary, self-resolving contention as *"Camera access is off"*.
+3. **A refused controller is a dead controller.** Once `value.error` is
+   `permissionDenied`, `start()` returns early for ever and `stop()` — the only
+   thing that clears the error — bails out because nothing is running. So
+   `F-69`'s "tap to allow it later" could not have worked on any device.
+4. **Sharing a screenshot stopped the dashboard camera.** `_readQrFromImage`
+   built a controller and disposed it, and disposing *any* controller disposes
+   the shared platform.
+5. **`_stop()` skipped `controller.stop()`** whenever its own flag said "not
+   running" — precisely when that flag was wrong.
+
+### Code
+
+| File | Change |
+|---|---|
+| [`live_viewfinder.dart`](../app/lib/widgets/live_viewfinder.dart) | State read from the controller via a listener; bounded retry through contention; controller replaced after a refusal; `errorBuilder` made inert; the hand-off deferred out of the build phase |
+| [`scan_page.dart`](../app/lib/features/capture_qr/scan_page.dart) | The same corrections; only `permissionDenied` shows the permission screen |
+| [`share_capture.dart`](../app/lib/features/capture_share/share_capture.dart) | `MobileScannerPlatform.instance.analyzeImage` directly — no controller to dispose, so no camera to stop by accident |
+| [`tap_page.dart`](../app/lib/features/capture_nfc/tap_page.dart) | `WidgetsBindingObserver`; `_recheck()` on resume; `_StatusCard` replaces two blocks; the capture subscription cancelled before it is remade |
+| [`main.dart`](../app/lib/main.dart) | The camera is taken back **after** the scanner has let go, not on the same frame as the pop |
+
+### Docs
+
+- [21-PROMPT-LEDGER](21-PROMPT-LEDGER.md) — prompts 20–24 added verbatim, with 15 tracked to-dos.
+
+### Not verified
+
+Every claim here is read out of the package source and reasoned about. CI has no
+camera and no NFC, so the round trip — dashboard → full screen → back — and the
+return from Android's contactless settings are still yours to confirm on the phone.
+
+---
+
 <!--
 Template for the next entry:
 

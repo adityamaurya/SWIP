@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -24,19 +26,23 @@ class ScanPage extends ConsumerStatefulWidget {
 }
 
 class _ScanPageState extends ConsumerState<ScanPage> {
-  final _controller = MobileScannerController(
-    detectionSpeed: DetectionSpeed.noDuplicates,
-    formats: const [BarcodeFormat.qrCode, BarcodeFormat.dataMatrix],
-    // Started by hand once the widget is attached — see [_start].
-    autoStart: false,
-  );
+  MobileScannerController _controller = _newController();
+
+  static MobileScannerController _newController() => MobileScannerController(
+        detectionSpeed: DetectionSpeed.noDuplicates,
+        formats: const [BarcodeFormat.qrCode, BarcodeFormat.dataMatrix],
+        // Started by hand once the widget is attached — see [_start].
+        autoStart: false,
+      );
 
   bool _handling = false;
   bool _refused = false;
+  bool _running = false;
 
   @override
   void initState() {
     super.initState();
+    _controller.addListener(_sync);
     // The explanation arrives ahead of the camera permission dialog, not on
     // top of it — a permission prompt with no context is how apps get denied.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -45,35 +51,78 @@ class _ScanPageState extends ConsumerState<ScanPage> {
     });
   }
 
-  /// Start the camera, retrying a transient failure.
-  ///
-  /// "Not attached yet" is real and common here — the primer sheet is on screen
-  /// when this first runs — but 5.2.3 has no error code for it, so the retry
-  /// stands in for the distinction.
-  Future<void> _start({int attempt = 0}) async {
-    try {
-      await _controller.start();
-      if (mounted) setState(() => _refused = false);
-    } on MobileScannerException catch (e) {
-      if (e.errorCode == MobileScannerErrorCode.permissionDenied) {
-        if (mounted) setState(() => _refused = true);
-        return;
-      }
-      // See live_viewfinder: 5.2.3 has no "not attached yet" code, so a
-      // bounded retry stands in for one. It matters here because the primer
-      // sheet is on screen when this first runs.
-      if (attempt < 3 && mounted) {
-        await Future<void>.delayed(const Duration(milliseconds: 300));
-        return _start(attempt: attempt + 1);
-      }
-    } catch (_) {
-      // A scanner that cannot open must still be a screen you can back out of.
+  /// See the long note in `live_viewfinder.dart`: in 5.2.3 `start()` swallows
+  /// its own failure into `value.error` rather than throwing, so the controller
+  /// — not a `catch` block — is the only honest source of state.
+  void _sync() {
+    if (!mounted) return;
+    final v = _controller.value;
+    final running = v.isRunning && v.error == null;
+    final refused =
+        v.error?.errorCode == MobileScannerErrorCode.permissionDenied;
+    if (running != _running || refused != _refused) {
+      setState(() {
+        _running = running;
+        _refused = refused;
+      });
     }
   }
 
+  /// Replace a controller that cannot be restarted. A `permissionDenied` error
+  /// makes `start()` a no-op for ever, and `stop()` — the only thing that
+  /// clears it — refuses to run because nothing is running.
+  void _reset() {
+    final old = _controller;
+    old.removeListener(_sync);
+    unawaited(old.dispose());
+    _controller = _newController();
+    _controller.addListener(_sync);
+    _running = false;
+    _refused = false;
+  }
+
+  /// Start the camera, retrying while the dashboard band still holds it.
+  ///
+  /// `MobileScannerPlatform.instance` is a process-wide singleton with a single
+  /// texture, so this screen and the dashboard viewfinder compete for one slot
+  /// and the loser gets `controllerAlreadyInitialized` until the other's
+  /// asynchronous `dispose()` lands. It also matters that the primer sheet is
+  /// on screen the first time this runs.
+  Future<void> _start({int attempt = 0}) async {
+    for (var i = attempt; i <= 5; i++) {
+      if (!mounted) return;
+
+      try {
+        await _controller.start();
+      } catch (_) {
+        // controllerDisposed. Only a new controller answers that.
+        if (!mounted) return;
+        setState(_reset);
+        continue;
+      }
+
+      if (!mounted) return;
+      final code = _controller.value.error?.errorCode;
+
+      if (_controller.value.error == null && _controller.value.isRunning) {
+        _sync();
+        return;
+      }
+      if (code == MobileScannerErrorCode.permissionDenied ||
+          code == MobileScannerErrorCode.unsupported) {
+        _sync();
+        return;
+      }
+
+      await Future<void>.delayed(Duration(milliseconds: 180 + i * 160));
+    }
+    _sync();
+  }
+
   Future<void> _requestPermission() async {
+    setState(_reset);
     await _start();
-    if (!mounted || !_refused) return;
+    if (!mounted || _running) return;
     // Android has stopped prompting. Settings is the only way back.
     await const MethodChannel('in.swip.app/nfc')
         .invokeMethod<void>('openAppSettings')
@@ -82,7 +131,8 @@ class _ScanPageState extends ConsumerState<ScanPage> {
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller.removeListener(_sync);
+    unawaited(_controller.dispose());
     super.dispose();
   }
 
@@ -145,7 +195,7 @@ class _ScanPageState extends ConsumerState<ScanPage> {
 
     if (!mounted) return;
     setState(() => _handling = false);
-    await _controller.start();
+    await _start();
   }
 
   @override
@@ -169,10 +219,18 @@ class _ScanPageState extends ConsumerState<ScanPage> {
         children: [
           if (!_refused)
             MobileScanner(
+              // A swapped controller is invisible to `MobileScanner` without a
+              // new key — it holds its controller in a `late final`.
+              key: ObjectKey(_controller),
               controller: _controller,
               onDetect: _onDetect,
-              errorBuilder: (context, error, child) =>
-                  _CameraError(onAllow: _requestPermission),
+              // Only a refusal is a dead end worth a screen of copy. Contention
+              // with the dashboard band resolves itself, and [_start] is
+              // already retrying through it.
+              errorBuilder: (context, error, child) => error.errorCode ==
+                      MobileScannerErrorCode.permissionDenied
+                  ? _CameraError(onAllow: _requestPermission)
+                  : const SizedBox.shrink(),
             )
           else
             _CameraError(onAllow: _requestPermission),

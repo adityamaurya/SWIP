@@ -133,19 +133,18 @@ class _ShareCaptureListenerState extends ConsumerState<ShareCaptureListener>
 
   /// Read a QR out of a shared screenshot.
   ///
-  /// A fresh controller per image, disposed straight after: this runs at most
-  /// once per share and holding a scanner alive between them would keep the
-  /// camera pipeline warm for nothing.
+  /// **No controller.** Analysing a still image needs no camera session, and
+  /// `analyzeImage` is a straight pass-through to the platform anyway — so the
+  /// controller this used to build was pure overhead with a sting in it.
+  /// `MobileScannerPlatform.instance` is a process-wide singleton holding one
+  /// texture id, and disposing *any* controller disposes that singleton. A
+  /// share arriving while the dashboard band was live therefore stopped the
+  /// dashboard's camera behind its back, leaving it convinced it was still
+  /// running and unable to restart. Going straight to the platform cannot do
+  /// that.
   Future<String?> _readQrFromImage(String path) async {
-    // `autoStart: false` matters here: analysing an image needs no camera
-    // session at all, and starting one would fight the dashboard viewfinder
-    // for hardware it is not going to use.
-    final controller = MobileScannerController(
-      formats: const [BarcodeFormat.qrCode, BarcodeFormat.dataMatrix],
-      autoStart: false,
-    );
     try {
-      final result = await controller.analyzeImage(path);
+      final result = await MobileScannerPlatform.instance.analyzeImage(path);
       final barcodes = result?.barcodes ?? const <Barcode>[];
       for (final b in barcodes) {
         final v = b.rawValue;
@@ -156,8 +155,6 @@ class _ShareCaptureListenerState extends ConsumerState<ShareCaptureListener>
       // A HEIC, a screenshot with no code in it, a corrupt stream. All the
       // same outcome to the person holding the phone.
       return null;
-    } finally {
-      await controller.dispose();
     }
   }
 

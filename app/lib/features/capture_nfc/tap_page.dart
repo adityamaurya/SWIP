@@ -28,7 +28,7 @@ class TapPage extends ConsumerStatefulWidget {
   ConsumerState<TapPage> createState() => _TapPageState();
 }
 
-class _TapPageState extends ConsumerState<TapPage> {
+class _TapPageState extends ConsumerState<TapPage> with WidgetsBindingObserver {
   static const _method = MethodChannel('in.swip.app/nfc');
   static const _events = EventChannel('in.swip.app/nfc/captures');
 
@@ -44,6 +44,7 @@ class _TapPageState extends ConsumerState<TapPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (mounted) await showPrimer(context, ref, SwipPrimer.tapPos);
       await _start();
@@ -52,6 +53,7 @@ class _TapPageState extends ConsumerState<TapPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _sub?.cancel();
     // Always hand NFC routing back. SWIP competes for the field only while
     // this screen is open; holding it in the background would be a real
@@ -60,8 +62,26 @@ class _TapPageState extends ConsumerState<TapPage> {
     super.dispose();
   }
 
-  /// Re-read the default-payment slot. Called on the way back from Settings
-  /// and on every resume, because the user can change it outside SWIP.
+  /// **Everything on this screen is set outside this screen.**
+  ///
+  /// NFC is toggled in the system panel and the default contactless app is
+  /// chosen in Settings, so the only moment this page can be sure its picture
+  /// is stale is the moment the user comes back from there. Without this the
+  /// card kept the answer it had when the screen opened, and the only way to
+  /// see the truth was to go back a screen and come in again — which reads as
+  /// "SWIP did not notice", because it had not.
+  ///
+  /// [_recheck] rather than [_refreshDefault] alone: the same trip to Settings
+  /// is where NFC itself gets switched on, and a screen still saying "NFC is
+  /// switched off" after the user just switched it on is the same bug wearing
+  /// a different hat.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(_recheck());
+  }
+
+  /// Re-read the default-payment slot. Called on the way back from Settings,
+  /// because the user can change it outside SWIP.
   Future<void> _refreshDefault() async {
     try {
       final status = await _method.invokeMapMethod<String, dynamic>('status');
@@ -72,6 +92,18 @@ class _TapPageState extends ConsumerState<TapPage> {
     } on MissingPluginException {
       // iOS.
     }
+  }
+
+  /// A full re-probe after the user has been somewhere they could have changed
+  /// any of it. Idempotent: if we are already listening, only the card moves.
+  Future<void> _recheck() async {
+    if (_state == _NfcState.listening) {
+      await _refreshDefault();
+      return;
+    }
+    // NFC may have just been switched on, which turns a dead-end state back
+    // into a working one. Re-run the whole capability check.
+    await _start();
   }
 
   Future<void> _stop() async {
@@ -105,6 +137,10 @@ class _TapPageState extends ConsumerState<TapPage> {
       }
 
       await _method.invokeMethod<void>('startListening');
+      // _start can run more than once — a resume from Settings re-probes — so
+      // the old subscription goes before a new one is made. Two live
+      // subscriptions would hand every tap to _onCapture twice.
+      await _sub?.cancel();
       _sub = _events.receiveBroadcastStream().listen(_onCapture);
       if (mounted) setState(() => _state = _NfcState.listening);
     } on PlatformException {
@@ -237,12 +273,14 @@ class _TapPageState extends ConsumerState<TapPage> {
 
   Widget _listening() => Column(
         children: [
-          _DefaultPaymentCard(
+          _StatusCard(
             isDefault: _isDefaultPayment,
             onFix: () async {
               await _method.invokeMethod<void>('openPaymentSettings');
-              // Re-read on the way back rather than trusting that the user
-              // did it — the card must show what is true, not what was asked.
+              // Re-read on the way back rather than trusting that the user did
+              // it — the card must show what is true, not what was asked. The
+              // resume handler covers this too; doing it here as well means the
+              // card is already right on the first frame back.
               await _refreshDefault();
             },
           ),
@@ -285,30 +323,6 @@ class _TapPageState extends ConsumerState<TapPage> {
             textAlign: TextAlign.center,
           ),
           const Spacer(),
-          Container(
-            padding: const EdgeInsets.all(SwipSpace.md),
-            decoration: BoxDecoration(
-              color: SwipColors.infoFill,
-              borderRadius: SwipRadius.inputAll,
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Icons.info_outline_rounded,
-                    size: 18, color: SwipColors.infoOnInk),
-                const SizedBox(width: SwipSpace.sm),
-                Expanded(
-                  child: Text(
-                    'The terminal will show an error and no payment will '
-                    'happen. That is expected — SWIP reads the category and '
-                    'stops.',
-                    style: SwipType.bodyS
-                        .copyWith(color: SwipColors.infoOnInk),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       );
 
@@ -352,19 +366,31 @@ enum _NfcState {
   unsupportedPlatform,
 }
 
-/// `F-55`, `F-56` — the warning that decides whether tapping works at all.
+/// `F-55`, `F-56` — the one card on this screen, and the only thing that
+/// decides whether tapping works at all.
 ///
-/// Android hands the contactless field to whichever app holds the default
-/// payment slot. On a phone with Google Wallet set up that is Wallet, so the
-/// terminal's APDUs never reach SWIP and the screen sits there saying "hold
-/// your phone to the terminal" for ever. `setPreferredService` helps only while
-/// SWIP is already foreground, and on many devices the default still wins.
+/// ## Why one card and not two
 ///
-/// **Red until it is right, green the moment it is.** A warning that cannot
-/// turn green is just noise, and this one is checked again every time the user
-/// comes back from Settings.
-class _DefaultPaymentCard extends StatelessWidget {
-  const _DefaultPaymentCard({required this.isDefault, this.onFix});
+/// This screen used to carry a red warning at the top and a blue "the terminal
+/// will show an error, that is expected" note at the bottom. Two blocks of copy
+/// at opposite ends of a screen you are reading one-handed at a counter, both
+/// describing the same single question — *is this going to work?* — is two
+/// things to parse when there is only one thing to know.
+///
+/// So they are one card, and its colour is the answer:
+///
+///  * **red** — the tap will go to Google Pay or whichever wallet holds the
+///    default slot, SWIP will never see the terminal, and the fix is one
+///    button away.
+///  * **green** — the tap comes here, and the terminal's error is the expected
+///    ending rather than a failure. That reassurance belongs *only* in the
+///    green state: told to someone whose taps are being routed elsewhere, it
+///    explains an error they are never going to see.
+///
+/// Re-read every time the user returns from Settings, so it can never sit on a
+/// stale answer.
+class _StatusCard extends StatelessWidget {
+  const _StatusCard({required this.isDefault, this.onFix});
 
   final bool isDefault;
   final VoidCallback? onFix;
@@ -399,8 +425,8 @@ class _DefaultPaymentCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   isDefault
-                      ? 'SWIP is your default contactless app'
-                      : 'SWIP is not your default contactless app',
+                      ? 'Ready — taps come to SWIP'
+                      : 'Taps will not reach SWIP yet',
                   style: SwipType.label.copyWith(color: fg),
                 ),
               ),
@@ -409,11 +435,12 @@ class _DefaultPaymentCard extends StatelessWidget {
           const SizedBox(height: SwipSpace.xs),
           Text(
             isDefault
-                ? 'Taps come to SWIP. Nothing is paid — it reads the category '
-                    'and stops.'
-                : 'Your phone will send the tap to Google Pay or whichever '
-                    'wallet is set, and SWIP will never see the terminal. Set '
-                    'SWIP under Contactless payments to fix it.',
+                ? 'SWIP is your default contactless app. Nothing is paid — it '
+                    'reads the category and stops, so the terminal will show an '
+                    'error. That is the expected ending, not a failure.'
+                : 'Your phone sends the tap to whichever app holds the '
+                    'contactless slot — usually Google Pay — so SWIP never sees '
+                    'the terminal. Set SWIP as the default to fix it.',
             style: SwipType.bodyS.copyWith(color: fg.withValues(alpha: .92)),
           ),
           if (!isDefault) ...[

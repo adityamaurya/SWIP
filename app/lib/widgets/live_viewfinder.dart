@@ -64,26 +64,27 @@ class LiveViewfinder extends StatefulWidget {
 }
 
 class _LiveViewfinderState extends State<LiveViewfinder> {
-  /// **One controller for the widget's whole life.**
+  /// **One controller at a time, replaced only when it is unusable.**
   ///
-  /// The previous version created a controller when the band became active and
-  /// `dispose()`d it when it went inactive — and `active` flips on every single
-  /// capture. Disposing a camera and immediately re-acquiring it is a race:
-  /// Android has not released the hardware yet, the new session fails to
-  /// acquire, and the preview stays black with no error anyone can see. That is
-  /// the bug you hit.
+  /// The version before this created a controller when the band became active
+  /// and `dispose()`d it when it went inactive — and `active` flips on every
+  /// capture. Disposing a camera and immediately re-acquiring it is a race
+  /// nobody wins.
   ///
-  /// `start()` and `stop()` are what the API is for. `dispose()` happens once,
-  /// here, when the widget really goes away.
-  late final MobileScannerController _controller = MobileScannerController(
-    detectionSpeed: DetectionSpeed.noDuplicates,
-    formats: const [BarcodeFormat.qrCode, BarcodeFormat.dataMatrix],
-    // `autoStart: false` — start() is called by hand from a post-frame
-    // callback, once the platform view exists to attach to. Starting before
-    // that is the documented cause of a silent 500 ms timeout, and on 5.2.3
-    // it surfaces as a generic error indistinguishable from a real one.
-    autoStart: false,
-  );
+  /// It is not `final`, because 5.2.3 has one state a controller cannot be
+  /// talked out of: once `value.error` is `permissionDenied`, `start()` returns
+  /// immediately for ever and `stop()` — which is what clears the error — bails
+  /// out because nothing is running. Granting permission afterwards changes
+  /// nothing. The only way back is a new controller, so [_reset] makes one.
+  MobileScannerController _controller = _newController();
+
+  static MobileScannerController _newController() => MobileScannerController(
+        detectionSpeed: DetectionSpeed.noDuplicates,
+        formats: const [BarcodeFormat.qrCode, BarcodeFormat.dataMatrix],
+        // `autoStart: false` — start() is called by hand from a post-frame
+        // callback, once the platform view exists to attach to.
+        autoStart: false,
+      );
 
   bool _running = false;
   bool _refused = false;
@@ -108,6 +109,7 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
   @override
   void initState() {
     super.initState();
+    _controller.addListener(_sync);
     // After the first frame, so the platform view exists to attach to.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.active) _start();
@@ -117,62 +119,140 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
   @override
   void didUpdateWidget(covariant LiveViewfinder old) {
     super.didUpdateWidget(old);
-    if (widget.active && !old.active) {
-      _start();
-    } else if (!widget.active && old.active) {
-      _stop();
-    }
+    if (widget.active == old.active) return;
+    // Deferred to after this frame. `_start` and `_stop` both call `setState`,
+    // and doing that synchronously inside `didUpdateWidget` is a build-phase
+    // violation — which would turn a camera hand-off into a red screen.
+    final resume = widget.active;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (resume && widget.active) {
+        _start();
+      } else if (!resume && !widget.active) {
+        _stop();
+      }
+    });
   }
 
   @override
   void dispose() {
+    _controller.removeListener(_sync);
     unawaited(_controller.dispose());
     super.dispose();
   }
 
-  /// Start the camera, handling every documented failure rather than letting a
-  /// black rectangle stand in for an explanation.
+  /// **The camera's state is the controller's state, not ours.**
+  ///
+  /// This is the correction to the bug that put "Camera access is off" on the
+  /// dashboard after coming back from the full-screen scanner. In 5.2.3
+  /// `start()` does **not** throw when it fails — it catches its own exception
+  /// and parks it in `value.error`. So the old code's `catch (permissionDenied)`
+  /// never ran, `_running` was set true on a start that had actually failed,
+  /// and the only thing that noticed was `errorBuilder` — which treated *every*
+  /// error as a refusal, including the perfectly ordinary
+  /// `controllerAlreadyInitialized` you get while the other scanner is still
+  /// letting go of the camera.
+  ///
+  /// Reading the controller instead means the card can only ever say what is
+  /// actually true, and only `permissionDenied` reads as refused.
+  void _sync() {
+    if (!mounted) return;
+    final v = _controller.value;
+    final running = v.isRunning && v.error == null;
+    final refused =
+        v.error?.errorCode == MobileScannerErrorCode.permissionDenied;
+    if (running != _running || refused != _refused) {
+      setState(() {
+        _running = running;
+        _refused = refused;
+      });
+    }
+  }
+
+  /// Throw the wedged controller away and fit a new one.
+  ///
+  /// Only ever needed after a refusal — see the note on [_controller].
+  void _reset() {
+    final old = _controller;
+    old.removeListener(_sync);
+    unawaited(old.dispose());
+    _controller = _newController();
+    _controller.addListener(_sync);
+    _running = false;
+    _refused = false;
+  }
+
+  /// Start the camera, retrying while another scanner still holds it.
+  ///
+  /// The retry is not defensive padding. `MobileScannerPlatform.instance` is a
+  /// **process-wide singleton with one texture id**, so the dashboard band and
+  /// the full-screen scanner are contending for one slot. Whichever asks second
+  /// gets `controllerAlreadyInitialized` until the first one's `dispose()`
+  /// finishes — and `dispose()` is asynchronous and un-awaited by the
+  /// Navigator. Waiting a few hundred milliseconds is the whole fix.
   Future<void> _start({int attempt = 0}) async {
     if (_starting || _running || !mounted) return;
-    _starting = true;
+    setState(() => _starting = true);
 
     try {
-      await _controller.start();
-      if (mounted) {
-        setState(() {
-          _running = true;
-          _refused = false;
-        });
-      }
-    } on MobileScannerException catch (e) {
-      if (e.errorCode == MobileScannerErrorCode.permissionDenied) {
-        // Scenario 2: refused. Not an error state to hide — a state with an
-        // action attached, so the user can change their mind later.
-        if (mounted) setState(() => _refused = true);
-        return;
-      }
+      for (var i = attempt; i <= 5; i++) {
+        if (!mounted || !widget.active) return;
 
-      // mobile_scanner 5.2.3 does not distinguish "the platform view is not
-      // attached yet" from a real failure — that split only arrives in 7.x. So
-      // a bounded retry covers the transient case without pretending to know
-      // which one happened, and two attempts is enough for the one-frame lag
-      // that a cold start produces.
-      if (attempt < 2 && mounted) {
-        await Future<void>.delayed(const Duration(milliseconds: 300));
-        _starting = false;
-        return _start(attempt: attempt + 1);
+        try {
+          await _controller.start();
+        } catch (_) {
+          // controllerDisposed is the only throw 5.2.3 has left. A new
+          // controller is the only answer to it.
+          if (!mounted) return;
+          _reset();
+          continue;
+        }
+
+        if (!mounted) return;
+        final v = _controller.value;
+
+        if (v.isRunning && v.error == null) {
+          // The hand-off can flip `active` while we were awaiting a start. If
+          // it did, give the camera straight back — otherwise the dashboard
+          // would hold hardware the full-screen scanner is about to ask for.
+          if (!widget.active) {
+            unawaited(_stop());
+            return;
+          }
+          _sync();
+          return;
+        }
+
+        final code = v.error?.errorCode;
+
+        if (code == MobileScannerErrorCode.permissionDenied) {
+          // Scenario 2: refused. Not an error to hide — a state with an action
+          // attached, so the user can change their mind later.
+          _sync();
+          return;
+        }
+
+        if (code == MobileScannerErrorCode.unsupported) {
+          _sync();
+          return; // No camera on this device. Retrying cannot help.
+        }
+
+        // controllerAlreadyInitialized, or a generic failure. Both mean "not
+        // yet" far more often than they mean "never". Back off and ask again.
+        await Future<void>.delayed(Duration(milliseconds: 180 + i * 160));
       }
-    } catch (_) {
-      // Never let a camera failure take the dashboard down with it.
     } finally {
       _starting = false;
+      if (mounted) setState(() {});
     }
   }
 
   Future<void> _stop() async {
-    if (!_running) return;
     _running = false;
     try {
+      // Unconditional: `stop()` guards itself, and skipping it when our own
+      // flag says "not running" is how the platform's texture stayed claimed
+      // while the full-screen scanner sat on a black rectangle.
       await _controller.stop();
     } catch (_) {
       // Already stopped, or disposed mid-flight. Nothing to recover.
@@ -188,11 +268,12 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
   /// sending them there when a prompt would have worked is two extra screens
   /// for nothing.
   Future<void> _requestPermission() async {
-    setState(() => _refused = false);
+    // A refused controller is a dead controller in 5.2.3, so the retry has to
+    // happen on a fresh one or it is guaranteed to do nothing.
+    setState(_reset);
     await _start();
     if (!mounted || _running) return;
 
-    setState(() => _refused = true);
     await const MethodChannel('in.swip.app/nfc')
         .invokeMethod<void>('openAppSettings')
         .catchError((_) {});
@@ -243,16 +324,20 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
           children: [
             if (!_refused)
               MobileScanner(
+                // `MobileScanner` reads its controller into a `late final`
+                // field, so a swapped controller is invisible to it without a
+                // new key — and [_reset] swaps one. Keying on the controller's
+                // identity is what makes "allow the camera after refusing it"
+                // actually reconnect.
+                key: ObjectKey(_controller),
                 controller: _controller,
                 onDetect: _onDetect,
-                errorBuilder: (context, error, child) {
-                  // Permission refused, or no camera. Rendered as the same
-                  // framed card so the layout never jumps.
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted && !_refused) setState(() => _refused = true);
-                  });
-                  return const SizedBox.shrink();
-                },
+                // Purely visual. State comes from [_sync] reading the
+                // controller, because this builder fires for transient
+                // contention too — treating that as a refusal is exactly the
+                // bug that put "Camera access is off" on a working camera.
+                errorBuilder: (context, error, child) =>
+                    const SizedBox.shrink(),
               ),
 
             // Ink scrim. The feed is information, not decoration — dimmed so
