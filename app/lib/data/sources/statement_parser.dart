@@ -103,35 +103,58 @@ abstract final class StatementParser {
     required bool Function(String) isKnownMcc,
   }) {
     final raw = line.trim();
-    final tokens = [
-      for (final t in raw.split(_separators))
-        if (t.trim().isNotEmpty) t.trim(),
-    ];
 
     String? vpa;
     String? rrn;
     String? mcc;
     final plain = <String>[];
 
-    for (final token in tokens) {
-      final lower = token.toLowerCase();
+    // Two levels, and the nesting is the point.
+    //
+    // A real statement row is columnar — a date, the narration, a type, an
+    // amount, a balance — and only the *narration* is slash-structured:
+    //
+    //   09/08/2026  UPIOUT/658724829452/paytm.s233ffl@pty/Demo/5451  TFR  1.00
+    //
+    // Splitting on whitespace alone destroys the slash structure; splitting on
+    // slashes alone leaves "5451 TFR 1.00" as one token and the category is
+    // never found. So: segment on the separators, then read words inside each
+    // segment.
+    for (final segment in raw.split(_separators)) {
+      final words = [
+        for (final w in segment.trim().split(RegExp(r'\s+')))
+          if (w.isNotEmpty) w,
+      ];
+      if (words.isEmpty) continue;
 
-      if (vpa == null && _vpa.hasMatch(lower)) {
-        vpa = lower;
-        continue;
+      for (var i = 0; i < words.length; i++) {
+        final word = words[i];
+        final lower = word.toLowerCase();
+
+        if (vpa == null && _vpa.hasMatch(lower)) {
+          vpa = lower;
+          continue;
+        }
+        if (rrn == null && word.length == 12 && _digits.hasMatch(word)) {
+          rrn = word;
+          continue;
+        }
+
+        // The category is **the first word of its own segment**, never a word
+        // trailing inside one. That restriction is what stops an amount
+        // printed without decimals — "TFR 5451" — being adopted as a category,
+        // and it costs nothing: the MCC genuinely is its own slash-delimited
+        // field in every narration that carries it.
+        if (i == 0 &&
+            word.length == 4 &&
+            _digits.hasMatch(word) &&
+            isKnownMcc(word)) {
+          mcc = word;
+          continue;
+        }
+
+        plain.add(word);
       }
-      if (rrn == null && token.length == 12 && _digits.hasMatch(token)) {
-        rrn = token;
-        continue;
-      }
-      // Last valid four-digit category wins. Federal puts it last, and when a
-      // line happens to hold two candidates the trailing one is the field
-      // rather than something inside the note.
-      if (token.length == 4 && _digits.hasMatch(token) && isKnownMcc(token)) {
-        mcc = token;
-        continue;
-      }
-      plain.add(token);
     }
 
     // The note is whatever text is left that is not a bank's own marker.

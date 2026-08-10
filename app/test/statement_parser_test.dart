@@ -49,6 +49,47 @@ void main() {
     });
   });
 
+  group('real statement rows — columns, not just narrations', () {
+    // The case that failed in CI. A pasted statement is columnar: date,
+    // narration, type, amount, balance. Splitting on slashes alone left
+    // "5451 TFR 1.00" as one token and found no category at all — so the
+    // feature worked on a hand-typed narration and did nothing on anything a
+    // person would actually paste.
+    test('a full row with date and amount columns still parses', () {
+      final e = StatementParser.parse(
+        '09/08/2026 09/08/2026 '
+        'UPIOUT/658724829452/paytm.s233ffl@pty/Demo/5451 '
+        'TFR 1.00 51411.79 Dr',
+        isKnownMcc: known,
+      );
+
+      expect(e.vpa, 'paytm.s233ffl@pty');
+      expect(e.mcc, '5451');
+      expect(e.rrn, '658724829452');
+    });
+
+    test('an amount that looks like a category is not adopted as one', () {
+      // ₹5451 in the amount column, 5814 as the real category. Getting this
+      // backwards would teach the merchant graph a wrong code permanently,
+      // which is worse than learning nothing.
+      final e = StatementParser.parse(
+        '09/08/2026 UPIOUT/111111111111/shop@ybl/Note/5814 TFR 5451 900.00',
+        isKnownMcc: known,
+      );
+
+      expect(e.mcc, '5814');
+      expect(e.vpa, 'shop@ybl');
+    });
+
+    test('the date column is never read as a category', () {
+      final e = StatementParser.parse(
+        '10/07/2026 UPIOUT/658724829452/shop@ybl/Note/5411',
+        isKnownMcc: known,
+      );
+      expect(e.mcc, '5411');
+    });
+  });
+
   group('robustness across banks', () {
     test('a line with no category is not usable', () {
       final e = StatementParser.parse(
