@@ -99,3 +99,4 @@ Inter's `tnum` needs enabling by hand on the `MCC` text style.
 | **21** | [21-PROMPT-LEDGER](21-PROMPT-LEDGER.md) | **Every prompt, verbatim, with every to-do and a live status.** The index of intent |
 | **22** | [22-FEEDBACK-ROUND-3](22-FEEDBACK-ROUND-3.md) | Cracking the Paytm QR: P2M vs P2PM, how CRED knows, and the three routes to a missing MCC |
 | **23** | [23-MCC-DETECTION-MATRIX](23-MCC-DETECTION-MATRIX.md) | **The super list** — every way SWIP can identify an MCC, and where each one fails |
+- [24 — The card and netbanking problem](24-CARD-AND-NETBANKING.md) — where the MCC actually travels, why the OTP page cannot show it, and why netbanking has none at all

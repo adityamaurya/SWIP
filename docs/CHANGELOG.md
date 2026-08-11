@@ -591,6 +591,86 @@ It also lands after the digits finish flying in rather than across them.
 
 ---
 
+## Prompt 27 — 11 Aug 2026 · Three routes, one language, and the card problem
+
+**Confirmed working in the field:** `QR SCAN`, `POS TAP`, and `APP DIRECT` — the
+merchant handing the payment to SWIP. Everything below is either sharpening
+those three or being honest about the two that are not solved.
+
+### Screens changed
+
+| ID | Screen | Change | Serves |
+|---|---|---|---|
+| `S-01` | Dashboard | Link tile removed — two tiles, two real actions | `F-89` |
+| `S-01` | Dashboard | SW/P mark in the header | `F-98` |
+| `S-01` | Camera band | Hints in caps on a plate; "nothing in view" after 7 s | `F-96`, `F-97` |
+| `S-04` | Ledger | Rows open; filters cut to the three routes; badge clears | `F-90`, `F-89`, `F-95` |
+| row | Everywhere | MCC tappable and uncropped; no hedge; route named in full | `F-88`, `F-91`, `F-92`, `F-93` |
+
+### The four defects behind the visible symptoms
+
+| Symptom | Actual cause |
+|---|---|
+| "The MCC is not clickable" | An **opaque `GestureDetector` with a null callback** wrapped it. The largest, most obviously tappable thing in the row was the one dead spot in it. Same for the merchant name |
+| "The MCC gets cropped with the merchant name" | The column was 62 px; four digits of the 26 px face are ~66 |
+| "A tag called **Likely**" | `record()` assigned it by default to every non-live vector, and the merchant graph emitted it below five agreeing captures |
+| "A tag called **Known**" | `record()` **rewrote the vector** to `graph` whenever the digits came from memory — so a QR scanned at a counter was filed as "KNOWN" and the row stopped saying how it was captured |
+
+That last one is the interesting one: two different facts had been folded into
+one field — *how it was captured* and *where the digits came from*. The vector
+is now immutable and carries the first; `confidence` carries the second.
+
+### Element changes
+
+| Where | Before | After | Why |
+|---|---|---|---|
+| Under the MCC | `Likely` / `Unknown` | `Verified`, or nothing | A category is read from the transaction, or it is not known. "Likely" prices the app's uncertainty in the user's head at a counter |
+| Route tag | `SCAN` · `APP` · `KNOWN` | `QR SCAN` · `POS TAP` · `APP DIRECT` | The words you would say out loud. `BANK` stays for statement rows — collapsing it would claim a capture that never happened |
+| Time | Tap to swap to "53 mins ago" | Date and time, always | A record that rewrites itself when brushed is unsettling, and the cell was eating the tap that should open the row |
+| Ledger badge | Lifetime total, never went down | Only what arrived since the ledger was last opened | A count that never decreases is furniture, not a notification |
+| Filter label | A sentence that changed length with the switch | One fixed label | Flipping the toggle reflowed the row and moved the control under your thumb |
+| Camera hint | Grey mixed case over a live feed | Caps on a translucent plate | The background is whatever the counter happens to be — white marble, a black terminal, a moving hand |
+| Link | A tile, a page, a filter, a share branch | Gone | It promised a capability the app does not have. Hand it a Razorpay link and there is nothing in it to read |
+
+### Research — the real question
+
+[**24-CARD-AND-NETBANKING**](24-CARD-AND-NETBANKING.md). The short version:
+
+* The MCC **is** present during a card payment — it is a required field in the
+  3-D Secure `AReq`. But that message is server-to-server, acquirer to issuer.
+  The OTP page you see carries merchant, amount and last-4, never the category.
+* **Netbanking has no MCC at all.** It is not a card transaction, so there is no
+  authorization, no category and no card reward. The right feature there is a
+  warning before the tap, not a capture.
+* The **dummy-details** idea cannot work: a decline is only visible to the
+  issuer of the card used, and made-up details have no issuer. It also carries a
+  real cost to the merchant's decline ratio.
+* The version that works is **Vector 4** — SWIP issues a virtual card that
+  declines everything and reads the MCC out of its own authorizations. That is a
+  BIN sponsor and a compliance posture, not a sprint.
+* Available now without a licence: **`F-100`, descriptor → MCC**. The card
+  checkout shows the merchant descriptor, and the statement shows descriptor
+  *and* category. Same mechanism as `F-50`, fuzzier key.
+
+### Code
+
+| File | Change |
+|---|---|
+| [`capture_repository.dart`](../app/lib/data/repositories/capture_repository.dart) | Vector never rewritten; `likely` never assigned; manual `correct()` removed |
+| [`swip_database.dart`](../app/lib/data/sources/swip_database.dart) | The graph emits `verified` or `conflict`, never a hedge |
+| [`ledger_row.dart`](../app/lib/widgets/ledger_row.dart) | Conditional gesture detectors; 76 px column; three-route tags; no time toggle |
+| [`mcc_badge.dart`](../app/lib/widgets/mcc_badge.dart) | `ConfidencePill` ellipsizes; caption only when verified |
+| [`live_viewfinder.dart`](../app/lib/widgets/live_viewfinder.dart) | `_OnCameraText` plate; the no-detection watchdog |
+| [`share_capture.dart`](../app/lib/features/capture_share/share_capture.dart) | Shares file as `qr`; a payment link is explained, not recorded |
+| [`dashboard_page.dart`](../app/lib/features/dashboard/dashboard_page.dart) | Two tiles; SW/P mark |
+| [`ledger_page.dart`](../app/lib/features/ledger/ledger_page.dart) | Three filters; one fixed label |
+| [`main.dart`](../app/lib/main.dart) | Unread badge; Link route deleted |
+| `features/capture_link/` | **Deleted** |
+| [`swip-slash-wordmark.svg`](../app/assets/brand/swip-slash-wordmark.svg) | **New.** Paths, not type, so it never depends on a font resolving |
+| [`dashboard_layout_test.dart`](../app/test/dashboard_layout_test.dart) | +3 tests: Link gone, routes named in full, no hedging word |
+
+---
+
 <!--
 Template for the next entry:
 

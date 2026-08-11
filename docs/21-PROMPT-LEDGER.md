@@ -484,7 +484,7 @@ recovered, only added to from here.
 
 ---
 
-## Prompt 26 — the dashboard went black *(current)*
+## Prompt 26 — the dashboard went black
 
 **Original prompt, verbatim:**
 
@@ -527,6 +527,104 @@ run.
 A bracket-balance pass over all 44 Dart files is also run before pushing now,
 after a dangling `Text(` from one of these very fixes broke the parse and cost
 a whole red run.
+
+---
+
+## Prompt 27 — three routes, one language, and the card problem *(current)*
+
+**What is now confirmed working, in your words:** the QR scan, the POS tap
+capture, and the redirection to SWIP as a payment app.
+
+**Original prompt, verbatim:** *(abridged only where it repeats itself — the
+full text is in the session transcript)*
+
+> few improvements, first is,
+> * the mcc in the recent table is not clickable, due to which no deepdive
+>   information is shown in the modal
+> * the mcc number get cropped with the merchant name
+> * under the mcc there is a tag coming in named as something called "likely"
+>   nothing such should come, only verified should come when there is a capture
+>   via qr scan, pos tap, or its captured via redirection
+> * also, in the recent and ledges tab table, there is relative date, time and
+>   then something is coming called as "known" , "scan" or "app" - only three
+>   tags should be displayed, first is QR SCAN , POS TAP, APP DIRECT
+> * rest the location is shown perfect, loved the work on it you've done
+> * also remove the tap to show the switch between the relative time of 53mins
+>   ago, just show the the earlier date time view with tag of from which action
+>   did the data capture from
+>
+> one feedback on the always on camera area, the Tap to square up and double tap
+> for dull screen , please make it all caps and legible for any type of surface,
+> can you do this one neat nifty little feature without adding any load on the
+> ram, if there is dark area in the camera screen area, then it should subtly
+> show, like please raise the camera or remove any object from front of the
+> camera
+>
+> another thing, the can you add logo of SW/P with / in yellow as logo and SW &
+> P in white, can you also make the logo
+>
+> also in the ledger tab,
+> * the notifier count doesnt go away once we see the full ledger
+> * keep filters of ALL, Scan, POS, App, remove link and manual they actaully
+>   dont work, if I give you razorpay link you cant capture it
+>
+> also remove link and manual methods from the app and settings section as well,
+> like in general detection as well
+>
+> so the link later feature what it was, … [the card and netbanking scenarios] …
+> i am not sure how can we make this possible as we neither have natively app to
+> put info and netbanking details that where ever the netbanking case happens we
+> put this dummy bank details and it fails and on SW/P the info of declined info
+> gets captured via cloud or someway etc becomes visible and same goes for the
+> card payment method
+>
+> make a list of all below and above (keep the md files maintained} plus keep up
+> the sanitatioin and recheck and make sure nothing is failing or no bug is left
+> unteruned , also fix the copy of the "shwoing eveything categories dor not" the
+> copy is is going responsivve as the toggle is getting on and off
+>
+> research thoroughly man and let know on the card and the netbanking, that is
+> where people are unable to figure out the MCC when there is no UPI or POS
+> terminal to tap, and they are doing payment from these two methods, we need to
+> crack this man
+
+| # | ID | To-do | Status |
+|---|---|---|---|
+| 27.1 | `F-90` | The MCC in the table is **not clickable** — no detail modal | ✅ an opaque `GestureDetector` with a null callback was eating every tap |
+| 27.2 | `F-91` | The MCC **crops into the merchant name** | ✅ column 62 → 76, gap widened |
+| 27.3 | `F-88` | **No "Likely"** — only Verified, and only for the three live routes | ✅ removed from `record()` **and** from the merchant graph, so it can never be produced |
+| 27.4 | `F-93` | Only three tags: **QR SCAN · POS TAP · APP DIRECT** | ✅ — and `F-87` found *why* "KNOWN" appeared |
+| 27.5 | — | Location is right — *"loved the work on it"* | ✅ untouched |
+| 27.6 | `F-92` | **Remove the relative-time toggle**, keep date/time + the capture tag | ✅ |
+| 27.7 | `F-97` | Camera hint **ALL CAPS, legible on any surface**, no RAM cost | ✅ caps on a translucent plate; no `BackdropFilter` |
+| 27.8 | `F-96` | Warn when the camera **cannot see** (dark / obstructed) | ◑ built as a 7-second no-detection watchdog. **Not** a light meter — see the note below |
+| 27.9 | `F-98` | **The SW/P logo** — slash in gold, letters in white | ✅ [`swip-slash-wordmark.svg`](../app/assets/brand/swip-slash-wordmark.svg) |
+| 27.10 | `F-95` | Ledger badge **does not clear** after viewing | ✅ counts only what arrived since the ledger was last opened |
+| 27.11 | `F-89` | Filters: **ALL / Scan / POS / App**; drop Link and Manual | ✅ |
+| 27.12 | `F-89` | **Remove Link and Manual from the whole app**, detection included | ✅ tile, page, filter, share branch and the manual `correct()` path all gone |
+| 27.13 | `F-94` | Fix the **"showing everything, categorised or not"** copy reflowing with the toggle | ✅ one fixed label |
+| 27.14 | — | **Research card + netbanking MCC** | ✅ [24-CARD-AND-NETBANKING](24-CARD-AND-NETBANKING.md) |
+| 27.15 | `F-99` | *(new, from the research)* Warn before a **rewardless rail** | 📋 specced, small, high value |
+| 27.16 | `F-100` | *(new)* **Descriptor → MCC** from card statements | 📋 the best thing available without an issuing licence |
+| 27.17 | `F-101` | *(new)* Learn categories from the **issuer's own app** screenshots | 📋 |
+
+### Two answers you should read as "no"
+
+**27.8 is not a darkness detector.** Measuring how dark a frame is means
+holding frames — `returnImage: true` returns full-size bytes per analysed
+frame, on a camera that is live the whole time the dashboard is open. That is
+precisely the RAM cost you ruled out. What ships instead is free: *the scanner
+has been looking for seven seconds and found nothing*. That covers the dark
+room, the thumb over the lens, the phone face-down and the code held too close —
+it just cannot say **which**, so the copy names the fixes rather than the cause.
+
+**The dummy-card idea does not work as described**, and the reason is worth
+knowing: a decline is only visible to the parties in the authorization, and the
+MCC-bearing decline goes to the **issuer of the card used**. With made-up
+details there is no issuer to notify anyone. The version that *does* work is
+`Vector 4` — SWIP issues a real virtual card that declines everything, and reads
+the MCC out of its own authorizations. That needs a BIN sponsor, not a sprint.
+Full working in [24-CARD-AND-NETBANKING](24-CARD-AND-NETBANKING.md).
 
 ---
 
