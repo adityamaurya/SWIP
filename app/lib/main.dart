@@ -6,13 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/settings/home_market.dart';
 import 'core/theme/swip_theme.dart';
 import 'core/theme/swip_tokens.dart';
-import 'core/utils/swip_time.dart';
 import 'data/repositories/capture_repository.dart';
 import 'data/models/capture_event.dart';
 import 'data/sources/capture_resolver.dart';
 import 'data/sources/merchant_reconciler.dart';
 import 'features/capture_intent/intent_capture.dart';
-import 'features/capture_link/link_page.dart';
 import 'features/capture_nfc/tap_page.dart';
 import 'features/capture_qr/scan_page.dart';
 import 'features/capture_share/share_capture.dart';
@@ -109,9 +107,14 @@ class _SwipShellState extends ConsumerState<SwipShell>
     ];
   }
 
-  /// `D-07`. Global and shared by every time cell in the app, so tapping one
-  /// switches them all. Persisted in [SettingsPage].
-  TimeFormatPref _timeFormat = TimeFormatPref.absolute;
+  /// `F-95`. How many captures the ledger has not been opened since.
+  ///
+  /// The badge used to show the *total* row count, which never went down — so
+  /// it read as "97 unread" for ever and stopped meaning anything within a
+  /// day. It now counts only what has arrived since the ledger was last looked
+  /// at, and opening the ledger clears it.
+  /// Null until the first count arrives — see the seeding note in `build`.
+  int? _seenCount;
 
   @override
   void initState() {
@@ -143,19 +146,12 @@ class _SwipShellState extends ConsumerState<SwipShell>
     ));
   }
 
-  void _toggleTime() => setState(() {
-        _timeFormat = _timeFormat == TimeFormatPref.absolute
-            ? TimeFormatPref.relative
-            : TimeFormatPref.absolute;
-      });
-
   /// F-08, F-09. The dashboard has always sent which tile was tapped; the
   /// shell used to throw it away and open the scanner regardless, which is
   /// why Tap and Link appeared to do nothing.
   Future<void> _openCapture(CaptureVector vector) async {
     final page = switch (vector) {
       CaptureVector.nfc => const TapPage(),
-      CaptureVector.link => const LinkPage(),
       _ => const ScanPage(),
     };
 
@@ -248,11 +244,34 @@ class _SwipShellState extends ConsumerState<SwipShell>
   Future<void> _expandFlash(CaptureEvent event) =>
       showCaptureDetail(context, ref, event);
 
+  /// `F-95`. Opening the ledger is what marks it read, so the badge clears.
+  void _openLedger() {
+    final seen = ref.read(captureCountProvider).valueOrNull ?? _seenCount ?? 0;
+    setState(() {
+      _index = 1;
+      _seenCount = seen;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final recent = ref.watch(recentCapturesProvider);
     final repo = ref.watch(captureRepositoryProvider);
-    final count = ref.watch(captureCountProvider).valueOrNull ?? 0;
+    final countAsync = ref.watch(captureCountProvider);
+    final count = countAsync.valueOrNull ?? 0;
+
+    // Seeded once, from whatever is already in the ledger when the app opens.
+    // Without this every cold start would announce the entire history as new,
+    // which is the same "97 for ever" badge in a different disguise.
+    if (_seenCount == null && countAsync.hasValue) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _seenCount == null) {
+          setState(() => _seenCount = count);
+        }
+      });
+    }
+    final unread =
+        _seenCount == null ? 0 : (count - _seenCount!).clamp(0, 999);
     final home = ref.watch(homeMarketProvider).valueOrNull;
     final links = [
       for (final p
@@ -267,7 +286,6 @@ class _SwipShellState extends ConsumerState<SwipShell>
         data: (events) => DashboardPage(
           recent: events,
           mccFor: (code) => repo.valueOrNull?.lookup(code),
-          timeFormat: _timeFormat,
           homeMarket: home,
           active: _index == 0 &&
               _resumed &&
@@ -277,8 +295,7 @@ class _SwipShellState extends ConsumerState<SwipShell>
           // contactless transactions in the EEA only, and India is not
           // included. The tile is dimmed and explained, never hidden.
           tapAvailable: Platform.isAndroid,
-          onToggleTimeFormat: _toggleTime,
-          onOpenLedger: () => setState(() => _index = 1),
+          onOpenLedger: _openLedger,
           onOpenSettings: () => setState(() => _index = 2),
           onOpenCapture: _openCapture,
           onScanned: _onInlineScan,
@@ -290,7 +307,7 @@ class _SwipShellState extends ConsumerState<SwipShell>
               setState(() => _dismissedLinks.add(p.aliasKey)),
         ),
       ),
-      LedgerPage(timeFormat: _timeFormat, onToggleTime: _toggleTime),
+      const LedgerPage(),
       const SettingsPage(),
     ];
 
@@ -336,7 +353,13 @@ class _SwipShellState extends ConsumerState<SwipShell>
       // fourth route to a screen that already had three.
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        onDestinationSelected: (i) {
+          if (i == 1) {
+            _openLedger();
+          } else {
+            setState(() => _index = i);
+          }
+        },
         destinations: [
           const NavigationDestination(
             icon: Icon(Icons.dashboard_outlined),
@@ -345,8 +368,11 @@ class _SwipShellState extends ConsumerState<SwipShell>
           ),
           NavigationDestination(
             icon: Badge(
-              isLabelVisible: count > 0,
-              label: Text('$count'),
+              // `F-95`. Only what has landed since the ledger was last opened.
+              // A badge showing the lifetime total never goes down, and a count
+              // that never goes down is not a notification — it is furniture.
+              isLabelVisible: unread > 0,
+              label: Text('$unread'),
               backgroundColor: SwipColors.gold700,
               child: const Icon(Icons.receipt_long_outlined),
             ),

@@ -3,7 +3,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/onboarding/primers.dart';
-import '../../core/utils/swip_time.dart';
 import '../../core/theme/swip_tokens.dart';
 import '../../data/models/capture_event.dart';
 import '../../data/repositories/capture_repository.dart';
@@ -15,10 +14,7 @@ import '../../widgets/ledger_row.dart';
 /// `D-01` simple · `D-02` every vector writes here · `D-04`–`D-10` ·
 /// `F-06` the uncategorised filter · `F-07` collapsed rows shown, not vanished.
 class LedgerPage extends ConsumerStatefulWidget {
-  const LedgerPage({super.key, required this.timeFormat, this.onToggleTime});
-
-  final TimeFormatPref timeFormat;
-  final VoidCallback? onToggleTime;
+  const LedgerPage({super.key});
 
   @override
   ConsumerState<LedgerPage> createState() => _LedgerPageState();
@@ -81,8 +77,6 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                       _EventRow(:final event) => LedgerRow(
                           event: event,
                           mcc: repo?.lookup(event.mcc),
-                          timeFormat: widget.timeFormat,
-                          onToggleTimeFormat: widget.onToggleTime,
                           // `F-83`. Every row in the ledger opens the same
                           // sheet the capture showed when it happened. The row
                           // has always looked tappable — it is an `InkWell` and
@@ -149,14 +143,18 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
             child: Row(
               children: [
                 _chip('All', null),
+                // `F-89`. Link and Manual are gone. Link asked SWIP to guess a
+                // category from a payment URL, which it cannot do — hand it a
+                // Razorpay link and there is nothing in it to read. Manual was
+                // the user typing a number SWIP was supposed to find for them.
+                // A filter for a route that never produces rows is a filter
+                // that always shows an empty list.
                 for (final v in [
                   CaptureVector.qr,
                   CaptureVector.nfc,
                   CaptureVector.intent,
-                  CaptureVector.link,
-                  CaptureVector.manual,
                 ])
-                  _chip(v.shortLabel, v),
+                  _chip(VectorTag.labelFor(v), v),
               ],
             ),
           ),
@@ -167,18 +165,20 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                 SwipSpace.gutter, 0, SwipSpace.gutter, SwipSpace.md),
             child: Row(
               children: [
+                // `F-94`. One label, fixed. The line used to be a sentence that
+                // changed length with the switch — "Showing everything,
+                // categorised or not" against "Showing only captures with a
+                // category" — so flipping the toggle reflowed the row, moved
+                // the switch under your thumb, and made a settled control look
+                // like it was loading. The switch already says which way it is
+                // set; the text only has to say what it does.
                 Expanded(
                   child: Text(
-                    _hideUncategorised
-                        ? 'Showing only captures with a category'
-                        : 'Showing everything, categorised or not',
-                    style: SwipType.bodyS
-                        .copyWith(color: SwipColors.textTertiary),
+                    'Hide uncategorised',
+                    style: SwipType.bodyM
+                        .copyWith(color: SwipColors.textSecondary),
                   ),
                 ),
-                Text('Hide uncategorised',
-                    style: SwipType.bodyS
-                        .copyWith(color: SwipColors.textSecondary)),
                 Switch(
                   value: _hideUncategorised,
                   onChanged: (v) => setState(() => _hideUncategorised = v),

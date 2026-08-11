@@ -39,11 +39,9 @@ class DashboardPage extends StatefulWidget {
     super.key,
     required this.recent,
     required this.mccFor,
-    required this.timeFormat,
     required this.tapAvailable,
     required this.active,
     this.homeMarket,
-    this.onToggleTimeFormat,
     this.onOpenCapture,
     this.onScanned,
     this.onOpenLedger,
@@ -57,7 +55,6 @@ class DashboardPage extends StatefulWidget {
   /// Newest first. At most [_recentCount] are rendered.
   final List<CaptureEvent> recent;
   final Mcc? Function(String? code) mccFor;
-  final TimeFormatPref timeFormat;
 
   /// False on iOS and on Android devices without HCE — the Tap tile is then
   /// dimmed and routes to S-22 rather than being hidden. A missing feature
@@ -72,7 +69,6 @@ class DashboardPage extends StatefulWidget {
   /// `F-14`. Used to mark a capture domestic or international.
   final HomeMarket? homeMarket;
 
-  final VoidCallback? onToggleTimeFormat;
   final void Function(CaptureVector)? onOpenCapture;
 
   /// A code read by the inline viewfinder. Raw payload, unresolved.
@@ -213,8 +209,11 @@ class _DashboardPageState extends State<DashboardPage> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            SvgPicture.asset('assets/brand/swip-wordmark-ink.svg',
-                height: 20, semanticsLabel: 'SWIP'),
+            // `F-98` — the SW/P mark. The slash is the only coloured stroke,
+            // so at 22 px the letters read as one weight and the gold is what
+            // you actually recognise from across a table.
+            SvgPicture.asset('assets/brand/swip-slash-wordmark.svg',
+                height: 22, semanticsLabel: 'SW/P'),
             Row(children: [
               if (widget.homeMarket != null)
                 Padding(
@@ -237,12 +236,17 @@ class _DashboardPageState extends State<DashboardPage> {
         ),
       );
 
-  /// `F-81`. Three equal tiles said the three routes were equally useful. They
-  /// are not: scanning a shop's QR and tapping its card machine are how a
-  /// category is actually read, and Link is a fallback for a payment page you
-  /// were sent. So the two that matter get the room and the larger type, and
-  /// Link is dimmed to a third — still tappable, because a greyed control you
-  /// cannot press is just a broken one.
+  /// `F-81`, `F-89`. **Two tiles, because there are two things you can do.**
+  ///
+  /// There were three, and the third was Link: paste a payment URL and SWIP
+  /// would try to infer a category from it. It cannot. A Razorpay link carries
+  /// a merchant reference and nothing that maps to an MCC, so the tile promised
+  /// a capability the app does not have — worse than a missing feature, because
+  /// it teaches you to distrust the two that work.
+  ///
+  /// The third route, `APP DIRECT`, has no tile on purpose: it starts in the
+  /// *merchant's* checkout, when they hand the payment to SWIP. A button here
+  /// could not begin it.
   Widget _captureTiles() => Padding(
         padding: const EdgeInsets.symmetric(horizontal: SwipSpace.gutter),
         // **Never `CrossAxisAlignment.stretch` here.**
@@ -277,17 +281,6 @@ class _DashboardPageState extends State<DashboardPage> {
                 sublabel: 'The card machine',
                 enabled: widget.tapAvailable,
                 onTap: () => widget.onOpenCapture?.call(CaptureVector.nfc),
-              ),
-            ),
-            const SizedBox(width: SwipSpace.md),
-            Expanded(
-              flex: 2,
-              child: _CaptureTile(
-                icon: Icons.link_rounded,
-                label: 'Link',
-                sublabel: 'Later',
-                enabled: false,
-                onTap: () => widget.onOpenCapture?.call(CaptureVector.link),
               ),
             ),
           ],
@@ -334,9 +327,7 @@ class _DashboardPageState extends State<DashboardPage> {
             LedgerRow(
               event: rows[i],
               mcc: widget.mccFor(rows[i].mcc),
-              timeFormat: widget.timeFormat,
               onTap: () => widget.onOpenEvent?.call(rows[i]),
-              onToggleTimeFormat: widget.onToggleTimeFormat,
             ),
           ],
         ],

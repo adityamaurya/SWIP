@@ -136,6 +136,7 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
 
   @override
   void dispose() {
+    _blind?.cancel();
     _controller.removeListener(_sync);
     unawaited(_controller.dispose());
     super.dispose();
@@ -220,6 +221,7 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
             return;
           }
           _sync();
+          _sawSomething(); // `F-96`. Arms the "nothing in view" watchdog.
           return;
         }
 
@@ -249,6 +251,8 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
 
   Future<void> _stop() async {
     _running = false;
+    _blind?.cancel();
+    _cannotSee = false;
     try {
       // Unconditional: `stop()` guards itself, and skipping it when our own
       // flag says "not running" is how the platform's texture stayed claimed
@@ -286,12 +290,48 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
     if (raw == null || raw.isEmpty) return;
 
     _handling = true;
+    _sawSomething();
     widget.onDetect(raw);
     // A short refractory period, not a lock: the parent may leave the camera
     // running while it shows a sheet, and re-firing on the same sticker while
     // the sheet is open would stack sheets.
     await Future<void>.delayed(const Duration(milliseconds: 1400));
     _handling = false;
+  }
+
+  /// `F-96` — the "I cannot see anything" hint.
+  ///
+  /// ## Why it is a timer and not a light meter
+  ///
+  /// Measuring how dark the frame is means reading the frame, and reading the
+  /// frame means image buffers — `returnImage: true` hands back full-size bytes
+  /// for every analysed frame. That is exactly the memory cost this was asked
+  /// to avoid, and on the dashboard the camera is live the whole time the app
+  /// is open.
+  ///
+  /// So the signal used is the one already there and free: **the scanner has
+  /// been looking for a while and found nothing.** That covers the dark room,
+  /// the lens under a thumb, the phone flat on a table and the code held too
+  /// close, without allocating a single byte. It cannot name which of those it
+  /// is — so the copy names the fixes rather than the cause, which is the part
+  /// the person can act on anyway.
+  ///
+  /// One `Timer`, restarted on each detection. No polling, no frames, no state
+  /// held between ticks.
+  Timer? _blind;
+  bool _cannotSee = false;
+
+  static const _blindAfter = Duration(seconds: 7);
+
+  void _sawSomething() {
+    _blind?.cancel();
+    if (_cannotSee && mounted) setState(() => _cannotSee = false);
+    if (!_running) return;
+    _blind = Timer(_blindAfter, () {
+      if (mounted && _running && !_handling) {
+        setState(() => _cannotSee = true);
+      }
+    });
   }
 
   @override
@@ -364,20 +404,38 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
                 isDouble: _tapWasDouble,
               ),
 
-            // `F-66` — what the gestures do, faint, only while idle-ish.
+            // `F-96` — what to do when nothing is being found.
+            if (_cannotSee && _running && !_handling)
+              Positioned(
+                left: SwipSpace.md,
+                right: SwipSpace.md,
+                top: SwipSpace.md,
+                child: IgnorePointer(
+                  child: _OnCameraText(
+                    'NOTHING IN VIEW  ·  MORE LIGHT, OR MOVE BACK',
+                    color: SwipColors.gold300,
+                  ),
+                ),
+              ),
+
+            // `F-97` — what the gestures do.
+            //
+            // Upper case and on a plate. This sits over a live camera feed, so
+            // the background is whatever the shop counter happens to be:
+            // white marble, a black terminal, a moving hand. Grey text at any
+            // weight is unreadable against roughly half of those. Caps plus a
+            // dark rounded plate makes it legible on all of them at a fixed
+            // cost of one more container.
             if (!_handling && _running)
               Positioned(
-                left: 0,
-                right: 0,
+                left: SwipSpace.md,
+                right: SwipSpace.md,
                 bottom: SwipSpace.sm,
                 child: IgnorePointer(
-                  child: Text(
+                  child: _OnCameraText(
                     widget.squared
-                        ? 'Tap to widen  ·  Double-tap for full screen'
-                        : 'Tap to square up  ·  Double-tap for full screen',
-                    textAlign: TextAlign.center,
-                    style: SwipType.bodyS
-                        .copyWith(color: SwipColors.textTertiary),
+                        ? 'TAP TO WIDEN  ·  DOUBLE-TAP FOR FULL SCREEN'
+                        : 'TAP TO SQUARE UP  ·  DOUBLE-TAP FOR FULL SCREEN',
                   ),
                 ),
               ),
@@ -386,6 +444,52 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
       ),
     );
   }
+}
+
+/// `F-97` — text that has to stay readable over a live camera feed.
+///
+/// Three cheap things, in order of how much they do:
+///
+///   1. **A plate.** A translucent dark rounded rectangle. This is what makes
+///      it work over white marble and shop lighting; nothing else comes close.
+///   2. **Upper case, tracked out.** Short all-caps runs survive a busy,
+///      moving background far better than mixed case, because the word shape
+///      does not depend on ascenders that a bright patch can swallow.
+///   3. **A shadow.** For the edge of the plate where it meets a bright frame.
+///
+/// No blur, no `BackdropFilter`: a backdrop blur over a live camera feed is a
+/// full-screen shader every frame, which is exactly the kind of cost this card
+/// cannot carry while it is also scanning.
+class _OnCameraText extends StatelessWidget {
+  const _OnCameraText(this.text, {this.color});
+
+  final String text;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+              horizontal: SwipSpace.sm, vertical: 3),
+          decoration: BoxDecoration(
+            color: SwipColors.bg.withValues(alpha: .62),
+            borderRadius: SwipRadius.chipAll,
+          ),
+          child: Text(
+            text,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: SwipType.labelS.copyWith(
+              color: color ?? SwipColors.textPrimary,
+              letterSpacing: .6,
+              shadows: const [
+                Shadow(color: Color(0xCC000000), blurRadius: 3),
+              ],
+            ),
+          ),
+        ),
+      );
 }
 
 /// The four gold corner brackets. Drawn rather than imaged so they scale with

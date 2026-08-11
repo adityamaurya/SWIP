@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:swip/core/utils/swip_time.dart';
 import 'package:swip/data/models/capture_event.dart';
 import 'package:swip/data/models/mcc.dart';
 import 'package:swip/features/dashboard/dashboard_page.dart';
@@ -60,7 +59,6 @@ void main() {
         home: DashboardPage(
           recent: recent,
           mccFor: (_) => null,
-          timeFormat: TimeFormatPref.absolute,
           tapAvailable: true,
           // No camera in a layout test.
           active: false,
@@ -154,6 +152,45 @@ void main() {
     // fixed-height box — so the empty state needs its own pass at scale.
     await tester.pumpWidget(harness(const [], textScale: 1.6));
     await tester.pump(const Duration(milliseconds: 300));
+
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Link is gone from the dashboard', (tester) async {
+    tester.view.physicalSize = const Size(360, 800) * 3;
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+
+    // `F-89`. A tile that promises a capability the app does not have is worse
+    // than a missing one — it teaches distrust of the two that work.
+    await tester.pumpWidget(harness([event]));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Link'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('rows name the route in full, and never hedge', (tester) async {
+    tester.view.physicalSize = const Size(412, 915) * 3;
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(harness([event, uncategorised]));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // `F-93`. The three routes, spelled out.
+    expect(find.text('QR SCAN'), findsWidgets);
+    expect(find.text('POS TAP'), findsWidgets);
+    // The abbreviations they replaced, and the vector that was never a route.
+    expect(find.text('SCAN'), findsNothing);
+    expect(find.text('APP'), findsNothing);
+    expect(find.text('KNOWN'), findsNothing);
+
+    // `F-88`. Only ever "Verified" — no hedging word under the number, and no
+    // "Unknown" restating the NA directly above it.
+    expect(find.text('Likely'), findsNothing);
+    expect(find.text('Unknown'), findsNothing);
+    expect(find.text('Verified'), findsWidgets);
 
     expect(tester.takeException(), isNull);
   });

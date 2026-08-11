@@ -160,14 +160,27 @@ class _ShareCaptureListenerState extends ConsumerState<ShareCaptureListener>
 
   Future<void> _record(String raw, {required bool fromImage}) async {
     final resolved = CaptureResolver.resolve(raw);
+
+    // `F-89`. A shared payment *link* is refused rather than filed.
+    //
+    // The resolver can tell a Razorpay or PayU URL from a payment code, and a
+    // URL contains nothing that maps to a category — only a merchant reference
+    // the PSP alone can dereference. Recording it produced a permanent
+    // "Unknown" row that looked like SWIP had tried and failed, when the truth
+    // is there was never anything in it to read. Saying so is more useful than
+    // a row.
+    if (resolved.vector == CaptureVector.link && resolved.mcc == null) {
+      if (mounted) await _cannotReadALink();
+      return;
+    }
+
     final repo = await ref.read(captureRepositoryProvider.future);
 
     final event = await repo.record(
-      // Force the vector. The resolver would call a pasted UPI string a QR
-      // scan, but this arrived through the share sheet and the ledger has to
-      // be able to tell those apart — that distinction is the whole point of
-      // `D-02`.
-      vector: CaptureVector.link,
+      // Shared or scanned, it is the same merchant-presented code read by the
+      // same resolver — so it is filed as what it is. Which *route* it took to
+      // get here is a detail, and lives in the sheet under "How it got here".
+      vector: CaptureVector.qr,
       mcc: resolved.mcc,
       merchantName: resolved.merchantName,
       merchantCity: resolved.merchantCity,
@@ -256,6 +269,48 @@ class _ShareCaptureListenerState extends ConsumerState<ShareCaptureListener>
                   child: FilledButton(
                     onPressed: () => Navigator.of(ctx).pop(),
                     child: const Text('Done'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+  /// `F-89`. A payment link was shared. SWIP cannot read a category out of one
+  /// and says so, rather than filing a row that looks like a failed attempt.
+  Future<void> _cannotReadALink() => showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: SwipColors.surfaceRaised,
+        builder: (ctx) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(SwipSpace.xl),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.link_off_rounded,
+                    size: 32, color: SwipColors.textTertiary),
+                const SizedBox(height: SwipSpace.lg),
+                Text('A payment link carries no category',
+                    style:
+                        SwipType.titleM.copyWith(color: SwipColors.textPrimary)),
+                const SizedBox(height: SwipSpace.sm),
+                Text(
+                  'The link only names the merchant to their payment company — '
+                  'the category is decided later, when the money moves. Scan '
+                  'the shop\'s QR, tap their card machine, or share the '
+                  'statement line once it appears.',
+                  style:
+                      SwipType.bodyM.copyWith(color: SwipColors.textSecondary),
+                ),
+                const SizedBox(height: SwipSpace.xl),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text('Got it'),
                   ),
                 ),
               ],

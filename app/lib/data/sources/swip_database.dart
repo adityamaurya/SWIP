@@ -436,13 +436,22 @@ class MerchantKnowledge {
   final int agreeing;
   final int disagreeing;
 
-  /// Five independent agreeing captures promotes a graph answer to `verified`.
-  /// Below that it is `likely`; any disagreement at all surfaces as `conflict`,
-  /// because silently picking one would be the single most damaging thing this
-  /// app could do.
+  /// `F-88`. **There is no `likely`.**
+  ///
+  /// A graph answer used to be `likely` until five independent captures agreed.
+  /// But "likely" is a word that has to be believed or discounted, and neither
+  /// is something a person can do at a counter with a queue behind them — so it
+  /// was a hedge that transferred the app's uncertainty onto the user without
+  /// giving them any way to resolve it.
+  ///
+  /// Now: a single agreeing capture of the same code for the same merchant is
+  /// **verified** — it is a real category, read from a real payment, matched to
+  /// a merchant key that is derived rather than guessed. Any disagreement at
+  /// all is `conflict`, because silently picking one would be the single most
+  /// damaging thing this app could do.
   MccConfidence get confidence {
     if (disagreeing > 0) return MccConfidence.conflict;
     if (mcc == null) return MccConfidence.unknown;
-    return agreeing >= 5 ? MccConfidence.verified : MccConfidence.likely;
+    return MccConfidence.verified;
   }
 }

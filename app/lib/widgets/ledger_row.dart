@@ -35,12 +35,10 @@ class LedgerRow extends StatelessWidget {
     super.key,
     required this.event,
     required this.mcc,
-    required this.timeFormat,
     this.captureCount,
     this.onTap,
     this.onTapMcc,
     this.onTapMerchant,
-    this.onToggleTimeFormat,
     this.onLongPress,
   });
 
@@ -50,15 +48,12 @@ class LedgerRow extends StatelessWidget {
   /// still renders, showing the digits and the ISO range.
   final Mcc? mcc;
 
-  final TimeFormatPref timeFormat;
-
   final int? captureCount;
 
   /// `D-08` — every row is a hub.
   final VoidCallback? onTap; // -> the capture detail sheet
   final VoidCallback? onTapMcc; // -> S-06 MCC detail
   final VoidCallback? onTapMerchant; // -> S-07 merchant detail
-  final VoidCallback? onToggleTimeFormat; // `D-07` toggle
   final VoidCallback? onLongPress;
 
   /// Above this text scale the three-column layout stops working and the row
@@ -82,14 +77,24 @@ class LedgerRow extends StatelessWidget {
     );
   }
 
+  /// `F-91`. The MCC column is 76, not 62.
+  ///
+  /// Four digits of `SwipType.mcc` at 26 px are about 66 px wide with tabular
+  /// figures, so 62 clipped the last digit into the merchant name beside it —
+  /// which is the one thing `D-04` says must never happen. 76 fits the digits
+  /// and the word "Verified" beneath them with room to spare, and the gap after
+  /// it is widened so the number can never touch the name even mid-animation.
+  static const _mccColumn = 76.0;
+  static const _timeColumn = 76.0;
+
   Widget _columns(BuildContext context) => Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 62, child: _mccCell()),
-          const SizedBox(width: SwipSpace.md),
+          SizedBox(width: _mccColumn, child: _mccCell()),
+          const SizedBox(width: SwipSpace.lg),
           Expanded(child: _detailCell()),
           const SizedBox(width: SwipSpace.sm),
-          SizedBox(width: 70, child: _timeCell()),
+          SizedBox(width: _timeColumn, child: _timeCell()),
         ],
       );
 
@@ -124,19 +129,36 @@ class LedgerRow extends StatelessWidget {
   /// four other things, where "Verified" read as a property of the *merchant*.
   /// It is a property of the **number**, so it lives with the number — smaller,
   /// directly beneath, the way a caption sits under a figure.
-  Widget _mccCell() => GestureDetector(
-        onTap: onTapMcc,
-        behavior: HitTestBehavior.opaque,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            MccBadge(event.mcc, size: MccBadgeSize.lg),
-            const SizedBox(height: 1),
-            ConfidenceCaption(event.confidence),
-          ],
-        ),
-      );
+  ///
+  /// `F-90`. **The gesture detector is only attached when there is somewhere to
+  /// go.** It used to be unconditional and `opaque`, and no caller ever passed
+  /// [onTapMcc] — so the MCC swallowed every tap that landed on it and the
+  /// detail sheet never opened. The largest, most obviously tappable thing in
+  /// the row was the one dead spot in it.
+  Widget _mccCell() {
+    final cell = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        MccBadge(event.mcc, size: MccBadgeSize.lg),
+        // `F-88`. Only ever "Verified", and only when it is true. Anything
+        // else — a hedge like "Likely", or "Unknown" restating the `NA` that is
+        // already directly above it — is noise under the one number that
+        // matters.
+        if (event.confidence == MccConfidence.verified) ...[
+          const SizedBox(height: 1),
+          const ConfidenceCaption(MccConfidence.verified),
+        ],
+      ],
+    );
+
+    if (onTapMcc == null) return cell;
+    return GestureDetector(
+      onTap: onTapMcc,
+      behavior: HitTestBehavior.opaque,
+      child: cell,
+    );
+  }
 
   /// `F-44`, and a reversal of `D-05`.
   ///
@@ -144,6 +166,17 @@ class LedgerRow extends StatelessWidget {
   /// that reads backwards: you are standing in front of a shop you can see, so
   /// the row's job is *"which visit was this"* first and *"what was it filed
   /// as"* second.
+  Widget _merchantText(String? identity) => Text(
+        identity ?? 'Unnamed merchant',
+        style: SwipType.bodyM.copyWith(
+          color: identity == null
+              ? SwipColors.textSecondary
+              : SwipColors.textPrimary,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      );
+
   Widget _detailCell() {
     final identity = event.identityLine;
 
@@ -151,20 +184,17 @@ class LedgerRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 1 ── who
-        GestureDetector(
-          onTap: onTapMerchant,
-          behavior: HitTestBehavior.opaque,
-          child: Text(
-            identity ?? 'Unnamed merchant',
-            style: SwipType.bodyM.copyWith(
-              color: identity == null
-                  ? SwipColors.textSecondary
-                  : SwipColors.textPrimary,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
+        //
+        // `F-90` again: wrapped only when there is a destination. An opaque
+        // gesture detector with a null callback is a hole in the row.
+        if (onTapMerchant != null)
+          GestureDetector(
+            onTap: onTapMerchant,
+            behavior: HitTestBehavior.opaque,
+            child: _merchantText(identity),
+          )
+        else
+          _merchantText(identity),
         const SizedBox(height: 1),
 
         // 2 ── what kind of business, from the code
@@ -204,51 +234,44 @@ class LedgerRow extends StatelessWidget {
     );
   }
 
-  /// `D-07`. Default: `08 Aug` over `4:12 PM`. Tap to switch the whole ledger
-  /// to `2h ago`. Below it, `F-75`: how this capture was read.
+  /// The date, the time, and how the capture was read.
+  ///
+  /// `F-92`. **No more tap-to-toggle.** `D-07` let a tap swap the whole ledger
+  /// between `08 Aug / 4:12 PM` and `53 mins ago`. Two problems: a row is a
+  /// record, and a record that rewrites itself when brushed is unsettling; and
+  /// the relative form loses the very thing you scan a ledger for, which is
+  /// *when* — "53 mins ago" is useless the moment you come back tomorrow.
+  ///
+  /// So the date and the time are simply shown, always, and the tap the cell
+  /// used to eat now reaches the row and opens the capture.
   Widget _timeCell() {
-    final cell = SwipTime.cell(event.capturedAt, timeFormat);
+    final cell = SwipTime.cell(event.capturedAt, TimeFormatPref.absolute);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        GestureDetector(
-          onTap: onToggleTimeFormat,
-          behavior: HitTestBehavior.opaque,
-          child: Semantics(
-            label: SwipTime.full(event.capturedAt),
-            excludeSemantics: true,
-            button: onToggleTimeFormat != null,
-            child: AnimatedSwitcher(
-              duration: SwipMotion.micro,
-              child: Column(
-                key: ValueKey(timeFormat),
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    cell.primary,
-                    style:
-                        SwipType.label.copyWith(color: SwipColors.textPrimary),
-                    maxLines: 1,
-                    textAlign: TextAlign.right,
-                  ),
-                  if (cell.secondary != null)
-                    Text(
-                      cell.secondary!,
-                      style: SwipType.bodyS
-                          .copyWith(color: SwipColors.textSecondary),
-                      maxLines: 1,
-                      textAlign: TextAlign.right,
-                    ),
-                ],
-              ),
-            ),
+    return Semantics(
+      label: SwipTime.full(event.capturedAt),
+      excludeSemantics: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            cell.primary,
+            style: SwipType.label.copyWith(color: SwipColors.textPrimary),
+            maxLines: 1,
+            textAlign: TextAlign.right,
           ),
-        ),
-        const SizedBox(height: SwipSpace.xs),
-        VectorTag(event.vector),
-      ],
+          if (cell.secondary != null)
+            Text(
+              cell.secondary!,
+              style:
+                  SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
+              maxLines: 1,
+              textAlign: TextAlign.right,
+            ),
+          const SizedBox(height: SwipSpace.xs),
+          VectorTag(event.vector),
+        ],
+      ),
     );
   }
 }
@@ -264,13 +287,31 @@ class VectorTag extends StatelessWidget {
 
   final CaptureVector vector;
 
-  /// Short enough to sit under a date column at any text scale.
+  /// `F-93` — **three routes, three names.**
+  ///
+  /// There are exactly three ways SWIP reads a category from a live payment,
+  /// and the ledger now says which one in the words you would use out loud:
+  ///
+  ///   * `QR SCAN`    — the shop's code, through the camera
+  ///   * `POS TAP`    — the card machine, over NFC
+  ///   * `APP DIRECT` — the merchant handed the payment to SWIP
+  ///
+  /// `BANK` is the fourth and it is not a capture at all: those rows come from
+  /// a statement you shared, which is how a merchant gets *taught* rather than
+  /// read. It is kept because collapsing it into one of the three would claim a
+  /// capture that never happened.
+  ///
+  /// `SCAN` / `APP` / `KNOWN` are gone. The first two were abbreviations of
+  /// abbreviations; `KNOWN` was never a route at all — see `F-87`, where the
+  /// vector was being overwritten whenever the digits came from memory.
   static String labelFor(CaptureVector v) => switch (v) {
-        CaptureVector.qr => 'SCAN',
-        CaptureVector.nfc => 'POS',
-        CaptureVector.link => 'LINK',
-        CaptureVector.intent => 'APP',
+        CaptureVector.qr => 'QR SCAN',
+        CaptureVector.nfc => 'POS TAP',
+        CaptureVector.intent => 'APP DIRECT',
         CaptureVector.statement => 'BANK',
+        // Retired vectors. Rows captured before they were removed still exist
+        // in people's ledgers, so they must still render something truthful.
+        CaptureVector.link => 'LINK',
         CaptureVector.manual => 'TYPED',
         CaptureVector.graph => 'KNOWN',
         CaptureVector.probe => 'PROBE',
@@ -287,6 +328,7 @@ class VectorTag extends StatelessWidget {
           labelFor(vector),
           style: SwipType.labelS.copyWith(color: SwipColors.textTertiary),
           maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           semanticsLabel: 'Read by ${vector.longLabel}',
         ),
       );

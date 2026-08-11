@@ -53,29 +53,42 @@ class CaptureRepository {
     final where = await _location.current();
 
     var code = mcc;
-    var confidence = vector.isLiveCapture
-        ? MccConfidence.verified
-        : MccConfidence.likely;
-    var effectiveVector = vector;
-
     final noCode = code == null || code.length != 4 || code == '0000';
+
+    // `F-87`. **The vector is how the capture happened, and nothing changes
+    // it.**
+    //
+    // This used to rewrite the vector to `graph` whenever the code came from
+    // memory rather than from the payload — so a QR you scanned at a counter
+    // was filed in the ledger as "KNOWN", and the row no longer said how you
+    // had actually captured it. Two different facts had been folded into one
+    // field: *how it was captured* and *where the digits came from*. The first
+    // is the vector and is now immutable; the second is what [confidence]
+    // carries.
+    //
+    // `F-88`. There is also no `likely` any more. It was assigned to every
+    // non-live vector by default and appeared under the MCC as a hedge nobody
+    // asked for. A category is either read from the transaction — the QR, the
+    // terminal, the merchant's own intent, or the bank's own statement — in
+    // which case it is **verified**, or it is not known, in which case saying
+    // "likely" is dressing up a guess.
+    var confidence =
+        vector.isLiveCapture && !noCode ? MccConfidence.verified : MccConfidence.unknown;
+
     if (noCode && merchantKey != null) {
       final known = await _db.knownMerchant(merchantKey);
       if (known?.mcc != null) {
         code = known!.mcc;
+        // Inherited honestly: a code learned from a bank statement is stored
+        // verified, because the acquirer posted it after the money moved.
         confidence = known.confidence;
-        effectiveVector = CaptureVector.graph;
-      } else {
-        confidence = MccConfidence.unknown;
       }
-    } else if (noCode) {
-      confidence = MccConfidence.unknown;
     }
 
     final event = CaptureEvent(
       id: _newId(),
       mcc: code,
-      vector: effectiveVector,
+      vector: vector,
       confidence: confidence,
       capturedAt: DateTime.now().toUtc(),
       merchantName: merchantName,
@@ -184,27 +197,10 @@ class CaptureRepository {
 
   Mcc? lookup(String? code) => code == null ? null : _mcc.lookup(code);
 
-  /// A correction from the user (`S-13`), stored as a new row that supersedes
-  /// the old one rather than an edit — the ledger is append-only.
-  Future<CaptureEvent> correct(CaptureEvent original, String mcc) async {
-    final corrected = CaptureEvent(
-      id: _newId(),
-      mcc: mcc,
-      vector: CaptureVector.manual,
-      confidence: MccConfidence.verified,
-      capturedAt: DateTime.now().toUtc(),
-      merchantName: original.merchantName,
-      merchantCity: original.merchantCity,
-      countryCode: original.countryCode,
-      merchantKey: original.merchantKey,
-      amount: original.amount,
-      currency: original.currency,
-      rawPayload: original.rawPayload,
-      correctsId: original.id,
-    );
-    await _db.insertCapture(corrected);
-    return corrected;
-  }
+  // `F-89`. The manual `correct()` path was removed with the manual vector.
+  // Nothing in the app called it, and a hand-typed number is exactly the kind
+  // of "category" SWIP exists to make unnecessary. If a correction path returns
+  // it should be evidence-based — a statement line — not a text field.
 
   static String _newId() {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
