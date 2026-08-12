@@ -122,3 +122,15 @@ jobs:
           name: swip-debug-apk
           path: app/build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
+          # `F-110`. Five days, not the default ninety.
+          #
+          # This matters the moment the repository goes private. A public repo
+          # gets unlimited Actions minutes and storage; a private repo on the
+          # Free plan gets 2,000 Linux minutes and **500 MB of artifact
+          # storage**. The debug APK is ~87 MB, so at the default retention the
+          # sixth build of the month would fail on quota with nothing obviously
+          # wrong in the logs.
+          #
+          # Five days is longer than any APK here stays interesting and keeps
+          # the running total near one build's worth.
+          retention-days: 5

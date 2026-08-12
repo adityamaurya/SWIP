@@ -222,6 +222,34 @@ class MainActivity : FlutterFragmentActivity() {
                         result.success(null)
                     }
 
+                    // `F-111`. Hand a URI to whichever app owns it — a `upi://`
+                    // for the UPI route, an `https://` payment page for the card
+                    // route.
+                    //
+                    // Separate from `forwardUpiIntent` on purpose: that one wraps
+                    // the intent in a chooser and excludes SWIP from it, which is
+                    // right when SWIP is *relaying* a merchant's payment. Here
+                    // SWIP is the payee, there is nothing to exclude, and the
+                    // user's default handler is the correct destination.
+                    "openExternal" -> {
+                        val uri = call.argument<String>("uri")
+                        if (uri.isNullOrBlank()) {
+                            result.error("no_uri", "openExternal needs a uri", null)
+                        } else {
+                            runCatching {
+                                startActivity(
+                                    Intent(Intent.ACTION_VIEW, android.net.Uri.parse(uri))
+                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
+                            }.fold(
+                                onSuccess = { result.success(true) },
+                                // No app to take it — a phone with no UPI app
+                                // installed, or no browser. Reported, not thrown.
+                                onFailure = { result.success(false) }
+                            )
+                        }
+                    }
+
                     // ── Vector 7: the pay-by-app intent ──────────────────
                     //
                     // Returns the pending upi:// URI once and clears it, so a

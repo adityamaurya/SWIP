@@ -15,6 +15,7 @@ import '../../core/settings/home_market.dart';
 import '../../core/theme/swip_tokens.dart';
 import '../../data/repositories/capture_repository.dart';
 import '../onboarding/home_market_page.dart';
+import '../support/support_section.dart';
 
 /// `S-12` — Settings.
 ///
@@ -153,6 +154,10 @@ class SettingsPage extends ConsumerWidget {
 
           const SizedBox(height: SwipSpace.giant),
           const _Colophon(),
+
+          // `F-111`. Below the signature, closed, and it stays closed unless
+          // someone opens it.
+          const SupportSection(),
           const SizedBox(height: SwipSpace.xxxl),
         ],
       ),
