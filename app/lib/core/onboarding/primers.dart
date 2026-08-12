@@ -39,7 +39,7 @@ enum SwipPrimer {
         'terminal answers, and SWIP stops.',
     footnote:
         'The terminal will show an error and no payment will happen. '
-        'That is expected — it is how SWIP stays out of your money.',
+        'That is expected - it is how SWIP stays out of your money.',
   ),
 
   checkLink(
@@ -52,7 +52,7 @@ enum SwipPrimer {
         'under.',
     footnote:
         'Links are the one vector SWIP has to infer rather than read, so these '
-        'come back as "Likely" — never "Verified".',
+        'come back as "Likely" - never "Verified".',
   ),
 
   ledger(

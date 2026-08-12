@@ -85,11 +85,11 @@ enum MerchantTier {
   /// `F-47` — the line CRED shows, and now SWIP does too.
   String? get rupayNote => switch (this) {
         MerchantTier.fullMerchant =>
-          'RuPay credit card should work here — this looks like a fully '
+          'RuPay credit card should work here - this looks like a fully '
               'onboarded merchant.',
         MerchantTier.smallMerchant =>
           'RuPay credit card will not work here. NPCI does not allow credit '
-              'card on UPI at small-merchant codes — which is also why this '
+              'card on UPI at small-merchant codes - which is also why this '
               'shop has no category.',
         MerchantTier.unknown => null,
       };
@@ -138,7 +138,7 @@ class MerchantIdentity {
             ? 'A registered business. Its category was not written into the code.'
             : 'A registered business, accepting payments through $psp. '
                 'Its category was not written into the code.'
-                ' $psp knows the shop\'s name on its own servers — the sticker '
+                ' $psp knows the shop\'s name on its own servers - the sticker '
                 'itself does not carry it.',
         PayeeKind.person =>
           'A personal code, not a shop. Personal codes never carry a category.',

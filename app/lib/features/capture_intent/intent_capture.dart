@@ -151,7 +151,7 @@ class _IntentCaptureListenerState extends ConsumerState<IntentCaptureListener>
               'Amount': '${resolved.currency ?? ''} ${resolved.amount}'.trim(),
             if (resolved.merchantKey != null)
               'Merchant key': resolved.merchantKey!,
-            'SWIP\'s part': 'Read the category only — no payment is made here',
+            'SWIP\'s part': 'Read the category only - no payment is made here',
           },
         ),
       );

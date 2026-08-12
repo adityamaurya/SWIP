@@ -39,8 +39,18 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Ledger')),
-      body: Column(
+      // `F-106`. The filter row sat directly under the app bar with no breathing
+      // space, so on a device with a notch or a punch-hole it read as pinned to
+      // the status bar. `SafeArea` handles the cutout; the 12 dp on top of it is
+      // the gap Material asks for between an app bar and the first content row,
+      // and `bottom: false` because the list scrolls under the navigation bar by
+      // design and the padding at its end already clears it.
+      body: SafeArea(
+        top: false,
+        bottom: false,
+        child: Column(
         children: [
+          const SizedBox(height: SwipSpace.md),
           _filters(),
           Expanded(
             child: async.when(
@@ -98,6 +108,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
             ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -297,7 +308,7 @@ class _AllHidden extends StatelessWidget {
   Widget build(BuildContext context) => const _Message(
         title: 'Every capture here is uncategorised',
         body: 'Turn off "Hide uncategorised" to see them. They are not '
-            'failures — most are shop stickers whose bank never wrote a '
+            'failures - most are shop stickers whose bank never wrote a '
             'category into the code.',
         icon: Icons.filter_alt_off_outlined,
       );
@@ -309,7 +320,7 @@ class _EmptyLedger extends StatelessWidget {
   @override
   Widget build(BuildContext context) => const _Message(
         title: 'Nothing captured yet',
-        body: 'Scan any payment QR and you will see its category here — '
+        body: 'Scan any payment QR and you will see its category here - '
             'before you pay, not a month later on a statement.',
         icon: Icons.receipt_long_outlined,
       );

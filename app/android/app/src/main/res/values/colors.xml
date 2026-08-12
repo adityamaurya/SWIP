@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- SWIP Ink. The same near-black the app itself is painted on, so the icon
+         and the first frame of the app are the same colour. -->
+    <color name="swip_icon_background">#060507</color>
+</resources>

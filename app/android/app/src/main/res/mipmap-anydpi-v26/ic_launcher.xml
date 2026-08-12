@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  `F-109`. Adaptive icon. On API 26+ (every device SWIP targets) this file wins
+  over the density-bucket PNGs the Flutter scaffold generates, so the launcher
+  shows the SWIP mark instead of the Flutter default. The PNGs remain as the
+  pre-Oreo fallback.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/swip_icon_background" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+    <monochrome android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>

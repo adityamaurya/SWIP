@@ -62,7 +62,7 @@ class MerchantLinkCard extends StatelessWidget {
           const SizedBox(height: SwipSpace.sm),
           Text(
             'If they are the same shop, SWIP will remember that code for this '
-            'QR — and every time anyone scans it.',
+            'QR - and every time anyone scans it.',
             style: SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
           ),
 

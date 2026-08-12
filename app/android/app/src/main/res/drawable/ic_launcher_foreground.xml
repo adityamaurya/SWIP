@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  `F-109` — the SWIP launcher icon.
+
+  A vector drawable, not a set of PNGs, for two reasons: it is one file instead
+  of five density buckets, and `tool/bootstrap.sh` regenerates the Flutter
+  scaffold on every build — a vector in the repo's own `res/` tree survives that
+  copy, where hand-exported PNGs would have to be re-derived each time.
+
+  ## The mark
+
+  The gold slash from the SW/P wordmark, inside the viewfinder brackets from the
+  scanning card. The two ideas the product is actually made of, in one shape:
+  the brand stroke, and the thing that reads a code.
+
+  Adaptive-icon geometry: 108 x 108 viewport, with everything that must survive
+  the mask kept inside the centred 72 x 72 safe zone (18..90 on both axes).
+  Launchers crop the outer 18 dp on every edge, and some crop to a circle.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- The slash. THE brand gold, #C9A227. -->
+    <path
+        android:fillColor="#C9A227"
+        android:pathData="M64.2,30.0 L74.0,30.0 L47.8,78.0 L38.0,78.0 Z" />
+
+    <!-- Viewfinder brackets, in the same gold at a lighter weight so the slash
+         stays the dominant shape. Drawn as strokes on an open path per corner. -->
+    <path
+        android:strokeColor="#8A6620"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M28,40 L28,32 L36,32" />
+    <path
+        android:strokeColor="#8A6620"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M80,40 L80,32 L72,32" />
+    <path
+        android:strokeColor="#8A6620"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M28,68 L28,76 L36,76" />
+    <path
+        android:strokeColor="#8A6620"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M80,68 L80,76 L72,76" />
+</vector>

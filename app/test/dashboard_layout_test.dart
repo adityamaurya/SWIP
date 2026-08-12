@@ -178,19 +178,20 @@ void main() {
     await tester.pumpWidget(harness([event, uncategorised]));
     await tester.pump(const Duration(milliseconds: 300));
 
-    // `F-93`. The three routes, spelled out.
-    expect(find.text('QR SCAN'), findsWidgets);
-    expect(find.text('POS TAP'), findsWidgets);
-    // The abbreviations they replaced, and the vector that was never a route.
-    expect(find.text('SCAN'), findsNothing);
-    expect(find.text('APP'), findsNothing);
+    // `F-102`. The routes, stacked over two lines so they fit the column.
+    expect(find.text('QR'), findsWidgets);
+    expect(find.text('SCAN'), findsWidgets);
+    expect(find.text('NFC'), findsWidgets);
+    expect(find.text('POS'), findsWidgets);
+
+    // `F-87`. The vector that was never a route.
     expect(find.text('KNOWN'), findsNothing);
 
-    // `F-88`. Only ever "Verified" — no hedging word under the number, and no
-    // "Unknown" restating the NA directly above it.
+    // `F-103`. Nothing at all under the number: no hedge, and not even the
+    // "Verified" that used to appear on every single row.
     expect(find.text('Likely'), findsNothing);
     expect(find.text('Unknown'), findsNothing);
-    expect(find.text('Verified'), findsWidgets);
+    expect(find.text('Verified'), findsNothing);
 
     expect(tester.takeException(), isNull);
   });

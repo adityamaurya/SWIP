@@ -205,7 +205,7 @@ class _TapPageState extends ConsumerState<TapPage> with WidgetsBindingObserver {
           noCategoryTitle: 'The terminal did not give a category',
           noCategoryBody:
               'SWIP asked and this machine returned nothing in the category '
-              'field. That is the shop\'s bank not filling it in — it is not '
+              'field. That is the shop\'s bank not filling it in - it is not '
               'something SWIP or the cashier can change. Scanning the shop\'s '
               'QR often works when the terminal will not.',
           // The terminal's own field names, exactly as EMV labels them. This
@@ -250,7 +250,7 @@ class _TapPageState extends ConsumerState<TapPage> with WidgetsBindingObserver {
                 icon: Icons.nfc_rounded,
                 title: 'NFC is switched off',
                 body: 'SWIP reads the terminal over NFC, so it needs to be on. '
-                    'Turn it on and come back — nothing else changes.',
+                    'Turn it on and come back - nothing else changes.',
                 actionLabel: 'Open NFC settings',
                 onAction: () async {
                   await _method.invokeMethod<void>('openNfcSettings');
@@ -434,7 +434,7 @@ class _StatusCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   isDefault
-                      ? 'Ready — taps come to SWIP'
+                      ? 'Ready - taps come to SWIP'
                       : 'Taps will not reach SWIP yet',
                   style: SwipType.label.copyWith(color: fg),
                 ),
@@ -444,11 +444,11 @@ class _StatusCard extends StatelessWidget {
           const SizedBox(height: SwipSpace.xs),
           Text(
             isDefault
-                ? 'SWIP is your default contactless app. Nothing is paid — it '
+                ? 'SWIP is your default contactless app. Nothing is paid - it '
                     'reads the category and stops, so the terminal will show an '
                     'error. That is the expected ending, not a failure.'
                 : 'Your phone sends the tap to whichever app holds the '
-                    'contactless slot — usually Google Pay — so SWIP never sees '
+                    'contactless slot - usually Google Pay - so SWIP never sees '
                     'the terminal. Set SWIP as the default to fix it.',
             style: SwipType.bodyS.copyWith(color: fg.withValues(alpha: .92)),
           ),

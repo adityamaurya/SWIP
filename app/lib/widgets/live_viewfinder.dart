@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show PointMode;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -628,7 +629,7 @@ class _Idle extends StatelessWidget {
             const SizedBox(height: SwipSpace.xs),
             Text(
               refused
-                  ? 'Tap here to allow it — the camera lives on this card'
+                  ? 'Tap here to allow it - the camera lives on this card'
                   : starting
                       ? 'One moment'
                       : 'Point at any payment QR',
@@ -642,59 +643,141 @@ class _Idle extends StatelessWidget {
       );
 }
 
-/// `F-68` — a gold ring expanding from the touch point, with a hand glyph.
+/// `F-104` — the tap acknowledgement: a dotted grid that breathes outward.
 ///
-/// Two rings for a double tap rather than a different colour: the count is the
-/// information, and a second ring reads as "two" without anyone being taught a
-/// legend.
+/// ## Why the hand glyph is gone
+///
+/// A ☝ icon on a tap is a tutorial drawn on top of the thing being used. It
+/// tells you what you just did, which you already know, and it keeps telling
+/// you for ever — a permanent hint is an admission that the gesture was never
+/// discoverable. The gesture teaches itself through the *response*, not through
+/// a picture of a hand.
+///
+/// ## The dots
+///
+/// A FigJam-style grid, clipped to a circle that expands from the touch point.
+/// Each dot fades by its distance from the centre, so the ring reads as a
+/// pressure wave passing through the canvas rather than an outline being drawn
+/// on it. Two waves for a double tap: the count is the information.
+///
+/// Painted in a single `CustomPainter` — one `drawPoints` call, no per-dot
+/// widgets, nothing allocated per frame. Over a live camera feed that matters:
+/// this is the one animation that fires while the scanner is analysing.
 class _TapRipple extends StatelessWidget {
   const _TapRipple({super.key, required this.at, required this.isDouble});
 
   final Offset at;
   final bool isDouble;
 
+  /// The grid pitch. 9 px reads as texture at arm's length and as distinct dots
+  /// up close, which is the FigJam trick.
+  static const _pitch = 9.0;
+  static const _reach = 92.0;
+
   @override
   Widget build(BuildContext context) => Positioned(
-        left: at.dx - 40,
-        top: at.dy - 40,
+        left: at.dx - _reach,
+        top: at.dy - _reach,
         child: IgnorePointer(
           child: SizedBox(
-            width: 80,
-            height: 80,
+            width: _reach * 2,
+            height: _reach * 2,
             child: Stack(
-              alignment: Alignment.center,
               children: [
-                for (var ring = 0; ring < (isDouble ? 2 : 1); ring++)
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: SwipColors.gold500, width: 2),
-                    ),
-                  )
-                      .animate()
-                      .scaleXY(
-                          begin: .25,
-                          end: 1,
-                          delay: (ring * 130).ms,
-                          duration: 420.ms,
-                          curve: Curves.easeOutCubic)
-                      .fadeOut(
-                          delay: (ring * 130).ms, duration: 420.ms),
-                Icon(
-                  isDouble
-                      ? Icons.open_in_full_rounded
-                      : Icons.touch_app_rounded,
-                  size: 22,
-                  color: SwipColors.gold300,
-                )
-                    .animate()
-                    .fadeIn(duration: 120.ms)
-                    .scaleXY(begin: .7, end: 1.05, duration: 220.ms)
-                    .then()
-                    .fadeOut(duration: 260.ms),
+                for (var wave = 0; wave < (isDouble ? 2 : 1); wave++)
+                  _DottedWave(wave: wave, pitch: _pitch),
               ],
             ),
           ),
         ),
       );
+}
+
+/// One expanding wave. Split out so each has its own controller and the second
+/// can start late without the first restarting.
+class _DottedWave extends StatefulWidget {
+  const _DottedWave({required this.wave, required this.pitch});
+
+  final int wave;
+  final double pitch;
+
+  @override
+  State<_DottedWave> createState() => _WaveState();
+}
+
+class _WaveState extends State<_DottedWave>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    duration: const Duration(milliseconds: 620),
+    vsync: this,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.delayed(Duration(milliseconds: widget.wave * 120), () {
+      if (mounted) _c.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: _c,
+        builder: (_, __) => CustomPaint(
+          painter: _DottedWavePainter(
+            // Eased so the wave leaves fast and settles slow, which is what a
+            // real disturbance in a surface does.
+            t: Curves.easeOutCubic.transform(_c.value),
+            pitch: widget.pitch,
+          ),
+        ),
+      );
+}
+
+class _DottedWavePainter extends CustomPainter {
+  const _DottedWavePainter({required this.t, required this.pitch});
+
+  /// 0 at the touch, 1 when the wave has reached the edge and faded out.
+  final double t;
+  final double pitch;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (t <= 0 || t >= 1) return;
+
+    final centre = size.center(Offset.zero);
+    final radius = size.width / 2 * t;
+    // The band the wave currently occupies. Dots outside it are not drawn at
+    // all, which is what keeps this to one cheap pass.
+    const band = 26.0;
+    final inner = radius - band;
+
+    final dots = <Offset>[];
+    for (var x = pitch / 2; x < size.width; x += pitch) {
+      for (var y = pitch / 2; y < size.height; y += pitch) {
+        final p = Offset(x, y);
+        final d = (p - centre).distance;
+        if (d > radius || d < inner) continue;
+        dots.add(p);
+      }
+    }
+    if (dots.isEmpty) return;
+
+    final paint = Paint()
+      ..color = SwipColors.gold300.withValues(alpha: (1 - t) * 0.85)
+      ..strokeWidth = 2.2
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawPoints(PointMode.points, dots, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _DottedWavePainter old) =>
+      old.t != t || old.pitch != pitch;
 }

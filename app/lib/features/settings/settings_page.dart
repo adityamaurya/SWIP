@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -13,7 +15,6 @@ import '../../core/settings/home_market.dart';
 import '../../core/theme/swip_tokens.dart';
 import '../../data/repositories/capture_repository.dart';
 import '../onboarding/home_market_page.dart';
-import '../statement/statement_import_page.dart';
 
 /// `S-12` — Settings.
 ///
@@ -45,7 +46,7 @@ class SettingsPage extends ConsumerWidget {
             title: const Text('Home country'),
             subtitle: Text(
               home == null
-                  ? 'Not set — captures cannot be marked domestic or '
+                  ? 'Not set - captures cannot be marked domestic or '
                       'international'
                   : '${home.displayName} · ${home.currency}',
               style: SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
@@ -75,26 +76,10 @@ class SettingsPage extends ConsumerWidget {
             onChanged: (want) => _setLocation(context, ref, want),
           ),
 
-          const Divider(height: SwipSpace.xxl),
-          _header('Teach SWIP'),
-
-          // `F-50`. The highest-value screen in the app: a statement carries
-          // the category the acquirer actually posted, paired with the payee
-          // handle, for merchants whose QR carries nothing at all.
-          ListTile(
-            leading: const Icon(Icons.receipt_long_rounded),
-            title: const Text('Learn from a bank statement'),
-            subtitle: Text(
-              'Some banks print the category in the statement line. One paste '
-              'teaches SWIP every shop you have paid.',
-              style: SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
-            ),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => const StatementImportPage(),
-            )),
-          ),
-
+          // `F-107`. "Learn from a bank statement" is removed for now, at your
+          // request. The parser stays — `statement_parser.dart` and its tests
+          // are untouched, and the share-a-statement route still works — but
+          // the screen is gone from Settings until it earns its place.
           const Divider(height: SwipSpace.xxl),
           _header('Your data'),
 
@@ -161,10 +146,14 @@ class SettingsPage extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: SwipSpace.gutter),
             child: Text(
               'SWIP keeps everything on this phone. There is no account and no '
-              'server — nothing is uploaded unless you export it yourself.',
+              'server - nothing is uploaded unless you export it yourself.',
               style: SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
             ),
           ),
+
+          const SizedBox(height: SwipSpace.giant),
+          const _Colophon(),
+          const SizedBox(height: SwipSpace.xxxl),
         ],
       ),
     );
@@ -198,7 +187,7 @@ class SettingsPage extends ConsumerWidget {
     if (!granted && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text(
-          'Location stayed off — Android did not grant it. You can allow it '
+          'Location stayed off - Android did not grant it. You can allow it '
           'in your phone\'s app settings.',
         ),
       ));
@@ -228,7 +217,7 @@ class SettingsPage extends ConsumerWidget {
     await Share.shareXFiles(
       [XFile(file.path)],
       subject: 'SWIP ledger backup',
-      text: 'Your SWIP ledger — ${rows.length} captures. '
+      text: 'Your SWIP ledger - ${rows.length} captures. '
           'Save this to Google Drive, then import it on a new phone.',
     );
   }
@@ -260,7 +249,7 @@ class SettingsPage extends ConsumerWidget {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(added == 0
-            ? 'Already up to date — nothing new in that file'
+            ? 'Already up to date - nothing new in that file'
             : 'Restored $added captures'),
       ));
     } on Object catch (e) {
@@ -302,4 +291,75 @@ class SettingsPage extends ConsumerWidget {
     ScaffoldMessenger.of(context)
         .showSnackBar(const SnackBar(content: Text('Everything deleted')));
   }
+}
+
+/// `F-108` — the colophon at the foot of Settings.
+///
+/// The mark, then who made it. Deliberately at the very bottom and deliberately
+/// quiet: a colophon is a signature on the last page, not a banner.
+///
+/// The avatar is a monogram rather than a photograph, because a photograph would
+/// have to be fetched from LinkedIn at build time and LinkedIn does not permit
+/// that. Drop a `assets/brand/aditya.jpg` in and this swaps to it in one line -
+/// see the note in `docs/25-PROMPT-27-PLAN.md`.
+class _Colophon extends StatelessWidget {
+  const _Colophon();
+
+  static const _linkedIn = 'https://www.linkedin.com/in/adityamaurya/';
+
+  @override
+  Widget build(BuildContext context) => Column(
+        children: [
+          SvgPicture.asset('assets/brand/swip-slash-wordmark.svg',
+              height: 26, semanticsLabel: 'SW/P'),
+          const SizedBox(height: SwipSpace.lg),
+          InkWell(
+            borderRadius: SwipRadius.pillAll,
+            onTap: () => Clipboard.setData(
+                const ClipboardData(text: _linkedIn)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: SwipSpace.md, vertical: SwipSpace.sm),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: SwipColors.surfaceRaised2,
+                      border: Border.all(color: SwipColors.gold700),
+                    ),
+                    child: Text('AM',
+                        style: SwipType.labelS
+                            .copyWith(color: SwipColors.gold300)),
+                  ),
+                  const SizedBox(width: SwipSpace.md),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Made with love by Aditya Maurya',
+                          style: SwipType.bodyS
+                              .copyWith(color: SwipColors.textSecondary)),
+                      Text('Tap to copy the LinkedIn link',
+                          style: SwipType.labelS
+                              .copyWith(color: SwipColors.textTertiary)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: SwipSpace.md),
+          Text('Check, pay, get rewarded.',
+              style: SwipType.labelS.copyWith(color: SwipColors.gold500)),
+          const SizedBox(height: SwipSpace.xs),
+          Text('Built on a four-hour daily commute.',
+              style:
+                  SwipType.bodyS.copyWith(color: SwipColors.textTertiary)),
+        ],
+      );
 }

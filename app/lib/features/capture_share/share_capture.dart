@@ -298,7 +298,7 @@ class _ShareCaptureListenerState extends ConsumerState<ShareCaptureListener>
                         SwipType.titleM.copyWith(color: SwipColors.textPrimary)),
                 const SizedBox(height: SwipSpace.sm),
                 Text(
-                  'The link only names the merchant to their payment company — '
+                  'The link only names the merchant to their payment company - '
                   'the category is decided later, when the money moves. Scan '
                   'the shop\'s QR, tap their card machine, or share the '
                   'statement line once it appears.',

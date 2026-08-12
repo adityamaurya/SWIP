@@ -175,11 +175,22 @@ class _DashboardPageState extends State<DashboardPage> {
           SwipSpace.gutter, 0, SwipSpace.gutter, SwipSpace.section),
       child: Column(
         children: [
-          // `F-66`. Animated so the morph is a movement rather than a jump —
-          // a card that changes size instantly reads as a layout bug.
+          // `F-105`. The morph is slow enough to be a movement.
+          //
+          // It was 200 ms on `captureCurve` — a curve tuned for something
+          // *arriving*, which front-loads almost all of its travel in the first
+          // third. On a collapse that reads as a snap: the card is most of the
+          // way down before the eye has begun tracking it, so the motion is
+          // perceived as an event rather than a movement.
+          //
+          // 420 ms on `easeInOutCubic` instead. Symmetric — the same shape
+          // opening and closing, which is what makes a reversible gesture feel
+          // like one thing rather than two. Roughly double the old duration:
+          // long enough for the eye to follow the whole path, short enough to
+          // stay under the ~500 ms where a UI transition starts feeling slow.
           AnimatedSize(
-            duration: SwipMotion.standard,
-            curve: SwipMotion.captureCurve,
+            duration: const Duration(milliseconds: 420),
+            curve: Curves.easeInOutCubic,
             child: SizedBox(
             height: bandHeight,
             child: PageView(
@@ -536,7 +547,7 @@ class _FirstRunCard extends StatelessWidget {
             Flexible(
               child: Text(
                 'Every shop is filed under a four-digit category code. It '
-                'decides what your card pays back — and nobody shows it to you '
+                'decides what your card pays back - and nobody shows it to you '
                 'before you pay. SWIP does.',
                 style: SwipType.bodyM.copyWith(color: SwipColors.textSecondary),
                 overflow: TextOverflow.ellipsis,

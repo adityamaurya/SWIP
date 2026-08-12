@@ -547,7 +547,7 @@ class _DetectionLine extends StatelessWidget {
       CaptureVector.link => (
           Icons.link_rounded,
           'Worked out from a payment link',
-          'inferred — never verified',
+          'inferred - never verified',
         ),
       CaptureVector.graph => (
           Icons.hub_outlined,

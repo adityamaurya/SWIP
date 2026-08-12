@@ -87,7 +87,7 @@ class PayloadExplanation {
         badge: 'UPI',
         title: 'A personal UPI code, not a shop',
         body: 'This is someone paying as a person, not a registered business. '
-            'Personal codes never carry a category — so there is nothing for '
+            'Personal codes never carry a category - so there is nothing for '
             'your card to earn on here.',
       );
     }
@@ -170,7 +170,7 @@ class PayloadExplanation {
         kind: PayloadKind.damaged,
         badge: 'DAMAGED',
         title: 'This code is damaged',
-        body: 'It looks like a payment code, but the built-in check failed — '
+        body: 'It looks like a payment code, but the built-in check failed - '
             'so anything read from it could be wrong. Better to show nothing '
             'than something invented. Try scanning again, or move closer.',
       );

@@ -111,7 +111,7 @@ class _HomeMarketPageState extends ConsumerState<HomeMarketPage> {
                 child: results.isEmpty
                     ? Center(
                         child: Text(
-                          'No match. SWIP still reads codes from everywhere — '
+                          'No match. SWIP still reads codes from everywhere - '
                           'this only sets what counts as home.',
                           textAlign: TextAlign.center,
                           style: SwipType.bodyS

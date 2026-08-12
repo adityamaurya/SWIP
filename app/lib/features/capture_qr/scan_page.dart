@@ -262,7 +262,7 @@ class _ScanPageState extends ConsumerState<ScanPage> {
             right: SwipSpace.xl,
             bottom: SwipSpace.giant,
             child: Text(
-              'Point at any payment QR — UPI, BharatQR, PIX, QRIS,\n'
+              'Point at any payment QR - UPI, BharatQR, PIX, QRIS,\n'
               'PayNow, PromptPay and thirty more.',
               textAlign: TextAlign.center,
               style: SwipType.bodyM.copyWith(color: SwipColors.textSecondary),
@@ -298,7 +298,7 @@ class _CameraError extends StatelessWidget {
               ),
               const SizedBox(height: SwipSpace.sm),
               Text(
-                'Nothing is recorded or uploaded — the camera is used only to '
+                'Nothing is recorded or uploaded - the camera is used only to '
                 'read the code in front of you.',
                 style:
                     SwipType.bodyM.copyWith(color: SwipColors.textSecondary),

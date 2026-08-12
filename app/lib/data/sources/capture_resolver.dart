@@ -116,7 +116,7 @@ abstract final class CaptureResolver {
         vector: CaptureVector.qr,
         kind: CaptureKind.corrupt,
         rawPayload: raw,
-        sourceLabel: 'Damaged QR — checksum failed',
+        sourceLabel: 'Damaged QR - checksum failed',
       );
     }
 

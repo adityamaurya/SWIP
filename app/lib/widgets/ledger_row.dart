@@ -140,15 +140,15 @@ class LedgerRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
+        // `F-103`. Nothing under the number.
+        //
+        // "Verified" was the last survivor of a confidence system that had
+        // already lost "Likely" and "Unknown", and on a row where every code is
+        // read from a real payment it said the same thing on every single line.
+        // A label that never varies is not information, it is a watermark. The
+        // provenance that *does* vary is the route tag in the third column, and
+        // the full confidence picture is one tap away in the sheet.
         MccBadge(event.mcc, size: MccBadgeSize.lg),
-        // `F-88`. Only ever "Verified", and only when it is true. Anything
-        // else — a hedge like "Likely", or "Unknown" restating the `NA` that is
-        // already directly above it — is noise under the one number that
-        // matters.
-        if (event.confidence == MccConfidence.verified) ...[
-          const SizedBox(height: 1),
-          const ConfidenceCaption(MccConfidence.verified),
-        ],
       ],
     );
 
@@ -287,35 +287,36 @@ class VectorTag extends StatelessWidget {
 
   final CaptureVector vector;
 
-  /// `F-93` — **three routes, three names.**
+  /// `F-102` — **three routes, two lines each.**
   ///
-  /// There are exactly three ways SWIP reads a category from a live payment,
-  /// and the ledger now says which one in the words you would use out loud:
+  /// `QR SCAN`, `POS TAP` and `APP DIRECT` were right but too wide: set on one
+  /// line they squeezed the date column and ellipsised on a narrow phone. Split
+  /// over two lines they take the width of the longest single word instead of
+  /// the whole phrase, which is how a column label is supposed to behave.
   ///
-  ///   * `QR SCAN`    — the shop's code, through the camera
-  ///   * `POS TAP`    — the card machine, over NFC
-  ///   * `APP DIRECT` — the merchant handed the payment to SWIP
+  ///     QR        NFC        APP
+  ///     SCAN      POS      REDIRECT
   ///
-  /// `BANK` is the fourth and it is not a capture at all: those rows come from
-  /// a statement you shared, which is how a merchant gets *taught* rather than
-  /// read. It is kept because collapsing it into one of the three would claim a
-  /// capture that never happened.
-  ///
-  /// `SCAN` / `APP` / `KNOWN` are gone. The first two were abbreviations of
-  /// abbreviations; `KNOWN` was never a route at all — see `F-87`, where the
-  /// vector was being overwritten whenever the digits came from memory.
-  static String labelFor(CaptureVector v) => switch (v) {
-        CaptureVector.qr => 'QR SCAN',
-        CaptureVector.nfc => 'POS TAP',
-        CaptureVector.intent => 'APP DIRECT',
-        CaptureVector.statement => 'BANK',
+  /// `KNOWN` is gone from the ledger entirely. It was never a route — see
+  /// `F-87`, where the vector was being overwritten whenever the digits came
+  /// from memory. Any row still carrying it renders as the route it was
+  /// captured by is no longer recoverable, so it reads as a dash rather than
+  /// inventing one.
+  static List<String> linesFor(CaptureVector v) => switch (v) {
+        CaptureVector.qr => const ['QR', 'SCAN'],
+        CaptureVector.nfc => const ['NFC', 'POS'],
+        CaptureVector.intent => const ['APP', 'REDIRECT'],
+        CaptureVector.statement => const ['BANK', 'LINE'],
         // Retired vectors. Rows captured before they were removed still exist
         // in people's ledgers, so they must still render something truthful.
-        CaptureVector.link => 'LINK',
-        CaptureVector.manual => 'TYPED',
-        CaptureVector.graph => 'KNOWN',
-        CaptureVector.probe => 'PROBE',
+        CaptureVector.link => const ['LINK'],
+        CaptureVector.manual => const ['TYPED'],
+        CaptureVector.graph => const ['-'],
+        CaptureVector.probe => const ['PROBE'],
       };
+
+  /// Single-line form, for the filter chips where width is not constrained.
+  static String labelFor(CaptureVector v) => linesFor(v).join(' ');
 
   @override
   Widget build(BuildContext context) => Container(
@@ -324,12 +325,26 @@ class VectorTag extends StatelessWidget {
           borderRadius: SwipRadius.chipAll,
           border: Border.all(color: SwipColors.hairline),
         ),
-        child: Text(
-          labelFor(vector),
-          style: SwipType.labelS.copyWith(color: SwipColors.textTertiary),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          semanticsLabel: 'Read by ${vector.longLabel}',
+        child: Semantics(
+          label: 'Read by ${vector.longLabel}',
+          excludeSemantics: true,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              for (final line in linesFor(vector))
+                Text(
+                  line,
+                  style: SwipType.labelS.copyWith(
+                    color: SwipColors.textTertiary,
+                    height: 1.15,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                ),
+            ],
+          ),
         ),
       );
 }
