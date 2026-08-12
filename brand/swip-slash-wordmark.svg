@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 232 64" role="img" aria-label="SW/P">
+  <title>SW/P</title>
+  <!--
+    SW/P — the slash wordmark.
+
+    "SW" and "P" in white, the slash in SWIP gold (#C9A227). The slash is the
+    only coloured mark, so it carries the brand on its own at any size: at
+    16 px the letters read as a grey block and the gold stroke is still legible.
+
+    Drawn as paths rather than set in Inter so the mark never depends on a font
+    being loaded, hinted or substituted — a wordmark that reflows is not a
+    wordmark. Geometry is on a 64 px cap height with a 7 px stem, matching the
+    weight of Inter SemiBold at this size so it sits correctly beside UI text.
+
+    The slash leans 18°, wider than the letterforms' own stress, so it reads as
+    a separator rather than a stray glyph — and it is the same angle as the
+    sweep on the scanning card.
+  -->
+
+  <!-- S -->
+  <path fill="#F2EFE9" d="M40.6 15.9c-4.2-4.6-10.3-7-17.2-7C11.6 8.9 3.4 15 3.4 24c0 8.2 5.6 12.1 15.6 14.2l6 1.3c5.2 1.1 7.4 2.6 7.4 5.5 0 3.5-3.5 5.8-9.2 5.8-6 0-10.9-2.4-14.4-6.6L3 51.6c4.6 5 11.4 7.6 19.6 7.6 12.6 0 20.9-6 20.9-15.4 0-8-5.2-11.9-15.2-14L22 28.4c-5.3-1.1-7.7-2.5-7.7-5.6 0-3.4 3.3-5.6 8.7-5.6 5.3 0 9.8 2 13.1 5.8l4.5-7.1z"/>
+
+  <!-- W -->
+  <path fill="#F2EFE9" d="M48.2 9.9h11.4l8.6 32.9 9.4-32.9h9.6l9.4 32.9 8.6-32.9h11.2L102 58.2H90.4l-8.4-29.5-8.4 29.5H62L48.2 9.9z"/>
+
+  <!-- the slash — the one coloured mark -->
+  <path fill="#C9A227" d="M139.9 4.4h10.9L124.6 63h-10.9L139.9 4.4z"/>
+
+  <!-- P -->
+  <path fill="#F2EFE9" d="M160.4 9.9h22.2c12.4 0 20.2 6.6 20.2 17.1s-7.8 17.2-20.2 17.2h-11.3v14H160.4V9.9zm21.3 24.6c6.2 0 9.9-2.8 9.9-7.5s-3.7-7.4-9.9-7.4h-10.4v14.9h10.4z"/>
+</svg>

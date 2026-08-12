@@ -136,10 +136,30 @@ echo "▸ Aligning the Android package to in.swip.app…"
 for f in android/app/build.gradle.kts android/app/build.gradle; do
   [ -f "$f" ] || continue
   sed -i \
+    -e 's/`in`/in/g' \
     -e 's/in\.swip\.swip/in.swip.app/g' \
     -e 's/"com\.example\.swip"/"in.swip.app"/g' \
     "$f"
 done
+
+# The backtick strip above is load-bearing, and it is the reason the APK build
+# started failing with:
+#
+#   Namespace '`in`.swip.swip' is not a valid Java package name
+#   as '`in`' is not a valid Java identifier.
+#
+# `in` is a Kotlin keyword, so Flutter's Kotlin-DSL template escapes it with
+# backticks wherever it appears — including inside the `namespace` STRING, where
+# escaping is meaningless and actively wrong: Gradle reads the literal
+# characters, backticks and all, and AGP rejects it as a package name.
+#
+# The two replacements below could never match while the backticks were there,
+# so the namespace stayed `in`.swip.swip and the build died at line 8 of
+# app/build.gradle.kts. Stripping them first makes the rest apply as intended.
+#
+# This is also why `--org in.swip` is a slightly unfortunate choice of org that
+# we now live with: it is baked into the Kotlin package, the manifest and the
+# HCE service declaration.
 
 # ── 4b2. Force a modern compileSdk across every plugin ──────────────────
 #
