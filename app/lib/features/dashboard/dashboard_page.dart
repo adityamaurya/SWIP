@@ -12,6 +12,7 @@ import '../../widgets/live_viewfinder.dart';
 import '../../data/sources/merchant_reconciler.dart';
 import '../../widgets/mcc_badge.dart';
 import '../../widgets/merchant_link_card.dart';
+import '../../widgets/pull_to_reveal.dart';
 
 /// S-01 — Dashboard.
 ///
@@ -136,8 +137,15 @@ class _DashboardPageState extends State<DashboardPage> {
               SliverToBoxAdapter(child: _recentHeader()),
               SliverToBoxAdapter(child: _recentList()),
             ],
-            const SliverToBoxAdapter(
-                child: SizedBox(height: SwipSpace.colossal)),
+            // `F-113`. The foot of the page: the sign-off, then the pull.
+            SliverToBoxAdapter(
+              child: PullToReveal(
+                signOff: 'Check.\nPay.\nGet rewarded.',
+                subtitle:
+                    'Crafted on a four-hour daily commute, in Thane.',
+                hidden: _SecretPanel(count: widget.recent.length),
+              ),
+            ),
           ],
         ),
       ),
@@ -656,4 +664,64 @@ class _CaptureTile extends StatelessWidget {
       ),
     );
   }
+}
+
+/// `F-113` — what is behind the pull.
+///
+/// Deliberately small and slightly silly. An Easter egg that turns out to be a
+/// settings panel is a disappointment; one that turns out to be a note from the
+/// person who built the thing is worth the pull.
+class _SecretPanel extends StatelessWidget {
+  const _SecretPanel({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(
+            SwipSpace.gutter, SwipSpace.lg, SwipSpace.gutter, 0),
+        child: Container(
+          padding: const EdgeInsets.all(SwipSpace.lg),
+          decoration: BoxDecoration(
+            color: SwipColors.surfaceRaised,
+            borderRadius: SwipRadius.cardAll,
+            border: Border.all(color: SwipColors.gold900),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.auto_awesome_rounded,
+                      size: 16, color: SwipColors.gold500),
+                  const SizedBox(width: SwipSpace.sm),
+                  Text('You found it',
+                      style: SwipType.label
+                          .copyWith(color: SwipColors.gold300)),
+                ],
+              ),
+              const SizedBox(height: SwipSpace.sm),
+              Text(
+                count == 0
+                    ? 'Nothing captured yet. Point the camera at any shop code '
+                        'and SWIP will tell you what it is filed as, before you '
+                        'pay a rupee.'
+                    : 'You have read $count ${count == 1 ? "code" : "codes"}. '
+                        'Every one of them was a decision you got to make with '
+                        'the number in front of you instead of a month later '
+                        'on a statement.',
+                style:
+                    SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
+              ),
+              const SizedBox(height: SwipSpace.md),
+              Text(
+                'Built because I spent years paying the wrong card at the '
+                'right shop. Settings has the rest of that story.',
+                style:
+                    SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
+              ),
+            ],
+          ),
+        ),
+      );
 }

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- SWIP Ink. The same near-black the app itself is painted on, so the icon
-         and the first frame of the app are the same colour. -->
-    <color name="swip_icon_background">#060507</color>
+    <!-- `F-112`. THE brand gold, as the icon's whole field. The mark now
+         carries its own contrast instead of borrowing it from the wallpaper. -->
+    <color name="swip_icon_background">#C9A227</color>
 </resources>

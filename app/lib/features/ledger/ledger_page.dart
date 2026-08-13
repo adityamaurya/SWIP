@@ -314,15 +314,60 @@ class _AllHidden extends StatelessWidget {
       );
 }
 
+/// `F-114` — the empty ledger.
+///
+/// A blank list is the moment a person decides whether an app is broken or
+/// simply new, and the difference is entirely whether anything on screen
+/// acknowledges them. So: a mark, a plain line, and one instruction.
+///
+/// The icon is `history_edu` - a page being written on. Chosen over a receipt
+/// or a folder because the ledger is not storage, it is a record being kept:
+/// the thing that has not happened yet is *the writing*, not the filing.
+///
+/// Drawn large and dim rather than small and bright. An empty state that shouts
+/// reads as an error; one that sits quietly reads as a page waiting.
 class _EmptyLedger extends StatelessWidget {
   const _EmptyLedger();
 
   @override
-  Widget build(BuildContext context) => const _Message(
-        title: 'Nothing captured yet',
-        body: 'Scan any payment QR and you will see its category here - '
-            'before you pay, not a month later on a statement.',
-        icon: Icons.receipt_long_outlined,
+  Widget build(BuildContext context) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(SwipSpace.xxxl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.history_edu_outlined,
+                  size: 52,
+                  color: SwipColors.textTertiary.withValues(alpha: .6)),
+              const SizedBox(height: SwipSpace.xl),
+              Text(
+                'Nothing to show yet',
+                textAlign: TextAlign.center,
+                style: SwipType.titleM.copyWith(color: SwipColors.textPrimary),
+              ),
+              const SizedBox(height: SwipSpace.sm),
+              Text(
+                'Every code you read gets written here - the category, the '
+                'shop, and where you were standing.',
+                textAlign: TextAlign.center,
+                style:
+                    SwipType.bodyM.copyWith(color: SwipColors.textSecondary),
+              ),
+              const SizedBox(height: SwipSpace.xxl),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.qr_code_scanner_rounded,
+                      size: 16, color: SwipColors.gold500),
+                  const SizedBox(width: SwipSpace.sm),
+                  Text('Point the camera at a shop code',
+                      style: SwipType.label
+                          .copyWith(color: SwipColors.gold500)),
+                ],
+              ),
+            ],
+          ),
+        ),
       );
 }
 

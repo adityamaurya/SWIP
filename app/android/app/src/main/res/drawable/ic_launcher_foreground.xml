@@ -1,21 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  `F-109` — the SWIP launcher icon.
+  `F-112` — the launcher icon, second pass.
 
-  A vector drawable, not a set of PNGs, for two reasons: it is one file instead
-  of five density buckets, and `tool/bootstrap.sh` regenerates the Flutter
-  scaffold on every build — a vector in the repo's own `res/` tree survives that
-  copy, where hand-exported PNGs would have to be re-derived each time.
+  ## What changed and why
 
-  ## The mark
+  The first version put the viewfinder brackets around the slash. At 48 dp on a
+  home screen those four corner strokes collapsed into visual noise around a
+  small mark - detail that survives on a 512 px store listing and dies at the
+  size the icon is actually seen. Gone.
 
-  The gold slash from the SW/P wordmark, inside the viewfinder brackets from the
-  scanning card. The two ideas the product is actually made of, in one shape:
-  the brand stroke, and the thing that reads a code.
+  What is left is the slash alone, on gold, in black. Reversed from the wordmark
+  on purpose: an app icon sits on a wallpaper nobody controls, so it has to
+  carry its own contrast. Gold on black relies on the launcher's backdrop being
+  dark; black on gold does not rely on anything.
 
-  Adaptive-icon geometry: 108 x 108 viewport, with everything that must survive
-  the mask kept inside the centred 72 x 72 safe zone (18..90 on both axes).
-  Launchers crop the outer 18 dp on every edge, and some crop to a circle.
+  Thick and tall for the same reason. The stroke is 20 units of a 108 viewport
+  and runs nearly the full height of the safe zone, which is what keeps it
+  legible at 36 dp in a folder and in a 1-bit monochrome themed icon.
+
+  Adaptive geometry: 108 x 108 viewport, safe zone 18..90 on both axes. Every
+  point below is inside it, so no launcher mask - circle, squircle or rounded
+  square - can clip the mark.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -23,31 +28,8 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- The slash. THE brand gold, #C9A227. -->
+    <!-- The slash. SWIP Ink on gold. -->
     <path
-        android:fillColor="#C9A227"
-        android:pathData="M64.2,30.0 L74.0,30.0 L47.8,78.0 L38.0,78.0 Z" />
-
-    <!-- Viewfinder brackets, in the same gold at a lighter weight so the slash
-         stays the dominant shape. Drawn as strokes on an open path per corner. -->
-    <path
-        android:strokeColor="#8A6620"
-        android:strokeWidth="4"
-        android:strokeLineCap="round"
-        android:pathData="M28,40 L28,32 L36,32" />
-    <path
-        android:strokeColor="#8A6620"
-        android:strokeWidth="4"
-        android:strokeLineCap="round"
-        android:pathData="M80,40 L80,32 L72,32" />
-    <path
-        android:strokeColor="#8A6620"
-        android:strokeWidth="4"
-        android:strokeLineCap="round"
-        android:pathData="M28,68 L28,76 L36,76" />
-    <path
-        android:strokeColor="#8A6620"
-        android:strokeWidth="4"
-        android:strokeLineCap="round"
-        android:pathData="M80,68 L80,76 L72,76" />
+        android:fillColor="#060507"
+        android:pathData="M56,21 L76,21 L52,87 L32,87 Z" />
 </vector>
