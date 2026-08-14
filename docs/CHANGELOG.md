@@ -745,7 +745,7 @@ guessed under that name. What is in the panel:
 
 | File | Change |
 |---|---|
-| [`pull_to_reveal.dart`](../app/lib/widgets/pull_to_reveal.dart) | Rewritten. `PullController` with both notification paths and a remembered peak; the witty three-phrase prompt |
+| [`pull_to_reveal.dart`](../app/lib/widgets/pull_to_reveal.dart) | Rewritten. `PullController` with both notification paths and a remembered peak; the witty three-phrase prompt. Needs an explicit `foundation.dart` import: **`material.dart` re-exports `ValueNotifier` but not `ValueListenable`** — `widgets.dart` pulls foundation in through a `show` clause and the read-only half of the pair is not on it. [Run 43](https://github.com/adityamaurya/SWIP/actions/runs/31781630918) failed on exactly that line, and on nothing else |
 | [`dashboard_page.dart`](../app/lib/features/dashboard/dashboard_page.dart) | `NotificationListener` **above** the scroll view; bouncing + always-scrollable physics; a `ScrollController` that takes the reader to the panel once it opens; `_SecretPanel` deleted |
 | [`support_story.dart`](../app/lib/features/support/support_story.dart) | **New.** The narrated panel — scenes, foil band, goal bar, glossary, two ways, `a.r.my.` |
 | [`goal_bar.dart`](../app/lib/features/support/goal_bar.dart) | **New.** One rail, foil gradient across the whole track, notch at the first milestone |

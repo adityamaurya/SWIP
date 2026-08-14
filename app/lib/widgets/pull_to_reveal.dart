@@ -1,3 +1,9 @@
+// `ValueNotifier` arrives with `material.dart`; **`ValueListenable` does not.**
+// `widgets.dart` re-exports `foundation.dart` through a `show` clause, and the
+// read-only half of the pair is not on that list - so the type used in the
+// public API here has to be imported directly. Discovered the only way it can
+// be: the build failed on the one line that names it.
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
