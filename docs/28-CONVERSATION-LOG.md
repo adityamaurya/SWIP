@@ -161,6 +161,56 @@ onboarding "Got it" change.
 
 ---
 
+## Prompt 30 — 14 Aug 2026 · The scan bugs, and Google Play Billing
+
+**You asked:** continue; plus a new bug — an in-app purchase, choose UPI,
+fingerprint check, then failure and a black screen, "despite selecting SWIP as
+one of the apps". And: do all the rituals, re-check the MD files, sanity check.
+
+**I answered — the scan bugs had one shared cause.** Not four bugs:
+
+```dart
+recent.when(loading: () => const _Booting(), ...)
+```
+
+Every capture bumps `ledgerRevisionProvider`. Riverpod treats a
+watched-dependency change as a **reload**, and `when` shows `loading` on a
+reload by default. So after every single scan the whole `DashboardPage` was
+replaced by a spinner — which tears down `LiveViewfinder`, which disposes the
+camera controller, which disposes the **process-wide** scanner platform.
+
+That one default explains three reports at once: the ledger appearing not to
+update until you switched tabs, the camera dying mid-session, and needing a
+force-quit before a QR would scan again. `skipLoadingOnReload: true` keeps the
+previous data on screen and the camera alive.
+
+Second, related: `!_capturing` was in the camera's `active` gate, so every
+ambient detection **stopped and restarted the camera** for the length of one
+database write. Against a platform singleton holding one texture, that churn is
+what wedges it — and an ambient scanner that stops the moment it finds something
+is a contradiction in terms.
+
+**On Google Play Billing:** SWIP cannot be a payment method there, and should
+never appear as one. Play Billing runs its own UPI flow inside the Play Store —
+it does not hand the payment to Android's UPI chooser, and it expects a
+settlement callback from a registered PSP. SWIP is deliberately **not** a PSP:
+it reads a category and stops. Any purchase routed to it will fail by
+construction.
+
+This is the cost of registering `upi://pay` in the manifest: it makes SWIP
+*offerable* in places where choosing it breaks a real payment. Recorded here as
+an open design question rather than silently patched — the options are to keep
+the filter and always forward, or to drop it and rely on the share sheet and the
+Quick Settings tile.
+
+**Shipped:** the two scan fixes. The black screen itself is not yet reproduced
+or fixed.
+
+**Still open:** the black screen on intent capture, the donation redesign, the
+02:00 backup, the exhaustive MCC list, the onboarding "Got it" change.
+
+---
+
 <!--
 Template:
 

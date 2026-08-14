@@ -314,16 +314,38 @@ class _SwipShellState extends ConsumerState<SwipShell>
 
     final pages = [
       recent.when(
+        // `F-116`. **The dashboard must not unmount when the ledger reloads.**
+        //
+        // Every capture bumps `ledgerRevisionProvider`, which re-runs this
+        // provider. Riverpod treats a watched-dependency change as a *reload*,
+        // and `when` shows `loading` on a reload by default - so the entire
+        // DashboardPage was being replaced by a spinner after every single
+        // scan. That tears down `LiveViewfinder`, which disposes the camera
+        // controller, which disposes the process-wide scanner platform.
+        //
+        // That one default explains three separate reports at once: the ledger
+        // "not updating until you switch tabs" (the list was rebuilding from
+        // scratch), the camera dying mid-session, and needing a force-quit to
+        // scan again. Keeping the previous data on screen during a reload keeps
+        // the camera alive and the list continuous.
+        skipLoadingOnReload: true,
         loading: () => const _Booting(),
         error: (e, _) => _Fatal(error: '$e'),
         data: (events) => DashboardPage(
           recent: events,
           mccFor: (code) => repo.valueOrNull?.lookup(code),
           homeMarket: home,
-          active: _index == 0 &&
-              _resumed &&
-              !_capturing &&
-              !_cameraHandedOver,
+          // `F-117`. `_capturing` is deliberately NOT in this gate any more.
+          //
+          // It flips true for the length of one database write, and having it
+          // here meant every ambient scan stopped and restarted the camera.
+          // Against a platform singleton that holds one texture, a stop/start
+          // per detection is exactly the churn that wedges it - and an ambient
+          // scanner that stops the moment it finds something is a contradiction
+          // in terms. Re-entrancy is already prevented by the `_capturing`
+          // guard inside `_onInlineScan` and the refractory period in
+          // `LiveViewfinder._onDetect`.
+          active: _index == 0 && _resumed && !_cameraHandedOver,
           // Vector 2 is Android-only: Apple permits host card emulation for
           // contactless transactions in the EEA only, and India is not
           // included. The tile is dimmed and explained, never hidden.
