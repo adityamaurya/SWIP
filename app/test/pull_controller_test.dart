@@ -14,12 +14,12 @@ import 'package:swip/widgets/pull_to_reveal.dart';
 /// synthetic notifications, which is both cheaper and stricter than dragging a
 /// widget: it can assert the **bouncing** case, where the list springs back
 /// before the gesture ends and the naive implementation opens nothing.
+///
+/// These are `testWidgets` rather than plain `test` for one reason:
+/// `ScrollNotification.context` is **non-nullable**, so a notification cannot be
+/// built without a real `BuildContext` — there has to be an element tree, even
+/// if it is one `SizedBox`.
 void main() {
-  // The controller fires a haptic when it opens, which is a platform-channel
-  // call. Without the binding these are unit tests that throw on the one line
-  // that matters.
-  TestWidgetsFlutterBinding.ensureInitialized();
-
   ScrollMetrics at(double pixels, {double max = 400}) => FixedScrollMetrics(
         minScrollExtent: 0,
         maxScrollExtent: max,
@@ -29,80 +29,93 @@ void main() {
         devicePixelRatio: 3,
       );
 
-  ScrollStartNotification start(ScrollMetrics m) =>
-      ScrollStartNotification(metrics: m, context: null);
-  ScrollEndNotification end(ScrollMetrics m) =>
-      ScrollEndNotification(metrics: m, context: null);
+  /// The cheapest possible element tree, for the one thing a notification
+  /// cannot be constructed without.
+  Future<BuildContext> context(WidgetTester tester) async {
+    late BuildContext captured;
+    await tester.pumpWidget(Builder(builder: (c) {
+      captured = c;
+      return const SizedBox();
+    }));
+    return captured;
+  }
 
-  test('a short pull does not open it, and settles back to closed', () {
+  testWidgets('a short pull does not open it, and settles back to closed',
+      (tester) async {
+    final ctx = await context(tester);
     var opened = false;
     final c = PullController(() => opened = true);
     addTearDown(c.dispose);
 
-    c.onNotification(start(at(400)));
+    c.onNotification(ScrollStartNotification(metrics: at(400), context: ctx));
     c.onNotification(OverscrollNotification(
-        metrics: at(400), context: null, overscroll: 40));
+        metrics: at(400), context: ctx, overscroll: 40));
 
     expect(c.pull.value, greaterThan(0));
     expect(c.pull.value, lessThan(1));
 
-    c.onNotification(end(at(400)));
+    c.onNotification(ScrollEndNotification(metrics: at(400), context: ctx));
 
     expect(opened, isFalse);
     expect(c.revealed, isFalse);
     expect(c.pull.value, 0);
   });
 
-  test('clamping physics: a full pull reported as overscroll opens it', () {
+  testWidgets('clamping physics: a full pull reported as overscroll opens it',
+      (tester) async {
+    final ctx = await context(tester);
     var opened = 0;
     final c = PullController(() => opened++);
     addTearDown(c.dispose);
 
-    c.onNotification(start(at(400)));
+    c.onNotification(ScrollStartNotification(metrics: at(400), context: ctx));
     // Android's default physics refuses the movement and reports the refused
     // distance in pieces, as the finger travels.
     for (var i = 0; i < 4; i++) {
       c.onNotification(OverscrollNotification(
-          metrics: at(400), context: null, overscroll: 30));
+          metrics: at(400), context: ctx, overscroll: 30));
     }
-    c.onNotification(end(at(400)));
+    c.onNotification(ScrollEndNotification(metrics: at(400), context: ctx));
 
     expect(opened, 1);
     expect(c.revealed, isTrue);
     expect(c.pull.value, 1);
   });
 
-  test('bouncing physics: the spring-back before the drag ends does not '
-      'cancel the reveal', () {
+  testWidgets(
+      'bouncing physics: the spring-back before the drag ends does not '
+      'cancel the reveal', (tester) async {
+    final ctx = await context(tester);
     var opened = false;
     final c = PullController(() => opened = true);
     addTearDown(c.dispose);
 
-    c.onNotification(start(at(400)));
+    c.onNotification(ScrollStartNotification(metrics: at(400), context: ctx));
     // No overscroll notification at all under bouncing physics — the position
     // simply goes out of range.
     c.onNotification(
-        ScrollUpdateNotification(metrics: at(520), context: null));
+        ScrollUpdateNotification(metrics: at(520), context: ctx));
     // …and is most of the way back before the gesture is over. Deciding on the
     // live value here would open nothing, ever.
     c.onNotification(
-        ScrollUpdateNotification(metrics: at(404), context: null));
-    c.onNotification(end(at(400)));
+        ScrollUpdateNotification(metrics: at(404), context: ctx));
+    c.onNotification(ScrollEndNotification(metrics: at(400), context: ctx));
 
     expect(opened, isTrue);
     expect(c.pull.value, 1);
   });
 
-  test('it opens once, and stays open', () {
+  testWidgets('it opens once, and stays open', (tester) async {
+    final ctx = await context(tester);
     var opened = 0;
     final c = PullController(() => opened++);
     addTearDown(c.dispose);
 
     for (var pull = 0; pull < 3; pull++) {
-      c.onNotification(start(at(400)));
+      c.onNotification(ScrollStartNotification(metrics: at(400), context: ctx));
       c.onNotification(
-          ScrollUpdateNotification(metrics: at(600), context: null));
-      c.onNotification(end(at(400)));
+          ScrollUpdateNotification(metrics: at(600), context: ctx));
+      c.onNotification(ScrollEndNotification(metrics: at(400), context: ctx));
     }
 
     expect(opened, 1);
@@ -110,16 +123,18 @@ void main() {
     expect(c.pull.value, 1);
   });
 
-  test('scrolling normally, without reaching the end, never opens it', () {
+  testWidgets('scrolling normally, without reaching the end, never opens it',
+      (tester) async {
+    final ctx = await context(tester);
     var opened = false;
     final c = PullController(() => opened = true);
     addTearDown(c.dispose);
 
-    c.onNotification(start(at(0)));
+    c.onNotification(ScrollStartNotification(metrics: at(0), context: ctx));
     for (final p in [50.0, 120.0, 260.0, 399.0]) {
-      c.onNotification(ScrollUpdateNotification(metrics: at(p), context: null));
+      c.onNotification(ScrollUpdateNotification(metrics: at(p), context: ctx));
     }
-    c.onNotification(end(at(399)));
+    c.onNotification(ScrollEndNotification(metrics: at(399), context: ctx));
 
     expect(opened, isFalse);
     expect(c.pull.value, 0);
