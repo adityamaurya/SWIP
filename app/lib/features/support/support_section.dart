@@ -1,10 +1,8 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../core/theme/swip_tokens.dart';
+import 'goal_bar.dart';
+import 'support_flow.dart';
 import 'support_goal.dart';
 
 /// `F-111` — the support section at the foot of Settings.
@@ -26,6 +24,11 @@ import 'support_goal.dart';
 /// never reads a word of it. That is deliberate: the difference between a
 /// section someone discovers and a section someone is subjected to is entirely
 /// whether it was already open.
+///
+/// `F-121`. The long version of this — the narration, the glossary — lives
+/// behind the pull at the foot of the dashboard
+/// (`features/support/support_story.dart`). This stays the short version, and
+/// both open the same sheet through [openSupportSheet].
 class SupportSection extends StatefulWidget {
   const SupportSection({super.key});
 
@@ -88,12 +91,12 @@ class _SupportBody extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── the story ──
+            // ── the story, short version ──
             //
-            // Four lines. Written as a statement of fact rather than an appeal,
-            // because the difference between the two is whether the reader is
-            // being informed or worked on. No adjectives about hardship, no
-            // "please", no second person until the last line.
+            // Written as a statement of fact rather than an appeal, because the
+            // difference between the two is whether the reader is being
+            // informed or worked on. No adjectives about hardship, no "please",
+            // no second person until the last line.
             Text(
               'Why this app exists',
               style: SwipType.titleS.copyWith(color: SwipColors.textPrimary),
@@ -111,7 +114,7 @@ class _SupportBody extends StatelessWidget {
             ),
             const SizedBox(height: SwipSpace.xl),
 
-            const _GoalBar(),
+            const GoalBar(),
             const SizedBox(height: SwipSpace.xl),
 
             if (SupportGoal.isConfigured)
@@ -139,104 +142,15 @@ class _SupportBody extends StatelessWidget {
               'generated either way.',
               style: SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
             ),
+            const SizedBox(height: SwipSpace.md),
+            Text(
+              'The longer version — how it happened, and what P2M and P2PM '
+              'mean for your card — is behind the pull at the foot of the home '
+              'page.',
+              style: SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
+            ),
           ],
         ),
-      );
-}
-
-/// The progress bar. Two segments, one milestone dot.
-///
-/// The milestone is drawn as a notch *on* the track rather than a second bar,
-/// because the two figures are not two separate goals — the first is the part
-/// that is urgent and the second is the part that is long.
-class _GoalBar extends StatelessWidget {
-  const _GoalBar();
-
-  static String _lakh(int rupees) {
-    final l = rupees / 100000;
-    return '₹${l.toStringAsFixed(l >= 10 ? 1 : 2)} lakh';
-  }
-
-  @override
-  Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          LayoutBuilder(
-            builder: (context, c) {
-              final w = c.maxWidth;
-              return SizedBox(
-                height: 26,
-                child: Stack(
-                  alignment: Alignment.centerLeft,
-                  children: [
-                    // the track
-                    Container(
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: SwipColors.surfaceRaised2,
-                        borderRadius: SwipRadius.pillAll,
-                      ),
-                    ),
-                    // what has come in
-                    if (SupportGoal.raisedFraction > 0)
-                      Container(
-                        height: 8,
-                        width: w * SupportGoal.raisedFraction,
-                        decoration: BoxDecoration(
-                          color: SwipColors.gold500,
-                          borderRadius: SwipRadius.pillAll,
-                        ),
-                      ),
-                    // the milestone notch
-                    Positioned(
-                      left: (w * SupportGoal.milestoneFraction) - 5,
-                      child: Container(
-                        width: 10,
-                        height: 20,
-                        decoration: BoxDecoration(
-                          color: SwipColors.gold300,
-                          borderRadius: BorderRadius.circular(3),
-                          border: Border.all(color: SwipColors.bg, width: 2),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: SwipSpace.sm),
-          Row(
-            children: [
-              Container(width: 8, height: 8, decoration: BoxDecoration(
-                color: SwipColors.gold300, shape: BoxShape.circle)),
-              const SizedBox(width: SwipSpace.sm),
-              Expanded(
-                child: Text(
-                  'First: clear ${_lakh(SupportGoal.milestone)} of debt',
-                  style:
-                      SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: SwipSpace.xs),
-          Row(
-            children: [
-              Container(width: 8, height: 8, decoration: BoxDecoration(
-                color: SwipColors.surfaceRaised2, shape: BoxShape.circle,
-                border: Border.all(color: SwipColors.hairline))),
-              const SizedBox(width: SwipSpace.sm),
-              Expanded(
-                child: Text(
-                  'Then: earn back ${_lakh(SupportGoal.stretch)}',
-                  style:
-                      SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
-                ),
-              ),
-            ],
-          ),
-        ],
       );
 }
 
@@ -253,7 +167,7 @@ class _PayRow extends StatelessWidget {
                 icon: Icons.account_balance_wallet_outlined,
                 label: 'Pay by UPI',
                 sub: 'Any UPI app',
-                onTap: () => _start(context, card: false),
+                onTap: () => openSupportSheet(context, card: false),
               ),
             ),
           if (SupportGoal.hasUpi && SupportGoal.hasCard)
@@ -264,18 +178,10 @@ class _PayRow extends StatelessWidget {
                 icon: Icons.credit_card_outlined,
                 label: 'Pay by card',
                 sub: 'Earn your own cashback',
-                onTap: () => _start(context, card: true),
+                onTap: () => openSupportSheet(context, card: true),
               ),
             ),
         ],
-      );
-
-  Future<void> _start(BuildContext context, {required bool card}) =>
-      showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: SwipColors.surfaceRaised,
-        builder: (_) => _OwnMccSheet(card: card),
       );
 }
 
@@ -325,249 +231,4 @@ class _PayTile extends StatelessWidget {
           ),
         ),
       );
-}
-
-/// `F-111` — **SWIP shows its own MCC before it takes a rupee.**
-///
-/// The app doing to itself exactly what it does to every other merchant: here is
-/// the category this payment will post under, here is what your card earns on
-/// it, decide. It is the only honest version of a donation screen in an app
-/// whose entire premise is that you should know this before you pay.
-///
-/// Then a countdown, because a hand-off that happens without warning feels like
-/// a hijack, and one that waits for a second tap feels like a nag. Ten seconds
-/// with a visible timer and a skip is neither.
-class _OwnMccSheet extends StatefulWidget {
-  const _OwnMccSheet({required this.card});
-  final bool card;
-
-  @override
-  State<_OwnMccSheet> createState() => _OwnMccSheetState();
-}
-
-class _OwnMccSheetState extends State<_OwnMccSheet> {
-  static const _seconds = 10;
-  int _left = _seconds;
-  Timer? _tick;
-  int _amount = SupportGoal.suggested[1];
-
-  @override
-  void initState() {
-    super.initState();
-    _tick = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (!mounted) return;
-      setState(() => _left--);
-      if (_left <= 0) {
-        t.cancel();
-        _go();
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _tick?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _go() async {
-    _tick?.cancel();
-    final target = widget.card
-        ? SupportGoal.razorpayLink
-        : 'upi://pay?pa=${SupportGoal.upiId}'
-            '&pn=${Uri.encodeComponent(SupportGoal.ownName)}'
-            '&am=$_amount&cu=INR'
-            '&tn=${Uri.encodeComponent('SWIP - voluntary contribution')}';
-
-    // Handed to Android through the same channel the app already owns, so there
-    // is no new dependency for one intent.
-    await const MethodChannel('in.swip.app/nfc')
-        .invokeMethod<void>('openExternal', {'uri': target})
-        .catchError((_) {});
-
-    if (!mounted) return;
-    Navigator.of(context).pop();
-    await _receipt(context, amount: _amount, card: widget.card);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    const mcc = SupportGoal.ownMccName;
-
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(SwipSpace.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('SWIP, READ BY SWIP',
-                style:
-                    SwipType.labelS.copyWith(color: SwipColors.textTertiary)),
-            const SizedBox(height: SwipSpace.lg),
-            Text(SupportGoal.ownMcc,
-                style: SwipType.mcc
-                    .copyWith(fontSize: 52, color: SwipColors.gold500)),
-            const SizedBox(height: SwipSpace.xs),
-            Text(mcc,
-                style:
-                    SwipType.bodyL.copyWith(color: SwipColors.textPrimary)),
-            const SizedBox(height: SwipSpace.md),
-            Text(
-              'That is the category this contribution posts under. Check it '
-              'against your cards the way you would for any other shop - if one '
-              'of them pays back on software or online spend, use that one.',
-              style: SwipType.bodyM.copyWith(color: SwipColors.textSecondary),
-            ),
-
-            const SizedBox(height: SwipSpace.xl),
-            if (!widget.card) ...[
-              Text('AMOUNT',
-                  style: SwipType.labelS
-                      .copyWith(color: SwipColors.textTertiary)),
-              const SizedBox(height: SwipSpace.sm),
-              Row(
-                children: [
-                  for (final a in SupportGoal.suggested) ...[
-                    ChoiceChip(
-                      label: Text('₹$a'),
-                      selected: _amount == a,
-                      onSelected: (_) => setState(() => _amount = a),
-                      showCheckmark: false,
-                      backgroundColor: SwipColors.surfaceRaised2,
-                      selectedColor: SwipColors.gold900,
-                      side: BorderSide(
-                          color: _amount == a
-                              ? SwipColors.gold700
-                              : SwipColors.hairline),
-                      labelStyle: SwipType.label.copyWith(
-                        color: _amount == a
-                            ? SwipColors.gold300
-                            : SwipColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(width: SwipSpace.sm),
-                  ],
-                ],
-              ),
-              const SizedBox(height: SwipSpace.xl),
-            ],
-
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Opening in $_left…',
-                    style: SwipType.bodyS
-                        .copyWith(color: SwipColors.textTertiary),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    _tick?.cancel();
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text('Not now'),
-                ),
-                const SizedBox(width: SwipSpace.sm),
-                FilledButton(
-                  onPressed: _go,
-                  child: const Text('Continue now'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The receipt. Deliberately a **receipt** and not a tax invoice.
-///
-/// A tax invoice asserts a taxable supply, needs a GSTIN and a sequential
-/// series, and issuing one for a gift would claim the opposite of what the
-/// no-GST position rests on. See `docs/27-DONATIONS.md` §2.5.
-///
-/// The last line is the load-bearing one: *nothing was supplied in return*. That
-/// sentence is the evidence this was a gift.
-Future<void> _receipt(BuildContext context,
-    {required int amount, required bool card}) async {
-  final now = DateTime.now();
-  final ref = 'SWIP-${now.millisecondsSinceEpoch.toRadixString(36).toUpperCase()}';
-  final text = '''
-SWIP - CONTRIBUTION RECEIPT
-
-Reference     $ref
-Date          ${now.toLocal().toString().split('.').first}
-Amount        ${card ? 'as entered on the payment page' : '₹$amount'}
-Method        ${card ? 'Card, via Razorpay payment page' : 'UPI'}
-Category      ${SupportGoal.ownMcc} - ${SupportGoal.ownMccName}
-
-This is a voluntary contribution. No goods or services were supplied in
-return, no feature of SWIP was unlocked by it, and nothing in the app is
-withheld from anyone who does not contribute.
-
-This is a receipt, not a tax invoice.
-''';
-
-  if (!context.mounted) return;
-  await showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: SwipColors.surfaceRaised,
-    builder: (ctx) => SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(SwipSpace.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(Icons.receipt_long_rounded,
-                size: 30, color: SwipColors.gold500),
-            const SizedBox(height: SwipSpace.lg),
-            Text('Thank you',
-                style:
-                    SwipType.titleM.copyWith(color: SwipColors.textPrimary)),
-            const SizedBox(height: SwipSpace.sm),
-            Text(
-              'Reference $ref. Keep it if you want a record - SWIP does not '
-              'store it, because SWIP has nowhere to store it.',
-              style: SwipType.bodyM.copyWith(color: SwipColors.textSecondary),
-            ),
-            const SizedBox(height: SwipSpace.xl),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => Clipboard.setData(
-                        ClipboardData(text: text)),
-                    icon: const Icon(Icons.copy_rounded, size: 16),
-                    label: const Text('Copy'),
-                  ),
-                ),
-                const SizedBox(width: SwipSpace.md),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () =>
-                        Share.share(text, subject: 'SWIP receipt $ref'),
-                    icon: const Icon(Icons.download_rounded, size: 16),
-                    label: const Text('Save'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: SwipSpace.sm),
-            SizedBox(
-              width: double.infinity,
-              child: TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('Done'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
 }

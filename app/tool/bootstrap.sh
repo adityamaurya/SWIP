@@ -256,6 +256,17 @@ echo "▸ Copying brand assets…"
 mkdir -p assets/brand
 cp ../brand/*.svg assets/brand/
 
+# `F-122`. The colophon photograph, if one has been dropped in. Optional by
+# design: the avatar falls back to a monogram when the file is absent, so this
+# must never fail the bootstrap. Nullglob is not assumed - the loop simply does
+# nothing when the pattern matches no file.
+# written as an `if` rather than `[ -f … ] && cp …` because the latter returns
+# non-zero when the file is absent, and `set -e` would take the whole bootstrap
+# down over an optional photograph.
+for f in ../brand/avatar.jpg ../brand/avatar.png; do
+  if [ -f "$f" ]; then cp "$f" assets/brand/; fi
+done
+
 # ── 7. Dependencies ─────────────────────────────────────────────────────
 echo "▸ Fetching packages…"
 flutter pub get

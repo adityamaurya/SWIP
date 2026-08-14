@@ -4,16 +4,33 @@
 
 ## 1. What is built
 
-At the foot of Settings, below the colophon, a collapsed row: **"Help me if you
-wish to"**. Nothing above it changes; nothing is shown until it is opened.
+**Two surfaces, one flow.** `F-121`.
 
-Open it and there is:
+**The short version** is at the foot of Settings, below the colophon: a collapsed
+row reading **"Help me if you wish to"**. Nothing above it changes; nothing is
+shown until it is opened. Inside: the story in two paragraphs, the goal bar, two
+payment tiles, and a pointer to the long version.
 
-* **A progress bar** with two segments and a milestone dot at the first goal.
-* **The story**, in four short lines. Not a plea — a statement of what happened
-  and what is being done about it.
-* **Two ways to help**, side by side.
+**The long version** is behind the **pull at the foot of the home page** — the
+least prominent position in the app, and deliberately so. Someone who never
+pulls never reads a word of it. A request that arrives uninvited is a
+solicitation; one you had to go looking for is a disclosure.
+[`support_story.dart`](../app/lib/features/support/support_story.dart) holds:
+
+* **Three scenes**, each behind a gold margin rule, in the order it happened:
+  the trap, the commute, the app.
+* **The goal bar** — [`goal_bar.dart`](../app/lib/features/support/goal_bar.dart).
+* **A glossary** — P2M, P2PM, PPI, CC on UPI. This is in a donation panel on
+  purpose: somebody reading here is thinking about money, and the most useful
+  thing to hand them is not the goal bar, it is *why a UPI payment at a tea
+  stall rewards you nothing no matter which card you pick*.
+* **Two ways to help**, stacked, each carrying a sentence rather than a label.
 * **A receipt** after either, downloadable and shareable.
+
+Both open the same sheet, through `openSupportSheet` in
+[`support_flow.dart`](../app/lib/features/support/support_flow.dart). Two entry
+points with two copies of a receipt is how a receipt ends up saying one thing in
+one place and something else in another.
 
 ### The joke that makes it worth building
 
@@ -32,9 +49,19 @@ so there is a single line to edit when they change:
 
 | | |
 |---|---|
-| First milestone — the live foreclosure figure | **₹13,50,308** |
-| The longer goal — earnings that went and are being earned back | **₹39,02,887** |
-| Bar total | **₹52,53,195** |
+| The notch — the live foreclosure figure | **₹13,50,308** |
+| The end of the rail — earnings that went, and are being earned back | **₹39,02,887** |
+
+**`F-120`. One road, two markers — not two goals added together.** It was
+`milestone + stretch = ₹52,53,195`, which put the first marker a quarter of the
+way along and made the urgent number look like the small one. The shape is a
+single rail to ₹39 lakh with a notch at ₹13.5 lakh, where the debt clears and
+the rest stops being urgent.
+
+The foil gradient is painted across the **whole** rail and then clipped to the
+filled width. A gradient that restarts inside the fill would make the same rupee
+a different colour depending on the total, which is precisely the sort of thing
+this app exists to object to.
 
 The bar shows a percentage and a rupee figure. It does not show a debt schedule,
 a lender, or a date.

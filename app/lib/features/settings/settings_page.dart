@@ -298,73 +298,151 @@ class SettingsPage extends ConsumerWidget {
   }
 }
 
-/// `F-108` — the colophon at the foot of Settings.
+/// `F-108`, `F-122` — the colophon at the foot of Settings.
 ///
 /// The mark, then who made it. Deliberately at the very bottom and deliberately
 /// quiet: a colophon is a signature on the last page, not a banner.
 ///
-/// The avatar is a monogram rather than a photograph, because a photograph would
-/// have to be fetched from LinkedIn at build time and LinkedIn does not permit
-/// that. Drop a `assets/brand/aditya.jpg` in and this swaps to it in one line -
-/// see the note in `docs/25-PROMPT-27-PLAN.md`.
+/// ## One line, not a card
+///
+/// It was a 34 px avatar in a two-line block, which is a *profile*, and a
+/// profile at the foot of a settings screen is somebody introducing themselves
+/// when nobody asked. It is now a single sentence with the heart and the face
+/// set **inline**, at the size of the surrounding text — a signature reads as a
+/// signature only when it is the same size as the writing.
+///
+/// Built with [WidgetSpan]s rather than a `Row` for exactly that reason: a
+/// span is laid out by the text engine, so the avatar tracks the reader's font
+/// scale and wraps with the sentence instead of pushing it off the screen at
+/// 1.6×.
+///
+/// ## The photograph
+///
+/// It looks for `assets/brand/avatar.jpg` and falls back to the monogram if it
+/// is not there — which it is not, yet. A LinkedIn profile picture sits behind
+/// an authentication wall and cannot be fetched by a build; drop the file into
+/// the top-level `brand/` directory (**not** `app/assets/brand/`, which is
+/// generated and gitignored — see `tool/bootstrap.sh`) and it appears with no
+/// code change at all.
 class _Colophon extends StatelessWidget {
   const _Colophon();
 
   static const _linkedIn = 'https://www.linkedin.com/in/adityamaurya/';
 
+  /// `F-122`. The name, as asked for. Everywhere the app signs itself.
+  static const _signature = 'a.r.my.';
+
   @override
-  Widget build(BuildContext context) => Column(
-        children: [
-          SvgPicture.asset('assets/brand/swip-slash-wordmark.svg',
-              height: 26, semanticsLabel: 'SW/P'),
-          const SizedBox(height: SwipSpace.lg),
-          InkWell(
-            borderRadius: SwipRadius.pillAll,
-            onTap: () => Clipboard.setData(
-                const ClipboardData(text: _linkedIn)),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: SwipSpace.md, vertical: SwipSpace.sm),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 34,
-                    height: 34,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: SwipColors.surfaceRaised2,
-                      border: Border.all(color: SwipColors.gold700),
-                    ),
-                    child: Text('AM',
-                        style: SwipType.labelS
-                            .copyWith(color: SwipColors.gold300)),
-                  ),
-                  const SizedBox(width: SwipSpace.md),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
+  Widget build(BuildContext context) {
+    // Sized off the type scale rather than a constant, so the face stays the
+    // height of a lowercase line at any accessibility setting.
+    final avatar = MediaQuery.textScalerOf(context).scale(18).clamp(14.0, 40.0);
+
+    return Column(
+      children: [
+        SvgPicture.asset('assets/brand/swip-slash-wordmark.svg',
+            height: 26, semanticsLabel: 'SW/P'),
+        const SizedBox(height: SwipSpace.lg),
+        InkWell(
+          borderRadius: SwipRadius.pillAll,
+          onTap: () =>
+              Clipboard.setData(const ClipboardData(text: _linkedIn)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+                horizontal: SwipSpace.md, vertical: SwipSpace.sm),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text.rich(
+                  TextSpan(
                     children: [
-                      Text('Made with love by Aditya Maurya',
-                          style: SwipType.bodyS
-                              .copyWith(color: SwipColors.textSecondary)),
-                      Text('Tap to copy the LinkedIn link',
-                          style: SwipType.labelS
-                              .copyWith(color: SwipColors.textTertiary)),
+                      const TextSpan(text: 'Made with '),
+                      const WidgetSpan(
+                        alignment: PlaceholderAlignment.middle,
+                        child: Icon(Icons.favorite_rounded,
+                            size: 12, color: SwipColors.gold500),
+                      ),
+                      const TextSpan(text: ' by '),
+                      TextSpan(
+                        text: _signature,
+                        style: SwipType.bodyS
+                            .copyWith(color: SwipColors.textPrimary),
+                      ),
+                      const TextSpan(text: ' '),
+                      WidgetSpan(
+                        alignment: PlaceholderAlignment.middle,
+                        child: _Avatar(size: avatar),
+                      ),
                     ],
                   ),
-                ],
+                  textAlign: TextAlign.center,
+                  style: SwipType.bodyS
+                      .copyWith(color: SwipColors.textSecondary),
+                  // The whole line is one thing to a screen reader; the heart
+                  // and the face are decoration and would otherwise be read
+                  // out as two unlabelled images.
+                  semanticsLabel: 'Made with love by $_signature',
+                ),
+                const SizedBox(height: SwipSpace.xxs),
+                Text('Tap to copy the LinkedIn link',
+                    style: SwipType.labelS
+                        .copyWith(color: SwipColors.textTertiary)),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: SwipSpace.md),
+        Text('Check, pay, get rewarded.',
+            style: SwipType.labelS.copyWith(color: SwipColors.gold500)),
+        const SizedBox(height: SwipSpace.xs),
+        Text('Built on a four-hour daily commute.',
+            style: SwipType.bodyS.copyWith(color: SwipColors.textTertiary)),
+      ],
+    );
+  }
+}
+
+/// The face. A photograph if one has been dropped in, the monogram otherwise.
+class _Avatar extends StatelessWidget {
+  const _Avatar({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: size,
+        height: size,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: SwipColors.surfaceRaised2,
+          border: Border.all(color: SwipColors.gold700),
+        ),
+        clipBehavior: Clip.antiAlias,
+        // jpg, then png, then the monogram. No file, no crash - which is the
+        // whole reason the photograph can be added later without a code change.
+        child: _tryAsset(
+          'assets/brand/avatar.jpg',
+          fallback: _tryAsset(
+            'assets/brand/avatar.png',
+            fallback: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Padding(
+                padding: const EdgeInsets.all(2),
+                child: Text('am',
+                    style: SwipType.labelS.copyWith(
+                        color: SwipColors.gold300, letterSpacing: 0)),
               ),
             ),
           ),
-          const SizedBox(height: SwipSpace.md),
-          Text('Check, pay, get rewarded.',
-              style: SwipType.labelS.copyWith(color: SwipColors.gold500)),
-          const SizedBox(height: SwipSpace.xs),
-          Text('Built on a four-hour daily commute.',
-              style:
-                  SwipType.bodyS.copyWith(color: SwipColors.textTertiary)),
-        ],
+        ),
+      );
+
+  Widget _tryAsset(String path, {required Widget fallback}) => Image.asset(
+        path,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => fallback,
       );
 }

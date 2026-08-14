@@ -211,6 +211,78 @@ or fixed.
 
 ---
 
+## Prompt 31 — 14 Aug 2026 · The pull that did nothing
+
+**You asked:** the pull on the dashboard is not functional — *"as you can see
+from the screenshot"*; witty three-phrase pull copy; "Made with love" to become a
+heart; the avatar small and after the name; the name to become `a.r.my.`; a
+narrated widget behind the pull, structured beautifully; the amount with a
+gradient, first milestone 13 and second 39; donate by card and get rewarded;
+donate by UPI with the UPI ID embedded; an explanation of *"what does P with CC
+mean and now what does CPI mean"* narrated into the story; and more spacing, with
+the pull at the very bottom rather than pinned to the footer.
+
+**I answered — you were right, and it could never have worked.** Not a tuning
+problem. `NotificationListener` catches notifications travelling **up** from its
+descendants, and I had placed it *inside* the `CustomScrollView`, as one of its
+slivers. The scroll view was its **ancestor**, so the listener sat there waiting
+for news that could not reach it. It laid out perfectly, screenshotted
+perfectly, and was inert.
+
+Two further things were needed before an overscroll existed at all:
+
+* **The page has to be scrollable even when the content fits.**
+  `AlwaysScrollableScrollPhysics`, or a dashboard shorter than the screen
+  reports no scroll activity whatsoever and the gesture is dead on exactly the
+  phones with the most room.
+* **The two physics report a pull in two completely different ways.**
+  `ClampingScrollPhysics` (Android's default) refuses the movement and reports
+  the refused distance as an `OverscrollNotification`. `BouncingScrollPhysics`
+  *allows* it — `pixels` simply exceeds `maxScrollExtent` — and emits **no
+  overscroll at all**. Handling only one of them works on half the devices it is
+  tried on. And under bouncing physics the list springs back *before* the
+  gesture ends, so a controller that decides on the live value at
+  `ScrollEndNotification` opens nothing, ever. It now remembers the furthest
+  point reached during the drag, which is the thing you actually did.
+
+All three are covered by [`pull_controller_test.dart`](../app/test/pull_controller_test.dart),
+including the spring-back case, because a gesture that looks right in a
+screenshot and does nothing is the exact failure this project keeps repeating.
+
+**On the goal bar:** it was `milestone + stretch = ₹52.5 lakh`, which put the
+first marker a quarter of the way along. That is not the shape of the thing. It
+is **one road to ₹39 lakh with a notch at ₹13.5 lakh** where the debt clears —
+[`goal_bar.dart`](../app/lib/features/support/goal_bar.dart), foil gradient,
+painted across the whole rail and clipped to the filled width so the same rupee
+is never a different colour depending on the total.
+
+**On `CPI`:** it does not resolve to anything NPCI publishes, and I have not
+invented a definition for it. The terms that do resolve are in the story panel's
+glossary — **P2M**, **P2PM**, **PPI** and **CC on UPI** — and the load-bearing
+fact among them is that a **P2PM merchant has no MCC and cannot take a credit
+card on UPI at all**. At a tea stall it is not that SWIP failed to read the code;
+there is no code, and no card will reward you there. Full note in
+[21-PROMPT-LEDGER § Prompt 31](21-PROMPT-LEDGER.md).
+
+**On the photograph:** still not possible. A LinkedIn profile image sits behind
+an authentication wall. The circle is built, sized to the font, and falls back to
+a monogram — drop `brand/avatar.jpg` into the repo and it appears with no code
+change.
+
+**Shipped:** the pull wired up and tested, [`support_story.dart`](../app/lib/features/support/support_story.dart),
+[`goal_bar.dart`](../app/lib/features/support/goal_bar.dart),
+[`support_flow.dart`](../app/lib/features/support/support_flow.dart), the
+colophon rebuilt with the heart and `a.r.my.`, and **prompts 28–31 written into
+[21-PROMPT-LEDGER](21-PROMPT-LEDGER.md) verbatim with timestamps** — the ledger
+had stopped at 27, which is the thing you asked twice to be kept current.
+
+**Still open:** the UPI ID and Razorpay link (asked four times now), the in-app
+browser for the payment page, the black screen on intent capture, the 02:00
+backup, export/import hardening, the exhaustive MCC list, and the onboarding
+"Got it" change.
+
+---
+
 <!--
 Template:
 

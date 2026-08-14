@@ -10,32 +10,47 @@ class SupportGoal {
 
   // ── the goal ────────────────────────────────────────────────────────────
   //
-  // Two segments and a milestone. The first is the live foreclosure figure -
-  // the debt that is actually being carried right now. The second is the money
-  // that was earned and did not stay, which is the longer thing being worked
-  // back toward.
+  // `F-120`. **One bar, two milestones** — not two goals added together.
+  //
+  // It used to be `milestone + stretch = total`, which put the finish line at
+  // ₹52.5 lakh and made the first marker sit at a quarter of the way along. That
+  // is not the shape of the thing. The shape is: one road to ₹39 lakh, with a
+  // marker at ₹13.5 lakh where the debt is cleared and the rest stops being
+  // urgent.
   //
   // Deliberately NOT stored: which lenders, what schedule, what dates. A goal
   // and a percentage are all a progress bar needs.
 
-  /// The live portfolio foreclosure figure. The first milestone on the bar.
+  /// The first marker on the bar. The live foreclosure figure — the debt that is
+  /// actually being carried right now.
   static const milestone = 1350308;
 
-  /// Earned, and gone. The rest of the bar.
-  static const stretch = 3902887;
-
-  static const total = milestone + stretch;
+  /// The end of the bar. Earned over the years, and gone.
+  static const goal = 3902887;
 
   /// Raised so far. There is no server, so this is not fetched - it is edited
   /// when it changes, which is honest about what the app can actually know.
   static const raised = 0;
 
-  static double get milestoneFraction => milestone / total;
-  static double get raisedFraction => (raised / total).clamp(0.0, 1.0);
+  static double get milestoneFraction => milestone / goal;
+  static double get raisedFraction => (raised / goal).clamp(0.0, 1.0);
+
+  /// How far along the *first* milestone is on its own, for the line that reads
+  /// "₹0 of ₹13.5 lakh".
+  static double get milestoneProgress =>
+      (raised / milestone).clamp(0.0, 1.0);
+
+  /// `₹13.5 lakh`, `₹39.0 lakh`. Lakh rather than a full rupee figure on
+  /// purpose: the exact number is a private fact, and the bar only needs a
+  /// scale.
+  static String lakh(int rupees) {
+    final l = rupees / 100000;
+    return '₹${l.toStringAsFixed(1)} lakh';
+  }
 
   // ── how to pay ──────────────────────────────────────────────────────────
   //
-  // PLACEHOLDERS. The support section renders a "not set up yet" state while
+  // PLACEHOLDERS. The support surfaces render a "not set up yet" state while
   // either of these is empty, rather than opening a broken link - see
   // [isConfigured].
 

@@ -13,6 +13,7 @@ import '../../data/sources/merchant_reconciler.dart';
 import '../../widgets/mcc_badge.dart';
 import '../../widgets/merchant_link_card.dart';
 import '../../widgets/pull_to_reveal.dart';
+import '../support/support_story.dart';
 
 /// S-01 — Dashboard.
 ///
@@ -102,10 +103,39 @@ class _DashboardPageState extends State<DashboardPage> {
   /// dashboard on screen.
   bool _squared = false;
 
+  /// `F-118`. The pull at the foot of the page.
+  ///
+  /// It lives **here**, not inside [PullToReveal], and that is the entire fix
+  /// for it having done nothing at all in the previous build. A
+  /// `NotificationListener` hears notifications travelling *up* from its
+  /// descendants; the first version sat inside the `CustomScrollView`, i.e.
+  /// below the thing it was listening to, so the news never reached it.
+  final _scroll = ScrollController();
+  late final PullController _pull = PullController(_onRevealed);
+
   @override
   void dispose() {
     _pages.dispose();
+    _scroll.dispose();
+    _pull.dispose();
     super.dispose();
+  }
+
+  /// The panel has just opened. Rebuild for the new `revealed` state, then take
+  /// the reader to it — a reveal that leaves the revealed thing below the fold
+  /// is indistinguishable from nothing having happened.
+  void _onRevealed() {
+    setState(() {});
+    // After the expansion has run (340 ms in `PullToReveal`), so the scroll
+    // targets the panel's final height rather than an intermediate one.
+    Future.delayed(const Duration(milliseconds: 420), () {
+      if (!mounted || !_scroll.hasClients) return;
+      _scroll.animateTo(
+        _scroll.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 560),
+        curve: Curves.easeOutCubic,
+      );
+    });
   }
 
   @override
@@ -114,39 +144,53 @@ class _DashboardPageState extends State<DashboardPage> {
 
     return Scaffold(
       body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(child: _header(context)),
-            SliverToBoxAdapter(child: _band(last)),
-            if (widget.linkProposal != null)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(SwipSpace.gutter, 0,
-                      SwipSpace.gutter, SwipSpace.section),
-                  child: MerchantLinkCard(
-                    proposal: widget.linkProposal!,
-                    onConfirm: () =>
-                        widget.onConfirmLink?.call(widget.linkProposal!),
-                    onDismiss: () =>
-                        widget.onDismissLink?.call(widget.linkProposal!),
+        child: NotificationListener<ScrollNotification>(
+          onNotification: _pull.onNotification,
+          child: CustomScrollView(
+            controller: _scroll,
+            // Bouncing, and always scrollable. Both are load-bearing: without
+            // `AlwaysScrollableScrollPhysics` a dashboard whose content happens
+            // to fit reports no scroll activity at all and the gesture is dead
+            // on exactly the phones with the most screen; without the rubber
+            // band there is no visible movement to tell you a pull is a thing
+            // this page does.
+            physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics()),
+            slivers: [
+              SliverToBoxAdapter(child: _header(context)),
+              SliverToBoxAdapter(child: _band(last)),
+              if (widget.linkProposal != null)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(SwipSpace.gutter, 0,
+                        SwipSpace.gutter, SwipSpace.section),
+                    child: MerchantLinkCard(
+                      proposal: widget.linkProposal!,
+                      onConfirm: () =>
+                          widget.onConfirmLink?.call(widget.linkProposal!),
+                      onDismiss: () =>
+                          widget.onDismissLink?.call(widget.linkProposal!),
+                    ),
                   ),
                 ),
+              SliverToBoxAdapter(child: _captureTiles()),
+              if (widget.recent.isNotEmpty) ...[
+                SliverToBoxAdapter(child: _recentHeader()),
+                SliverToBoxAdapter(child: _recentList()),
+              ],
+              // `F-113`, `F-121`. The foot of the page: the sign-off, then the
+              // pull, then the only place in the app that asks for anything.
+              SliverToBoxAdapter(
+                child: PullToReveal(
+                  signOff: 'Check.\nPay.\nGet rewarded.',
+                  subtitle: 'Crafted on a four-hour daily commute, in Thane.',
+                  pull: _pull.pull,
+                  revealed: _pull.revealed,
+                  hidden: SupportStory(count: widget.recent.length),
+                ),
               ),
-            SliverToBoxAdapter(child: _captureTiles()),
-            if (widget.recent.isNotEmpty) ...[
-              SliverToBoxAdapter(child: _recentHeader()),
-              SliverToBoxAdapter(child: _recentList()),
             ],
-            // `F-113`. The foot of the page: the sign-off, then the pull.
-            SliverToBoxAdapter(
-              child: PullToReveal(
-                signOff: 'Check.\nPay.\nGet rewarded.',
-                subtitle:
-                    'Crafted on a four-hour daily commute, in Thane.',
-                hidden: _SecretPanel(count: widget.recent.length),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -666,62 +710,7 @@ class _CaptureTile extends StatelessWidget {
   }
 }
 
-/// `F-113` — what is behind the pull.
-///
-/// Deliberately small and slightly silly. An Easter egg that turns out to be a
-/// settings panel is a disappointment; one that turns out to be a note from the
-/// person who built the thing is worth the pull.
-class _SecretPanel extends StatelessWidget {
-  const _SecretPanel({required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(
-            SwipSpace.gutter, SwipSpace.lg, SwipSpace.gutter, 0),
-        child: Container(
-          padding: const EdgeInsets.all(SwipSpace.lg),
-          decoration: BoxDecoration(
-            color: SwipColors.surfaceRaised,
-            borderRadius: SwipRadius.cardAll,
-            border: Border.all(color: SwipColors.gold900),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.auto_awesome_rounded,
-                      size: 16, color: SwipColors.gold500),
-                  const SizedBox(width: SwipSpace.sm),
-                  Text('You found it',
-                      style: SwipType.label
-                          .copyWith(color: SwipColors.gold300)),
-                ],
-              ),
-              const SizedBox(height: SwipSpace.sm),
-              Text(
-                count == 0
-                    ? 'Nothing captured yet. Point the camera at any shop code '
-                        'and SWIP will tell you what it is filed as, before you '
-                        'pay a rupee.'
-                    : 'You have read $count ${count == 1 ? "code" : "codes"}. '
-                        'Every one of them was a decision you got to make with '
-                        'the number in front of you instead of a month later '
-                        'on a statement.',
-                style:
-                    SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
-              ),
-              const SizedBox(height: SwipSpace.md),
-              Text(
-                'Built because I spent years paying the wrong card at the '
-                'right shop. Settings has the rest of that story.',
-                style:
-                    SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
-              ),
-            ],
-          ),
-        ),
-      );
-}
+// `F-121`. What used to be `_SecretPanel` — a four-line note — is now
+// `SupportStory` in `features/support/`. The pull earns a real thing behind it
+// rather than a joke, and the panel is owned by the feature whose numbers it
+// prints rather than by the dashboard.

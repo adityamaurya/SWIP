@@ -671,6 +671,112 @@ is now immutable and carries the first; `confidence` carries the second.
 
 ---
 
+## Prompts 28–30 — 12–13 Aug 2026 · Recorded, late
+
+These three prompts shipped code but never got a changelog entry, which is a gap
+in the record rather than a gap in the work. They are now written up in full,
+verbatim and with timestamps, in
+[21-PROMPT-LEDGER §§ 28–30](21-PROMPT-LEDGER.md) — sixty-odd to-dos with a live
+status on each — and the reasoning behind the answers is in
+[28-CONVERSATION-LOG §§ 28–30](28-CONVERSATION-LOG.md). The commits are
+[`9a478d3`](https://github.com/adityamaurya/SWIP/commit/9a478d3),
+[`d476b3c`](https://github.com/adityamaurya/SWIP/commit/d476b3c),
+[`fcda523`](https://github.com/adityamaurya/SWIP/commit/fcda523),
+[`16044ed`](https://github.com/adityamaurya/SWIP/commit/16044ed),
+[`b022cdb`](https://github.com/adityamaurya/SWIP/commit/b022cdb) and
+[`b2ade12`](https://github.com/adityamaurya/SWIP/commit/b2ade12).
+
+---
+
+## Prompt 31 — 14 Aug 2026 · The pull that did nothing, and the story behind it
+
+### The bug: a gesture that could never fire
+
+`F-118`. The pull-to-reveal shipped in
+[`16044ed`](https://github.com/adityamaurya/SWIP/commit/16044ed), looked correct
+in a screenshot, and was inert. Its `NotificationListener` was **inside** the
+`CustomScrollView`, as one of the slivers. A notification travels **up** from the
+widget that dispatched it, so a listener only ever hears its own descendants —
+and the scroll view was this widget's *ancestor*.
+
+Three things were wrong, and only the first is obvious:
+
+| Problem | Why it kills the gesture | Fix |
+|---|---|---|
+| Listener below the scroll view | Notifications never reach it | `PullController`, owned by `DashboardPage`, `NotificationListener` above the `CustomScrollView` |
+| Content shorter than the screen | A non-scrollable view reports no activity at all — dead on the biggest phones | `AlwaysScrollableScrollPhysics` |
+| Two physics, two notifications | Clamping reports `OverscrollNotification`; **bouncing reports none** — `pixels` merely exceeds `maxScrollExtent` | Both handled |
+| Spring-back before the drag ends | Under bouncing physics the overshoot has decayed to zero by `ScrollEndNotification`, so deciding on the live value opens nothing, ever | The controller remembers the **peak** reached during the drag |
+
+[`pull_controller_test.dart`](../app/test/pull_controller_test.dart) — 5 tests,
+including the spring-back case. A gesture that looks right in a screenshot and
+does nothing is the failure this project keeps repeating, so the decision logic
+is now a plain object that can be tested without pumping a widget.
+
+### Element changes
+
+| Where | Before | After | Why |
+|---|---|---|---|
+| Pull label | `PULL TO REVEAL`, static | `PULL FOR THE BIT NOBODY READS` → `KEEP GOING, IT GETS BETTER` → `ALMOST WORTH IT` → `THERE IT IS` | A static label tells you what to do; a changing one tells you something is *happening*, which is the only thing that makes a hidden gesture worth finishing. `F-118` |
+| Behind the pull | `_SecretPanel` — four lines of note | `SupportStory` — three scenes, the goal bar, a glossary, two ways to help | `F-121` |
+| Goal bar | Two flat segments, `milestone + stretch = ₹52.5 lakh` | One foil rail to **₹39 lakh** with a notch at **₹13.5 lakh** | `F-120`. Adding them put the urgent number a quarter of the way along, which is the wrong shape |
+| Colophon | 34 px avatar, two lines, "Made with love by Aditya Maurya" | One line: `Made with ♥ by a.r.my.` with the face inline at font size | `F-122`. A profile at the foot of a settings screen is somebody introducing themselves when nobody asked |
+| Avatar | Monogram in a `Row` | `WidgetSpan`, sized off the type scale, photo if `brand/avatar.jpg` exists | Tracks the reader's font scale instead of pushing the sentence off screen at 1.6× |
+| Sign-off spacing | `section` | `colossal` above, `giant` around the chevron | So it reads as the end of the page, not a label on the thing under it. `F-119` |
+
+### The glossary, and one term I did not invent
+
+Asked for an explanation of *"what does P with CC mean and now what does CPI
+mean"*. **`CPI` does not resolve to anything NPCI publishes**, so nothing was
+guessed under that name. What is in the panel:
+
+| Term | What it is | What it means for your card |
+|---|---|---|
+| **P2M** | Person to Merchant — a registered business | Has an MCC; a credit card on UPI works |
+| **P2PM** | Person to Person-Merchant — the small-merchant tier | **No MCC at all**, and NPCI does not permit a credit card on UPI. No card rewards you here |
+| **PPI** | Prepaid Payment Instrument — a wallet | Interchange above ₹2,000 is paid by the merchant, never by you |
+| **CC on UPI** | Credit card linked to UPI | RuPay only; the reward still follows the merchant category |
+
+> P2P, P2PM and card-to-card payments shall not be permitted for RuPay credit
+> card transactions on UPI.
+> — [NPCI, Operating circular for RuPay Credit Cards linked to UPI](https://www.npci.org.in/PDF/npci/rupay/2022/Operating-circular-for-RuPay-Credit-Cards-linked-to-UPI.pdf)
+
+### Code
+
+| File | Change |
+|---|---|
+| [`pull_to_reveal.dart`](../app/lib/widgets/pull_to_reveal.dart) | Rewritten. `PullController` with both notification paths and a remembered peak; the witty three-phrase prompt |
+| [`dashboard_page.dart`](../app/lib/features/dashboard/dashboard_page.dart) | `NotificationListener` **above** the scroll view; bouncing + always-scrollable physics; a `ScrollController` that takes the reader to the panel once it opens; `_SecretPanel` deleted |
+| [`support_story.dart`](../app/lib/features/support/support_story.dart) | **New.** The narrated panel — scenes, foil band, goal bar, glossary, two ways, `a.r.my.` |
+| [`goal_bar.dart`](../app/lib/features/support/goal_bar.dart) | **New.** One rail, foil gradient across the whole track, notch at the first milestone |
+| [`support_flow.dart`](../app/lib/features/support/support_flow.dart) | **New.** `openSupportSheet` + the receipt, extracted so both surfaces share one sheet and one receipt |
+| [`support_goal.dart`](../app/lib/features/support/support_goal.dart) | `total` → `goal`; the VPA is shown on screen before the hand-off |
+| [`support_section.dart`](../app/lib/features/support/support_section.dart) | Uses the shared bar and sheet; points at the long version |
+| [`settings_page.dart`](../app/lib/features/settings/settings_page.dart) | Colophon rebuilt: heart, `a.r.my.`, inline avatar with a photo fallback |
+| [`bootstrap.sh`](../app/tool/bootstrap.sh) | Copies `brand/avatar.jpg|png` if present. Written as an `if`, not `[ -f ] && cp`, so `set -e` cannot take the bootstrap down over an optional photograph |
+| [`pull_controller_test.dart`](../app/test/pull_controller_test.dart) | **New.** 5 tests |
+
+### Docs
+
+| File | Change |
+|---|---|
+| [21-PROMPT-LEDGER](21-PROMPT-LEDGER.md) | **Prompts 28–31 added verbatim with timestamps.** The ledger had stopped at 27 |
+| [28-CONVERSATION-LOG](28-CONVERSATION-LOG.md) | Prompt 31: the three reasons the pull could not fire |
+| [27-DONATIONS](27-DONATIONS.md) | Two surfaces, one flow; the goal-bar shape corrected |
+
+### Open
+
+* 🔍 **The UPI ID and the Razorpay link.** Asked in prompts 28, 29, 30 and 31.
+  Everything downstream is built and renders a "not switched on yet" state until
+  they exist — one line each in
+  [`support_goal.dart`](../app/lib/features/support/support_goal.dart).
+* 🔍 **A profile photograph.** Cannot be scraped; drop it in as `brand/avatar.jpg`.
+* 📋 The in-app browser for the payment page; the black screen on intent capture;
+  the 02:00 backup; export/import hardening; the exhaustive MCC list; onboarding
+  "Got it".
+
+---
+
 <!--
 Template for the next entry:
 
