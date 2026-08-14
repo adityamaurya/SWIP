@@ -143,6 +143,32 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!--
+          `F-115` - the Quick Settings tile.
+
+          Chosen over a floating overlay bubble on purpose. An overlay needs
+          SYSTEM_ALERT_WINDOW, which lets an app draw on top of a banking
+          screen; a tile needs no permission at all because the user adds it
+          themselves. One swipe from anywhere in Android, including a
+          merchant's checkout, straight into the scanner.
+        -->
+        <service
+            android:name=".SwipTile"
+            android:exported="true"
+            android:icon="@drawable/ic_launcher_foreground"
+            android:label="Scan a shop code"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <!-- Offers the tile to the user on first launch (Android 13+)
+                 instead of making them hunt for it in the edit panel. -->
+            <meta-data
+                android:name="android.service.quicksettings.ACTIVE_TILE"
+                android:value="false" />
+        </service>
+
     </application>
 
     <queries>

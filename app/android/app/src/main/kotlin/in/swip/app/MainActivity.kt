@@ -67,10 +67,18 @@ class MainActivity : FlutterFragmentActivity() {
     private var pendingShareKind: String? = null
     private var pendingShareValue: String? = null
 
+    /**
+     * `F-115`. True when SWIP was launched from the Quick Settings tile, which
+     * means the user is standing in front of a code right now and wants the
+     * scanner, not the dashboard.
+     */
+    private var pendingOpenScanner = false
+
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
         capturePaymentIntent(intent)
         captureSharedPayload(intent)
+        captureTileLaunch(intent)
     }
 
     /** `launchMode="singleTop"`, so a second checkout arrives here. */
@@ -79,6 +87,13 @@ class MainActivity : FlutterFragmentActivity() {
         setIntent(intent)
         capturePaymentIntent(intent)
         captureSharedPayload(intent)
+        captureTileLaunch(intent)
+    }
+
+    private fun captureTileLaunch(intent: Intent?) {
+        if (intent?.getBooleanExtra(SwipTile.EXTRA_OPEN_SCANNER, false) == true) {
+            pendingOpenScanner = true
+        }
     }
 
     private fun capturePaymentIntent(intent: Intent?) {
@@ -262,6 +277,14 @@ class MainActivity : FlutterFragmentActivity() {
                     // Share-to-SWIP. Same read-once contract as the UPI intent:
                     // returning it clears it, so a rotation cannot replay the
                     // same share as a second capture.
+                    // `F-115`. Read once and cleared, same contract as the
+                    // UPI intent and the share payload: a rotation must not
+                    // re-open the scanner.
+                    "consumeTileLaunch" -> {
+                        result.success(pendingOpenScanner)
+                        pendingOpenScanner = false
+                    }
+
                     "consumeSharedPayload" -> {
                         val kind = pendingShareKind
                         val value = pendingShareValue

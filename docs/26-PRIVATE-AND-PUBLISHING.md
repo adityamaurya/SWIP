@@ -141,9 +141,78 @@ queue rather than work.
 
 ---
 
+## 3. Charging for it — the arithmetic
+
+You floated ₹2, ₹9 and ₹99. Two of those are not available, and the third is
+probably the wrong instrument. Here is the real picture.
+
+### 3.1 The floor
+
+Google reduced the minimum price for paid apps in India to the equivalent of
+**US$0.21**, which at 2026 rates is around **₹17–18**.
+
+> The new minimum price for apps in India is the equivalent of US$0.21.
+> — [SensorTower, on Play's reduced regional minimums](https://sensortower.com/blog/google-play-store-app-pricing)
+
+So **₹2 is not possible and ₹9 is not possible.** The lowest you can charge is
+roughly ₹19 once it is rounded to a real price point. If ₹2 matters to you as a
+number, it can be the *donation* default rather than the price — the support
+section already takes any amount.
+
+### 3.2 What Google keeps
+
+The service fee is **15 %** on the first US$1M of annual revenue, which is
+everything you will plausibly earn here.
+
+> For subscriptions and in-app purchases on Google Play Billing, the effective
+> service fee rate is 15 %.
+> — [Play Console Help, service fees](https://support.google.com/googleplay/android-developer/answer/112622?hl=en)
+> · [PricePush, the real math on Play fees](https://pricepush.app/blog/google-play-subscription-fees-2026-real-math)
+
+### 3.3 What you would actually net
+
+Per sale, after Google's 15 %. GST on the sale is collected and remitted by
+Google in India, so the figure below is what lands before **your** income tax:
+
+| Price | Google keeps | You net per sale | Sales to clear ₹13.5 lakh |
+|---|---|---|---|
+| ₹19 | ₹2.85 | **₹16.15** | ~83,600 |
+| ₹49 | ₹7.35 | **₹41.65** | ~32,400 |
+| ₹99 | ₹14.85 | **₹84.15** | ~16,000 |
+| ₹199 | ₹29.85 | **₹169.15** | ~8,000 |
+
+And the $25 developer account is repaid at ₹99 by the **26th sale**.
+
+### 3.4 The uncomfortable part, said plainly
+
+16,000 paid downloads is not a small number for a first app with no marketing
+budget. A **paid** app also loses the thing SWIP most needs: people trying it.
+A category-code reader is worth nothing until someone has stood at a counter
+with it, and a paywall in front of that is a paywall in front of the only
+moment that sells the app.
+
+The shape that fits this product better:
+
+* **Free to install.** No ads, no account, no server — all three already true,
+  and all three are unusual enough to be the pitch.
+* **The support section carries the money.** It is already built, it is
+  voluntary, and per [27-DONATIONS](27-DONATIONS.md) a genuine donation is
+  outside GST entirely, where a paid app is a taxable supply Google reports.
+* **Revisit a price later** if the numbers say people would pay. Going free →
+  paid is a decision you can take with data; paid → free wastes the launch.
+
+That is a recommendation, not a refusal. If you want it priced, say the number
+and it goes in — the mechanics are identical either way, and ₹99 is the point on
+that table where the arithmetic stops being hopeless.
+
+---
+
 ## Sources
 
 - [GitHub Docs — About billing for GitHub Actions](https://docs.github.com/billing/managing-billing-for-github-actions/about-billing-for-github-actions)
 - [GitHub Docs — How use of GitHub Actions is measured](https://docs.github.com/en/billing/concepts/product-billing/github-actions)
 - [CICDCalculator — GitHub Actions free tier limits](https://cicdcalculator.com/github-actions-free-tier)
 - [GitHub Community — artifact storage quota on the Free plan](https://nannyakore.com/en/blog/gha-storage-quota-en/)
+- [SensorTower — Play's reduced regional minimum prices](https://sensortower.com/blog/google-play-store-app-pricing)
+- [Play Console Help — service fees](https://support.google.com/googleplay/android-developer/answer/112622?hl=en)
+- [PricePush — Google Play service fee, the real math](https://pricepush.app/blog/google-play-subscription-fees-2026-real-math)

@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/settings/home_market.dart';
@@ -120,7 +122,10 @@ class _SwipShellState extends ConsumerState<SwipShell>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeOnboard());
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _maybeOnboard();
+      await _maybeOpenFromTile();
+    });
   }
 
   @override
@@ -133,6 +138,34 @@ class _SwipShellState extends ConsumerState<SwipShell>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final resumed = state == AppLifecycleState.resumed;
     if (resumed != _resumed) setState(() => _resumed = resumed);
+    // `F-115`. A second tile press while SWIP is already running arrives as a
+    // resume, not a cold start, so the flag has to be re-read here too.
+    if (resumed) unawaited(_maybeOpenFromTile());
+  }
+
+  /// `F-115`. Launched from the Quick Settings tile: go straight to the
+  /// scanner.
+  ///
+  /// Someone who swiped down and pressed a tile called "Scan a shop code" is
+  /// standing in front of a code. Landing them on the dashboard would make them
+  /// take a second action to reach the thing the tile named.
+  bool _openingFromTile = false;
+
+  Future<void> _maybeOpenFromTile() async {
+    if (_openingFromTile) return;
+    try {
+      final open = await const MethodChannel('in.swip.app/nfc')
+          .invokeMethod<bool>('consumeTileLaunch');
+      if (open != true || !mounted) return;
+      _openingFromTile = true;
+      await _openCapture(CaptureVector.qr);
+    } on PlatformException {
+      // No tile on this platform build.
+    } on MissingPluginException {
+      // iOS.
+    } finally {
+      _openingFromTile = false;
+    }
   }
 
   /// `F-15`. Asked once, before anything else, because every later
