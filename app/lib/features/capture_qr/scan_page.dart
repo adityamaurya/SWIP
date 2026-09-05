@@ -324,8 +324,13 @@ class _CameraError extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.no_photography_outlined,
-                  size: 40, color: SwipColors.onCameraInk.withValues(alpha: .55)),
+              // Not `const`: `withValues` is a method call, so the whole
+              // expression stops being a constant. The old `textTertiary` was
+              // a plain constant, which is why this compiled before the
+              // palette moved.
+              Icon(Icons.no_photography_outlined,
+                  size: 40,
+                  color: SwipColors.onCameraInk.withValues(alpha: .55)),
               const SizedBox(height: SwipSpace.lg),
               Text(
                 'SWIP needs the camera to read a QR',

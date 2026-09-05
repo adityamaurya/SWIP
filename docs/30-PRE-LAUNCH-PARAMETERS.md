@@ -50,6 +50,11 @@ Run before **every** debug APK. If any line fails, the build does not go out.
 #  1  Structure: no unbalanced brackets anywhere in lib/ or test/
 python3 tool/check_balance.py
 
+#  1b `const` blocks that contain a method call — not constant, will not compile.
+#     Added after a palette change substituted `x.withValues(...)` into a
+#     `const Icon(...)`, which analyze caught and I had not.
+python3 tool/check_const.py
+
 #  2  No secrets in the tree, ever
 grep -rIn --exclude-dir=.git \
   -E 'rzp_(live|test)_|sk_live_|sk_test_|AIza[0-9A-Za-z_-]{35}|-----BEGIN [A-Z ]*PRIVATE KEY' . \
