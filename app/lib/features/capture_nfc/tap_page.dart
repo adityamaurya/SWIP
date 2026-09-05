@@ -9,6 +9,7 @@ import '../../core/onboarding/primers.dart';
 import '../../core/theme/swip_tokens.dart';
 import '../../data/models/capture_event.dart';
 import '../../data/repositories/capture_repository.dart';
+import '../../data/sources/terminal_health.dart';
 import '../../widgets/capture_sheet.dart';
 
 /// `S-03` — Tap a POS terminal. Vector 2, `F-08`.
@@ -177,13 +178,26 @@ class _TapPageState extends ConsumerState<TapPage> with WidgetsBindingObserver {
       final country = _countryFromNumeric(tlv['9F1A']);
       final merchantId = tlv['9F16']?.trim();
 
+      // `F-138`. Decode the identity fields before deciding what to say. The
+      // owner's export contained a tap whose merchant ID was ASCII
+      // "112233445566778" and whose terminal ID was "12345678" - a machine
+      // still on its factory settings, which is a completely different
+      // sentence from "the bank did not fill it in".
+      final health = TerminalDoctor.examine(
+        merchantIdHex: merchantId,
+        terminalIdHex: tlv['9F1C']?.trim(),
+      );
+      // A placeholder merchant ID must not become a merchant key, or every
+      // unprovisioned terminal in the country collapses into one "shop".
+      final keyable = health.health != TerminalHealth.placeholder;
+
       final repo = await ref.read(captureRepositoryProvider.future);
       final event = await repo.record(
         vector: CaptureVector.nfc,
         mcc: mcc,
         merchantName: tlv['9F4E']?.trim(),
         countryCode: country,
-        merchantKey: merchantId == null || merchantId.isEmpty
+        merchantKey: !keyable || merchantId == null || merchantId.isEmpty
             ? null
             : 'emv:${country ?? 'XX'}:$merchantId',
         terminalId: tlv['9F1C']?.trim(),
@@ -202,16 +216,34 @@ class _TapPageState extends ConsumerState<TapPage> with WidgetsBindingObserver {
           mcc: repo.lookup(event.mcc),
           sourceLabel: 'POS terminal',
           rawPayload: trace,
-          noCategoryTitle: 'The terminal did not give a category',
-          noCategoryBody:
+
+          // `F-138`. **Three different silences, three different sentences.**
+          //
+          // The old copy said one thing for all of them - "the shop's bank did
+          // not fill it in" - which is unfalsifiable and reads as a shrug. The
+          // export proved at least two distinct causes, and a terminal running
+          // on demo values is a checkable fact the cashier can act on.
+          noCategoryTitle: switch (health.health) {
+            TerminalHealth.placeholder => 'This terminal is not set up yet',
+            TerminalHealth.silent => 'This terminal did not identify itself',
+            TerminalHealth.provisioned =>
+              'The terminal did not give a category',
+          },
+          noCategoryBody: health.note ??
               'SWIP asked and this machine returned nothing in the category '
-              'field. That is the shop\'s bank not filling it in - it is not '
-              'something SWIP or the cashier can change. Scanning the shop\'s '
-              'QR often works when the terminal will not.',
+                  'field. That is the shop\'s bank not filling it in - it is '
+                  'not something SWIP or the cashier can change. Scanning the '
+                  'shop\'s QR often works when the terminal will not.',
           // The terminal's own field names, exactly as EMV labels them. This
           // audience does not trust a number it cannot check.
           details: {
             if (tlv['9F16'] != null) 'Merchant ID · 9F16': tlv['9F16']!,
+            // The decoded text, where the hex turned out to be text at all.
+            // "112233445566778" explains itself; the hex does not.
+            if (health.merchantIdAscii != null)
+              'Merchant ID, as text': health.merchantIdAscii!,
+            if (health.terminalIdAscii != null)
+              'Terminal, as text': health.terminalIdAscii!,
             if (tlv['9F1C'] != null) 'Terminal · 9F1C': tlv['9F1C']!,
             if (tlv['9F1A'] != null)
               'Country · 9F1A': '${tlv['9F1A']}${country == null ? '' : ' · $country'}',
