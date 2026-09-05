@@ -400,14 +400,47 @@ class SwipDatabase {
 
   /// Merge rows from a backup file. Existing ids win, so importing the same
   /// file twice is a no-op rather than a duplication.
+  /// The columns `captures` actually has. **Anything else in an imported row
+  /// is dropped rather than inserted.**
+  ///
+  /// `F-136`. This is not defensive tidiness, it is a bug that would otherwise
+  /// have shipped: exports now carry a derived `provenance` block per capture
+  /// (`F-135`), and sqflite throws on an insert containing a key that is not a
+  /// column. Without this filter, the first import of the first new-format
+  /// export would fail outright — and the file it failed on would be the user's
+  /// only backup.
+  ///
+  /// Filtering rather than erroring is also what makes the format **forward
+  /// compatible**: a future SWIP can add fields to an export and an older build
+  /// will still restore every capture in it, ignoring what it does not
+  /// understand. An export is a backup, and a backup that only one version can
+  /// read is not a backup.
+  static const _captureColumns = <String>{
+    'id', 'mcc', 'vector', 'confidence', 'captured_at', 'merchant_name',
+    'merchant_city', 'merchant_key', 'country_code', 'amount', 'currency',
+    'terminal_id', 'acquirer', 'raw_payload', 'geohash', 'place_label',
+    'place_country', 'card_id', 'corrects_id', 'synced_at',
+  };
+
   Future<int> importRows(List<Map<String, Object?>> rows) async {
     var added = 0;
     final batch = _db.batch();
     for (final r in rows) {
+      final id = r['id'];
+      // A row with no id cannot be de-duplicated and cannot be addressed
+      // later. Skipping is right; inserting it would corrupt the merge.
+      if (id == null) continue;
+
       final existing = await _db.query('captures',
-          where: 'id = ?', whereArgs: [r['id']], limit: 1);
+          where: 'id = ?', whereArgs: [id], limit: 1);
       if (existing.isNotEmpty) continue;
-      batch.insert('captures', r,
+
+      final clean = <String, Object?>{
+        for (final e in r.entries)
+          if (_captureColumns.contains(e.key)) e.key: e.value,
+      };
+
+      batch.insert('captures', clean,
           conflictAlgorithm: ConflictAlgorithm.ignore);
       added++;
     }

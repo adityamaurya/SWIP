@@ -15,6 +15,7 @@ import '../../core/onboarding/primers.dart';
 import '../../core/settings/home_market.dart';
 import '../../core/theme/swip_tokens.dart';
 import '../../data/repositories/capture_repository.dart';
+import '../../data/sources/export_narrative.dart';
 import '../../data/sources/ledger_seal.dart';
 import '../bubble/bubble_settings.dart';
 import '../onboarding/home_market_page.dart';
@@ -226,11 +227,24 @@ class SettingsPage extends ConsumerWidget {
     final db = await ref.read(databaseProvider.future);
     final rows = await db.exportRows();
 
+    // `F-135`. Each row gets a `provenance` block: what was found, how it was
+    // read, where you were, who the merchant is, and - when there is no
+    // category - why not and what would find one. Derived at export time from
+    // the payload already in the row, so it can never drift out of step with
+    // the record it describes.
+    //
+    // Added **before** the seal on purpose: the narrative is part of what the
+    // hash covers, so an edited story fails verification exactly like an edited
+    // category would.
+    final described = [
+      for (final r in rows) {...r, 'provenance': ExportNarrative.of(r)},
+    ];
+
     // `F-127`. Seal the rows before writing them: each record carries the hash
     // of the one before it, so a file edited anywhere fails verification from
     // that point on. See `ledger_seal.dart` for what this does and does not
     // claim.
-    final sealed = LedgerSeal.seal(rows);
+    final sealed = LedgerSeal.seal(described);
     final sealHash = LedgerSeal.sealHashOf(sealed);
 
     // `F-128`. A serial that increases for the life of the install, so two
@@ -242,6 +256,13 @@ class SettingsPage extends ConsumerWidget {
     final payload = <String, Object?>{
       'format': 'swip.ledger',
       'version': 1,
+      // A note to whoever opens this file in six months, including you.
+      'readMe': 'Every capture below carries a `provenance` block: what was '
+          'found, how it was read, where you were, and - when no category was '
+          'published - why not. `sealHash` is a SHA-256 chain over the whole '
+          'list; SWIP recomputes it on import and names the first record that '
+          'does not match. It proves the file has not changed since export. It '
+          'does not prove who made it.',
       'sealVersion': LedgerSeal.version,
       'sealHash': sealHash,
       'exportSerial': serial,

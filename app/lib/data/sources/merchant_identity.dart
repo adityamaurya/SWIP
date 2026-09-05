@@ -210,6 +210,18 @@ abstract final class MerchantIdentifier {
     RegExp(r'^[a-z]{2,6}merc[a-z0-9]*\d+$'),
     RegExp(r'^merc[a-z0-9]*\d{4,}$'),
 
+    // `F-137`. **Payment-aggregator handles**, found in the owner's own
+    // 85-capture export. PayU, Razorpay and Cashfree mint
+    // `<merchant>.<aggregator>@<psp>` at onboarding, and the export contained
+    // two that SWIP was calling "undetermined":
+    //
+    //     tatastarbucks.payu@mairtel   pn=TATA STARBUCKS PRIVATE LIMITED
+    //     zepto.payu@mairtel           pn=Zepto Marketplace Private Limite
+    //
+    // A person cannot obtain one of these, which is the same property that
+    // makes `paytmqr…` trustworthy.
+    RegExp(r'^[a-z0-9._-]+\.(payu|rzp|razorpay|cf|cashfree|ccav|ippo)$'),
+
     // NOTE: there is deliberately **no** pattern here for terminal handles like
     // `WFMLMH2@ybl` (Wellness Forever, on a Pine Labs box). Any regex loose
     // enough to catch it — "letters, then a digit" — also catches
@@ -245,7 +257,46 @@ abstract final class MerchantIdentifier {
     // the light-touch one precisely because it skips that. A `<BANK>MERC<id>`
     // handle is a fully acquired merchant, whatever else is or is not in the QR.
     RegExp(r'^[a-z]{2,6}merc[a-z0-9]*\d+$'),
+
+    // `F-137`. An aggregator onboards under P2M - that is what an aggregator
+    // is for. Confirmed in the export by Tata Starbucks and Zepto, both of
+    // which are unambiguously full merchants.
+    RegExp(r'^[a-z0-9._-]+\.(payu|rzp|razorpay|cf|cashfree|ccav|ippo)$'),
   ];
+
+  /// `F-137` — **a legal-entity suffix in `pn` is a business, full stop.**
+  ///
+  /// The other thing the export made obvious. `pn` is free text and usually
+  /// worthless ("Paytm", "BharatPe Merchant"), which is why it is distrusted
+  /// everywhere else in this file. But nobody's personal UPI handle says
+  /// "PRIVATE LIMITED", and three rows in the export carried exactly that:
+  ///
+  ///     TATA STARBUCKS PRIVATE LIMITED
+  ///     Zepto Marketplace Private Limite      <- note: truncated by the PSP
+  ///     Greymode Architectural Products
+  ///
+  /// Matched as a **substring**, not a suffix, because PSPs truncate `pn` to a
+  /// fixed width and "Private Limite" is what actually arrives.
+  static final _entityMarkers = <RegExp>[
+    RegExp(r'\bprivate\s+limite', caseSensitive: false),
+    RegExp(r'\bpvt\.?\s*ltd', caseSensitive: false),
+    RegExp(r'\bltd\b', caseSensitive: false),
+    RegExp(r'\bllp\b', caseSensitive: false),
+    RegExp(r'\bopc\b', caseSensitive: false),
+    RegExp(r'\benterprises?\b', caseSensitive: false),
+    RegExp(r'\btraders?\b', caseSensitive: false),
+    RegExp(r'\bindustries\b', caseSensitive: false),
+    RegExp(r'\bcorporation\b', caseSensitive: false),
+    RegExp(r'\bmarketplace\b', caseSensitive: false),
+  ];
+
+  /// Whether `pn` names a registered company rather than a person.
+  static bool namesALegalEntity(String? payeeName) {
+    final n = payeeName?.trim();
+    if (n == null || n.length < 4) return false;
+    if (isGenericName(n)) return false;
+    return _entityMarkers.any((p) => p.hasMatch(n));
+  }
 
   /// Handle shapes that indicate the **small-merchant (P2PM)** tier: the basic
   /// printed sticker, issued with light-touch onboarding and no MCC.
@@ -290,10 +341,12 @@ abstract final class MerchantIdentifier {
     // strongest, because a person cannot obtain one.
     final prefixed = _merchantHandlePatterns.any((p) => p.hasMatch(local));
     final merchantMode = mode?.trim() == '02';
+    // `F-137`. A company name in `pn` is evidence on its own.
+    final namedEntity = namesALegalEntity(payeeName);
     final looksLikePhone = RegExp(r'^\+?\d{10,13}$').hasMatch(local);
 
     final PayeeKind kind;
-    if (prefixed || (merchantMode && signed)) {
+    if (prefixed || namedEntity || (merchantMode && signed)) {
       kind = PayeeKind.registeredMerchant;
     } else if (looksLikePhone && !signed) {
       // A bare phone number handle with no signature is a person, near enough

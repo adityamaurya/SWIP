@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../core/sensors/aim_detector.dart';
 import '../core/theme/swip_tokens.dart';
 
 /// `F-01`, `F-02`. The live camera card that sits at the top of the dashboard.
@@ -127,9 +128,23 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
     });
   }
 
+  /// `F-134`. Only detect while the phone is actually raised at something.
+  late final AimDetector _aim = AimDetector(onChanged: (_) {
+    if (mounted) setState(() {});
+  });
+
+  /// The person tapped "scan anyway". Overrides the sensor until they lower
+  /// the phone, and is cleared whenever the card is rebuilt for a new capture.
+  bool _aimOverride = false;
+
+  /// Whether detections are allowed to fire right now.
+  bool get _detecting =>
+      widget.active && (_aimOverride || !_aim.hasReading || _aim.isAimed);
+
   @override
   void initState() {
     super.initState();
+    _aim.start();
     _controller.addListener(_sync);
     // After the first frame, so the platform view exists to attach to.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -157,6 +172,7 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
 
   @override
   void dispose() {
+    _aim.dispose();
     _blind?.cancel();
     _controller.removeListener(_sync);
     unawaited(_controller.dispose());
@@ -320,6 +336,13 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
         capture.barcodes.isEmpty ? null : capture.barcodes.first.rawValue;
     if (raw == null || raw.isEmpty) return;
 
+    // `F-134`. The camera may be running, but a detection only counts when
+    // the phone is being aimed. Cheaper and far less intrusive than stopping
+    // and restarting the camera on every tilt - which, against a platform
+    // singleton holding one texture, is exactly the churn that wedged it in
+    // `F-117`.
+    if (!_detecting) return;
+
     final now = DateTime.now();
     final seen = _lastSeen[raw];
     // Refresh the timestamp whether or not it fires, so a code held in view
@@ -436,6 +459,16 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
             ),
 
             const _GoldFrame(),
+
+            // `F-134`. **The resting state.** When the phone is flat on a
+            // table, face down, or simply in a hand while you read the ledger,
+            // the camera stops ambushing you with sheets and says so.
+            //
+            // It is a full-card scrim rather than a small badge on purpose:
+            // the feed underneath is not information right now, and leaving it
+            // bright implies the app is looking when it is not.
+            if (!_detecting && !_refused)
+              _AtRest(onTap: () => setState(() => _aimOverride = true)),
 
             if (_running && !_refused)
               const _SweepLine()
@@ -825,4 +858,66 @@ class _DottedWavePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _DottedWavePainter old) =>
       old.t != t || old.pitch != pitch;
+}
+
+
+/// `F-134` — shown while the phone is not aimed at anything.
+///
+/// The copy is the whole point. "Camera paused" is a status; **"Hold your phone
+/// up to a code"** is an instruction, and it happens to describe the exact
+/// motion that dismisses it. Somebody who never reads a word of it still learns
+/// the gesture, because the gesture is the only thing the sentence describes.
+class _AtRest extends StatelessWidget {
+  const _AtRest({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Positioned.fill(
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            color: SwipColors.onCameraScrim.withValues(alpha: .82),
+            alignment: Alignment.center,
+            padding: const EdgeInsets.all(SwipSpace.xl),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.screen_rotation_alt_rounded,
+                    size: 26,
+                    color: SwipColors.onCameraInk.withValues(alpha: .75)),
+                const SizedBox(height: SwipSpace.md),
+                Text(
+                  'Hold your phone up to a code',
+                  textAlign: TextAlign.center,
+                  style: SwipType.titleS
+                      .copyWith(color: SwipColors.onCameraInk),
+                ),
+                const SizedBox(height: SwipSpace.xs),
+                Text(
+                  'SWIP stops looking when you put the phone down, so it '
+                  'cannot interrupt you.',
+                  textAlign: TextAlign.center,
+                  style: SwipType.bodyS.copyWith(
+                      color: SwipColors.onCameraInk.withValues(alpha: .62)),
+                ),
+                const SizedBox(height: SwipSpace.lg),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: SwipSpace.lg, vertical: SwipSpace.sm),
+                  decoration: BoxDecoration(
+                    borderRadius: SwipRadius.pillAll,
+                    border: Border.all(
+                        color: SwipColors.onCameraInk.withValues(alpha: .28)),
+                  ),
+                  child: Text('OR TAP TO SCAN ANYWAY',
+                      style: SwipType.labelS
+                          .copyWith(color: SwipColors.onCameraAccent)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ).animate().fadeIn(duration: 220.ms);
 }

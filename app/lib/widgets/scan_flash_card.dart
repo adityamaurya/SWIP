@@ -74,9 +74,24 @@ class ScanFlashCard extends StatelessWidget {
       child: Row(
         children: [
           // ── the code ── `F-76`: `NA`, never a dash.
-          SizedBox(
-            width: 46,
-            child: MccBadge(event.mcc, size: MccBadgeSize.md),
+          //
+          // `F-133`. **This was cropping the fourth digit.** It was
+          // `SizedBox(width: 46)`, and four digits of `SwipType.mcc` at 20 px
+          // in Inter w700 measure about 49 px — so `5085` rendered as `508`
+          // plus a sliver, on the one card whose entire job is to show four
+          // digits.
+          //
+          // A fixed width was the wrong tool for a column that must **align**
+          // across stacked cards: the alignment needs a *minimum*, not a
+          // maximum. `minWidth` keeps the column straight, `scaleDown` handles
+          // the reader who has text size turned up, and neither can clip.
+          ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 52),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: MccBadge(event.mcc, size: MccBadgeSize.md),
+            ),
           ),
           const SizedBox(width: SwipSpace.sm),
 

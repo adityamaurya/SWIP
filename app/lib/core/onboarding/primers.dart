@@ -152,7 +152,6 @@ class _PrimerSheet extends StatefulWidget {
 }
 
 class _PrimerSheetState extends State<_PrimerSheet> {
-  bool _dontShow = false;
 
   @override
   Widget build(BuildContext context) {
@@ -222,31 +221,35 @@ class _PrimerSheetState extends State<_PrimerSheet> {
                 .fadeIn(delay: 190.ms, duration: 320.ms)
                 .moveY(begin: 12, curve: SwipMotion.captureCurve),
 
-            const SizedBox(height: SwipSpace.sm),
+            const SizedBox(height: SwipSpace.lg),
 
-            CheckboxListTile(
-              value: _dontShow,
-              onChanged: (v) => setState(() => _dontShow = v ?? false),
-              controlAffinity: ListTileControlAffinity.leading,
-              contentPadding: EdgeInsets.zero,
-              activeColor: SwipColors.gold500,
-              checkColor: const Color(0xFF14100A),
-              title: Text("Don't show this again",
-                  style: SwipType.bodyM
-                      .copyWith(color: SwipColors.textSecondary)),
-            ),
-
+            // `F-132`. **The checkbox is gone.** It asked you to make a
+            // decision about future dialogs while you were trying to read this
+            // one, and the honest default was always "yes, I have read it" -
+            // which is what tapping the button already means.
+            //
+            // So "Okay, got it" now means what it says: understood, and do not
+            // show me this one again. Nothing is lost, because every primer
+            // comes back from Settings -> "Show all explanations again", which
+            // is a better place for that decision than a tick-box you meet
+            // once and never find again.
             SizedBox(
               width: double.infinity,
               child: FilledButton(
                 onPressed: () async {
-                  if (_dontShow) {
-                    await widget.service
-                        .setSuppressed(widget.primer, true);
-                  }
+                  await widget.service.setSuppressed(widget.primer, true);
                   if (context.mounted) Navigator.of(context).pop();
                 },
-                child: const Text('Got it'),
+                child: const Text('Okay, got it'),
+              ),
+            ),
+
+            const SizedBox(height: SwipSpace.sm),
+            Center(
+              child: Text(
+                'Settings can bring every explanation back',
+                style:
+                    SwipType.labelS.copyWith(color: SwipColors.textTertiary),
               ),
             ),
           ],
