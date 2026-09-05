@@ -346,7 +346,10 @@ abstract final class MerchantIdentifier {
         : handle.substring(at + 1);
 
     final psp = suffix == null ? null : _handleSuffixes[suffix];
-    final name = _meaningfulName(payeeName);
+    // `F-139`. A reference number echoed into `pn` is not a shop name.
+    final name = nameIsJustTheHandle(payeeName, payeeAddress)
+        ? null
+        : _meaningfulName(payeeName);
 
     // ── Is this a business? ──
     // Any one of these is sufficient. A merchant-minted handle prefix is the
@@ -405,6 +408,39 @@ abstract final class MerchantIdentifier {
   /// Anything this adds is evidence *for* merchant status; nothing here can
   /// demote a payee to `person`, so a false positive needs a merchant-only
   /// field to be present on a personal QR, which does not happen.
+  /// `F-139` — **a `pn` that is just the handle is not a name.**
+  ///
+  /// Straight from the export. The SVC row reads:
+  ///
+  /// ```
+  /// pa=SVCMERC00306934@svcbank   pn=SVCMERC00306934
+  /// ```
+  ///
+  /// and SWIP was showing **"SVCMERC00306934"** as the shop's name. That is the
+  /// same failure as printing "Paytm" on five different shops, one level along:
+  /// a merchant *reference number* dressed up as a merchant. The bank filled
+  /// `pn` with the only string it had.
+  ///
+  /// Rejected when `pn`, stripped of punctuation and case, equals the local
+  /// part of `pa` — or is a bare reference-looking string of letters-then-digits
+  /// with no space in it. A real shop name has a space or a lower-case letter
+  /// somewhere in it; `SVCMERC00306934` has neither.
+  static bool nameIsJustTheHandle(String? payeeName, String? payeeAddress) {
+    final n = payeeName?.trim();
+    final a = payeeAddress?.trim();
+    if (n == null || n.isEmpty || a == null || a.isEmpty) return false;
+
+    final local = (a.contains('@') ? a.split('@').first : a).toLowerCase();
+    final norm = n.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    if (norm.isEmpty) return false;
+    if (norm == local.replaceAll(RegExp(r'[^a-z0-9]'), '')) return true;
+
+    // `ABCMERC0012345` shapes: all upper case, no spaces, ends in digits.
+    return !n.contains(' ') &&
+        n == n.toUpperCase() &&
+        RegExp(r'^[A-Z]{3,}\d{4,}$').hasMatch(n);
+  }
+
   static MerchantIdentity ofIntent(UpiIntent intent) {
     final pa = intent.payeeAddress;
     if (pa == null || pa.isEmpty) {

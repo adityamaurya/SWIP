@@ -148,4 +148,34 @@ void main() {
       }
     });
   });
+
+  group('a reference number echoed into pn is not a shop name', () {
+    test('SVCMERC00306934 was being shown as the merchant', () {
+      // Straight from the export:
+      //   pa=SVCMERC00306934@svcbank   pn=SVCMERC00306934
+      // The bank filled `pn` with the only string it had, and SWIP printed it
+      // as the shop. Same failure as "Paytm" on five different shops, one
+      // level along.
+      final r = CaptureResolver.resolve(
+          'upi://pay?pa=SVCMERC00306934@svcbank&pn=SVCMERC00306934'
+          '&mc=&tr=00306934&cu=INR');
+      expect(r.merchantName, isNull);
+      // The handle is still there to identify the shop by — it is just not
+      // pretending to be its name.
+      expect(r.merchantHandle, 'svcmerc00306934@svcbank');
+    });
+
+    test('but real names, including all-caps ones, survive', () {
+      for (final e in const {
+        'TATA STARBUCKS PRIVATE LIMITED': 'tatastarbucks.payu@mairtel',
+        'Greymode Architectural Products': 'greym0d3@okhdfcbank',
+        'NIKHIL GAIKWAD': '8657663214@kotak811',
+        'IntuitIndia': 'upi@razopay',
+      }.entries) {
+        final r = CaptureResolver.resolve(
+            'upi://pay?pa=${e.value}&pn=${Uri.encodeComponent(e.key)}');
+        expect(r.merchantName, e.key, reason: e.key);
+      }
+    });
+  });
 }
