@@ -16,6 +16,40 @@ library;
 
 import 'package:flutter/foundation.dart';
 
+/// `F-123`. **Whether a category was published, and if not, in what way.**
+///
+/// The old code had a boolean's worth of thinking in it: `mcc` was either a
+/// string or `null`. That collapsed five genuinely different situations into
+/// one, and threw away the most diagnostic payload in the whole corpus.
+///
+/// The Shree Beauty Centre QR, decoded from the photograph, is exactly this:
+///
+/// ```
+/// upi://pay?pa=SVCMERC00306934@svcbank&pn=SVCMERC00306934&mc=&tr=00306934…
+/// ```
+///
+/// `mc=` — **present and empty**. A bank built a merchant QR and left the
+/// category field blank. That is not the same as a sticker that never had the
+/// field, and it is not the same as a small merchant who cannot have one. It is
+/// an acquirer's omission, it is the merchant's bank's fault, and it is fixable
+/// — which is worth saying out loud rather than flattening into "unknown".
+enum MccPublication {
+  /// Four digits, non-zero. The prize.
+  published,
+
+  /// `mc=0000`. Deliberately unclassified. A real value, not a gap.
+  unclassified,
+
+  /// `mc=` with nothing after it. The field exists and was left blank.
+  blank,
+
+  /// `mc=59`, `mc=abcd`. The PSP generated a non-conformant QR.
+  malformed,
+
+  /// No `mc` parameter at all. The common case for static stickers.
+  absent,
+}
+
 /// A decoded `upi://pay?…` intent.
 @immutable
 class UpiIntent {
@@ -32,23 +66,71 @@ class UpiIntent {
 
   /// **The merchant category code**, from `mc`.
   ///
-  /// Returns `null` when absent or not four digits. `0000` is returned as-is —
-  /// it is meaningful ("unclassified / personal handle"), not missing, and the
-  /// UI must say so rather than showing an error.
+  /// Returns `null` unless four digits were actually published. `0000` is
+  /// returned as-is — it is meaningful ("unclassified"), not missing.
+  /// For *why* it is null, read [mccPublication]; the difference between an
+  /// absent field and a blank one is the difference between "this sticker never
+  /// carried a category" and "their bank forgot to fill it in".
   String? get mcc {
     final v = _clean(params['mc']);
     if (v == null || v.length != 4 || int.tryParse(v) == null) return null;
     return v;
   }
 
-  bool get isUnclassified => mcc == '0000';
+  /// How the `mc` field was published — see [MccPublication].
+  MccPublication get mccPublication {
+    if (!params.containsKey('mc')) return MccPublication.absent;
+    final rawValue = params['mc']!.trim();
+    if (rawValue.isEmpty) return MccPublication.blank;
+    if (rawValue.length != 4 || int.tryParse(rawValue) == null) {
+      return MccPublication.malformed;
+    }
+    return rawValue == '0000'
+        ? MccPublication.unclassified
+        : MccPublication.published;
+  }
+
+  bool get isUnclassified => mccPublication == MccPublication.unclassified;
 
   /// A `mc` that is present but malformed — worth surfacing separately, because
   /// it means the merchant's PSP generated a non-conformant QR.
-  bool get hasMalformedMcc {
-    final v = _clean(params['mc']);
-    return v != null && mcc == null;
+  bool get hasMalformedMcc => mccPublication == MccPublication.malformed;
+
+  /// `mc=` written out and left empty. The acquirer's omission.
+  bool get hasBlankMcc => mccPublication == MccPublication.blank;
+
+  // ── The signals that are not the category, but say a great deal ──────────
+  //
+  // `F-123`. Every one of these was already in the payloads SWIP was reading
+  // and none of them was being looked at. Together they are most of what a
+  // licensed PSP knows about a merchant from the QR alone.
+
+  /// NPCI `mode`. `01` static, `02` static-with-signature, `15` dynamic.
+  /// Its mere presence marks a QR minted by a merchant-onboarding flow rather
+  /// than typed by a person.
+  String? get mode => _clean(params['mode']);
+
+  /// The PSP's NPCI organisation id.
+  String? get orgId => _clean(params['orgid']);
+
+  /// Merchant ID, where the PSP writes one.
+  String? get merchantId => _clean(params['mid']);
+
+  /// Terminal / store identifiers on dynamic QRs.
+  String? get terminalId => _clean(params['tid']) ?? _clean(params['qrts']);
+
+  /// `tr` carries the acquirer's own prefix on dynamic QRs — `PINE…` for a Pine
+  /// Labs terminal, for instance. Not a category, but it names the rail.
+  String? get acquirerHint {
+    final tr = _clean(params['tr']);
+    if (tr == null) return null;
+    final m = RegExp(r'^([A-Za-z]{3,10})').firstMatch(tr);
+    return m?.group(1)?.toUpperCase();
   }
+
+  /// A dynamic QR: minted per transaction by a terminal, and by far the most
+  /// likely UPI payload to carry a real `mc`.
+  bool get isDynamic => mode == '15' || amount != null;
 
   String? get transactionId => _clean(params['tid']);
   String? get transactionRef => _clean(params['tr']);

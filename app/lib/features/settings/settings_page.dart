@@ -8,12 +8,14 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/location/capture_location.dart';
 import '../../core/onboarding/primers.dart';
 import '../../core/settings/home_market.dart';
 import '../../core/theme/swip_tokens.dart';
 import '../../data/repositories/capture_repository.dart';
+import '../../data/sources/ledger_seal.dart';
 import '../onboarding/home_market_page.dart';
 import '../support/support_section.dart';
 
@@ -203,29 +205,80 @@ class SettingsPage extends ConsumerWidget {
     final db = await ref.read(databaseProvider.future);
     final rows = await db.exportRows();
 
+    // `F-127`. Seal the rows before writing them: each record carries the hash
+    // of the one before it, so a file edited anywhere fails verification from
+    // that point on. See `ledger_seal.dart` for what this does and does not
+    // claim.
+    final sealed = LedgerSeal.seal(rows);
+    final sealHash = LedgerSeal.sealHashOf(sealed);
+
+    // `F-128`. A serial that increases for the life of the install, so two
+    // exports taken in the same second are still distinguishable and a folder
+    // of backups sorts into the order they were actually taken.
+    final serial = await _nextExportSerial();
+    final now = DateTime.now();
+
     final payload = <String, Object?>{
       'format': 'swip.ledger',
       'version': 1,
-      'exportedAt': DateTime.now().toUtc().toIso8601String(),
-      'captureCount': rows.length,
-      'captures': rows,
+      'sealVersion': LedgerSeal.version,
+      'sealHash': sealHash,
+      'exportSerial': serial,
+      'exportedAt': now.toUtc().toIso8601String(),
+      'exportedAtLocal': _stamp(now),
+      'captureCount': sealed.length,
+      'captures': sealed,
     };
 
     final dir = await getTemporaryDirectory();
-    final stamp =
-        DateTime.now().toIso8601String().split('T').first;
-    final file = File('${dir.path}/swip-ledger-$stamp.json');
+    // `F-128`. Readable at a glance in a Downloads folder six months from now:
+    //     SWIP_Ledger_2026-09-05_14-32-07_no-0007_142-captures.json
+    // Date and time are **local**, because the person reading the filename is
+    // in a timezone, not in UTC. The UTC instant is inside the file.
+    final name = 'SWIP_Ledger_${_stamp(now)}'
+        '_no-${serial.toString().padLeft(4, '0')}'
+        '_${sealed.length}-captures.json';
+    final file = File('${dir.path}/$name');
     await file.writeAsString(
         const JsonEncoder.withIndent('  ').convert(payload));
 
     if (!context.mounted) return;
     await Share.shareXFiles(
       [XFile(file.path)],
-      subject: 'SWIP ledger backup',
-      text: 'Your SWIP ledger - ${rows.length} captures. '
-          'Save this to Google Drive, then import it on a new phone.',
+      subject: 'SWIP ledger backup $name',
+      text: 'Your SWIP ledger - ${sealed.length} captures, export '
+          'no. $serial, taken ${_stamp(now)}.\n'
+          'Seal ${sealHash.substring(0, 12)}… - SWIP checks this on import and '
+          'tells you if the file changed.\n'
+          'Save it to Google Drive, then import it on a new phone.',
     );
   }
+
+
+  /// `F-128`. `2026-09-05_14-32-07`, local time, sortable, no colons — colons
+  /// are illegal in filenames on Windows and get silently rewritten by some
+  /// Android file pickers, which is how a backup ends up named `swip-ledger-`.
+  static String _stamp(DateTime t) {
+    String p(int v) => v.toString().padLeft(2, '0');
+    return '${t.year}-${p(t.month)}-${p(t.day)}_'
+        '${p(t.hour)}-${p(t.minute)}-${p(t.second)}';
+  }
+
+  /// A per-install counter. Stored next to the other preferences; if it is ever
+  /// lost the worst case is a repeated number in a filename, so it deliberately
+  /// does not fail the export.
+  static Future<int> _nextExportSerial() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final next = (prefs.getInt(_exportSerialKey) ?? 0) + 1;
+      await prefs.setInt(_exportSerialKey, next);
+      return next;
+    } catch (_) {
+      return 1;
+    }
+  }
+
+  static const _exportSerialKey = 'swip.export.serial';
 
   Future<void> _import(BuildContext context, WidgetRef ref) async {
     final picked = await FilePicker.platform.pickFiles(
@@ -247,21 +300,75 @@ class SettingsPage extends ConsumerWidget {
       final rows = (decoded['captures'] as List)
           .cast<Map<String, Object?>>();
 
+      // `F-127`. Check the seal **before** writing anything. An export made by
+      // an older build carries no seal at all, which is not a failure and must
+      // not be reported as one - it is simply a file from before this existed.
+      final sealed = decoded['sealHash'] as String?;
+      final SealCheck? check = sealed == null
+          ? null
+          : LedgerSeal.verify(rows, declaredSealHash: sealed);
+
+      if (check != null && !check.intact) {
+        // Not refused. The user's own backup is theirs, and a corrupted
+        // record is still better than no record - but they are told plainly,
+        // and told *where*, before it goes in.
+        final proceed = await _confirmBrokenSeal(context, check);
+        if (proceed != true) return;
+      }
+
       final db = await ref.read(databaseProvider.future);
       final added = await db.importRows(rows);
       ref.read(ledgerRevisionProvider.notifier).state++;
 
       if (!context.mounted) return;
+      final sealNote = check == null
+          ? ''
+          : check.intact
+              ? ' · seal verified'
+              : ' · seal did not match';
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(added == 0
-            ? 'Already up to date - nothing new in that file'
-            : 'Restored $added captures'),
+            ? 'Already up to date - nothing new in that file$sealNote'
+            : 'Restored $added captures$sealNote'),
       ));
     } on Object catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Could not import: $e')));
     }
+  }
+
+
+  /// `F-127`. The seal did not verify. Say what that means without making the
+  /// person feel accused of anything - the overwhelmingly likely cause is a
+  /// cloud sync that rewrote the file, not tampering.
+  static Future<bool?> _confirmBrokenSeal(
+      BuildContext context, SealCheck check) {
+    if (!context.mounted) return Future.value(false);
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: SwipColors.surfaceRaised,
+        title: const Text('This backup has changed'),
+        content: Text(
+          '${check.summary}\n\n'
+          'Usually that means the file was edited, or something in transit '
+          'rewrote it. The captures can still be imported - SWIP is telling '
+          'you first rather than after.',
+          style: SwipType.bodyM.copyWith(color: SwipColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Import anyway'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _confirmWipe(BuildContext context, WidgetRef ref) async {

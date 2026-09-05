@@ -36,6 +36,8 @@
 ///     every past and future capture of the same handle inherits it.
 library;
 
+import 'upi_uri_parser.dart';
+
 /// What a payee handle turns out to be.
 enum PayeeKind {
   /// A registered business handle: `paytmqr…@ptys`, `…@merchant`, signed QR.
@@ -177,6 +179,12 @@ abstract final class MerchantIdentifier {
     'icici': 'ICICI Bank', 'hdfcbank': 'HDFC Bank', 'sbi': 'SBI',
     'upi': 'BHIM', 'abfspay': 'Aditya Birla', 'freecharge': 'Freecharge',
     'mobikwik': 'MobiKwik', 'waaxis': 'WhatsApp Pay',
+    // `F-123`. Banks that acquire merchants directly, seen in the field.
+    'svcbank': 'SVC Co-operative Bank', 'cnrb': 'Canara Bank',
+    'barodampay': 'Bank of Baroda', 'aubank': 'AU Small Finance Bank',
+    'idbi': 'IDBI Bank', 'pnb': 'Punjab National Bank',
+    'unionbankofindia': 'Union Bank', 'yesbank': 'Yes Bank',
+    'dbs': 'DBS', 'rbl': 'RBL Bank', 'jio': 'Jio',
     'wahdfcbank': 'WhatsApp Pay', 'waicici': 'WhatsApp Pay',
   };
 
@@ -193,6 +201,22 @@ abstract final class MerchantIdentifier {
     RegExp(r'^bharatpe\.?[a-z0-9]*$'),
     RegExp(r'^q\d{6,}$'), // PhonePe merchant
     RegExp(r'^merchant[.\-_]?[a-z0-9]*$'),
+
+    // `F-123`. Bank-acquired merchants. Decoded from the Shree Beauty Centre
+    // stand: `pa=SVCMERC00306934@svcbank`. Co-operative and public-sector banks
+    // acquire merchants directly and mint `<BANK>MERC<id>` handles rather than
+    // going through a Paytm or a PhonePe. That handle is proof of a merchant
+    // onboarding, and SWIP was calling it "undetermined" for want of a pattern.
+    RegExp(r'^[a-z]{2,6}merc[a-z0-9]*\d+$'),
+    RegExp(r'^merc[a-z0-9]*\d{4,}$'),
+
+    // NOTE: there is deliberately **no** pattern here for terminal handles like
+    // `WFMLMH2@ybl` (Wellness Forever, on a Pine Labs box). Any regex loose
+    // enough to catch it — "letters, then a digit" — also catches
+    // `john123@okaxis`, and calling a person's handle a registered merchant is
+    // a worse failure than missing one. That case is proven from the *payload*
+    // instead: a dynamic QR carrying an amount and a terminal `tr` prefix is a
+    // merchant by construction. See [ofIntent].
   ];
 
   /// `F-46` — handle shapes that indicate the **full-merchant (P2M)** tier.
@@ -215,6 +239,12 @@ abstract final class MerchantIdentifier {
   static final _fullMerchantPatterns = <RegExp>[
     RegExp(r'^paytm\.s[a-z0-9]+$'), // Paytm Soundbox / All-in-One
     RegExp(r'^bharatpe\.?[a-z0-9]*$'), // BharatPe onboards P2M
+
+    // `F-123`. A bank does not acquire a merchant under P2PM and then mint it a
+    // `…MERC…` handle with its own reference number; the small-merchant tier is
+    // the light-touch one precisely because it skips that. A `<BANK>MERC<id>`
+    // handle is a fully acquired merchant, whatever else is or is not in the QR.
+    RegExp(r'^[a-z]{2,6}merc[a-z0-9]*\d+$'),
   ];
 
   /// Handle shapes that indicate the **small-merchant (P2PM)** tier: the basic
@@ -288,6 +318,66 @@ abstract final class MerchantIdentifier {
       psp: psp,
       displayName: name,
       rawPayeeName: payeeName?.trim(),
+    );
+  }
+
+  /// `F-123` — **identify from the whole payload, not just the handle.**
+  ///
+  /// [of] sees a VPA and, at best, two extra flags. A UPI QR carries far more
+  /// than that, and three of the fields it carries settle questions the handle
+  /// alone cannot:
+  ///
+  ///   * a **published `mc`** is issued at merchant onboarding. A category
+  ///     cannot exist for a payee who is not a merchant, so `mc=5912` *is* the
+  ///     proof — this is how `WFMLMH2@ybl` is known to be Wellness Forever and
+  ///     not somebody's personal handle, without a regex loose enough to be
+  ///     dangerous;
+  ///   * **`mode=15` with an amount** is a QR minted by a terminal for one
+  ///     transaction. People do not have terminals;
+  ///   * a **blank `mc=`** means a merchant-onboarding flow wrote the field and
+  ///     left it empty, which no personal QR ever does.
+  ///
+  /// Anything this adds is evidence *for* merchant status; nothing here can
+  /// demote a payee to `person`, so a false positive needs a merchant-only
+  /// field to be present on a personal QR, which does not happen.
+  static MerchantIdentity ofIntent(UpiIntent intent) {
+    final pa = intent.payeeAddress;
+    if (pa == null || pa.isEmpty) {
+      return const MerchantIdentity(
+          kind: PayeeKind.undetermined, handle: '');
+    }
+
+    final base = of(
+      pa,
+      payeeName: intent.payeeName,
+      signed: intent.isSigned,
+      mode: intent.mode,
+    );
+
+    final pub = intent.mccPublication;
+    final payloadProvesMerchant = pub == MccPublication.published ||
+        pub == MccPublication.unclassified ||
+        pub == MccPublication.blank ||
+        (intent.isDynamic && intent.acquirerHint != null);
+
+    if (!payloadProvesMerchant) return base;
+
+    // A published category also settles the tier: NPCI assigns MCCs at the
+    // full-merchant tier and does not assign them at the small-merchant tier,
+    // so a real category is a full merchant seen from the other direction.
+    final tier = pub == MccPublication.published
+        ? MerchantTier.fullMerchant
+        : base.tier;
+
+    return MerchantIdentity(
+      kind: base.kind == PayeeKind.person
+          ? PayeeKind.person
+          : PayeeKind.registeredMerchant,
+      tier: tier,
+      handle: base.handle,
+      psp: base.psp,
+      displayName: base.displayName,
+      rawPayeeName: base.rawPayeeName,
     );
   }
 

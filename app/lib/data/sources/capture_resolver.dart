@@ -1,6 +1,8 @@
 import '../models/capture_event.dart';
 import 'emv_qr_parser.dart';
+import 'mcc_route.dart';
 import 'merchant_identity.dart';
+import 'rupay_outlook.dart';
 import 'upi_uri_parser.dart';
 
 /// One entry point for every string SWIP can be handed.
@@ -49,19 +51,22 @@ abstract final class CaptureResolver {
         // sticker says `pn=Paytm`, which is the payment company rather than the
         // shop — showing it as the merchant put "Paytm" on five ledger rows
         // that were five different shops.
-        final identity = vpa == null
-            ? null
-            : MerchantIdentifier.of(
-                vpa,
-                payeeName: upi.payeeName,
-                signed: upi.isSigned,
-                mode: upi.params['mode'],
-              );
+        // `F-123`. Identified from the **whole payload**, not the handle
+        // alone. A published `mc`, a blank `mc=`, or a dynamic QR from a
+        // terminal each prove a merchant that no safe handle regex could.
+        final identity = vpa == null ? null : MerchantIdentifier.ofIntent(upi);
 
         return ResolvedCapture(
           vector: CaptureVector.qr,
           kind: CaptureKind.upi,
           mcc: upi.mcc,
+          mccPublication: upi.mccPublication,
+          rupay: identity == null
+              ? null
+              : RupayVerdict.of(identity: identity, intent: upi),
+          absence: identity == null || upi.mcc != null
+              ? null
+              : MccAbsence.of(identity: identity, intent: upi),
           merchantName: identity?.displayName ??
               (vpa == null ? upi.payeeName : null),
           merchantHandle: vpa?.toLowerCase(),
@@ -332,6 +337,12 @@ class ResolvedCapture {
     required this.kind,
     required this.sourceLabel,
     this.mcc,
+    // `F-123`, `F-124`, `F-125`. Three things the old resolver could not say:
+    // *how* the category was published, whether a RuPay credit card is likely
+    // to work, and — when the category is missing — what would actually get it.
+    this.mccPublication = MccPublication.absent,
+    this.rupay,
+    this.absence,
     this.merchantName,
     this.merchantCity,
     this.countryCode,
@@ -354,6 +365,17 @@ class ResolvedCapture {
   final String sourceLabel;
 
   final String? mcc;
+
+  /// Published, unclassified, blank, malformed or absent — see
+  /// [MccPublication]. A blank `mc=` is an acquirer's omission and reads very
+  /// differently from a sticker that never carried the field.
+  final MccPublication mccPublication;
+
+  /// Whether a RuPay credit card is likely to be accepted, with its reasons.
+  final RupayVerdict? rupay;
+
+  /// Set only when there is no category: why, and what would find one.
+  final MccAbsence? absence;
   final String? merchantName;
   final String? merchantCity;
   final String? countryCode;

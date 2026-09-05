@@ -186,6 +186,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   subtitle: 'Crafted on a four-hour daily commute, in Thane.',
                   pull: _pull.pull,
                   revealed: _pull.revealed,
+                  onTapReveal: _pull.openNow,
                   hidden: SupportStory(count: widget.recent.length),
                 ),
               ),

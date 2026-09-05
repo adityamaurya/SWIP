@@ -29,7 +29,27 @@ class _ScanPageState extends ConsumerState<ScanPage> {
   MobileScannerController _controller = _newController();
 
   static MobileScannerController _newController() => MobileScannerController(
-        detectionSpeed: DetectionSpeed.noDuplicates,
+        detectionSpeed: DetectionSpeed.normal,
+        // `F-126`. **Never `noDuplicates`.** It is a single-slot memory inside
+        // the Android plugin:
+        //
+        //   private var lastScanned: List<String?>? = null
+        //   if (newScannedBarcodes == lastScanned) return@addOnSuccessListener
+        //
+        // and it is cleared only by `stop()` or `dispose()`. So pointing at the
+        // *same* code a second time emits nothing at all - no callback, no
+        // error - until the camera is torn down. That is the whole reason a
+        // force-quit "fixed" scanning: killing the app nulled the slot.
+        //
+        // `normal` throttles to one detection per `detectionTimeoutMs` instead,
+        // and SWIP de-duplicates in Dart over a window it controls, so the same
+        // sticker scanned again ten seconds later works the way anyone would
+        // expect it to.
+        detectionTimeoutMs: 300,
+        // A small code in a big frame was the other half of the problem. The
+        // default resolution is whatever the platform picks; 1920x1080 gives
+        // ML Kit enough pixels on a counter-top sticker at arm's length.
+        cameraResolution: const Size(1920, 1080),
         formats: const [BarcodeFormat.qrCode, BarcodeFormat.dataMatrix],
         // Started by hand once the widget is attached — see [_start].
         autoStart: false,
@@ -178,6 +198,9 @@ class _ScanPageState extends ConsumerState<ScanPage> {
             deviceCountry: event.placeCountry),
         payeeKind: resolved.payeeKind,
         tier: resolved.tier,
+        // `F-124`, `F-125`. The verdict and the routes travel with the capture.
+        rupay: resolved.rupay,
+        absence: resolved.absence,
         details: {
           // `F-42`. The payment company and the payee handle are listed as
           // what they are, so neither can be mistaken for the shop's name.

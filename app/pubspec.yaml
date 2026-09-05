@@ -27,6 +27,7 @@ dependencies:
 
   # Capture
   mobile_scanner: ^5.1.1   # QR — Vector 1
+  crypto: ^3.0.3           # `F-127` ledger seal (SHA-256 hash chain)
 
   # F-40 — where a capture happened. Opt-in, coarse only, and the raw fix never
   # leaves the device: it is reduced to a 6-character geohash (~1.2 km) before

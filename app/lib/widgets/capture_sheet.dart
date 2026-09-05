@@ -6,7 +6,9 @@ import '../core/settings/home_market.dart';
 import '../core/theme/swip_tokens.dart';
 import '../data/models/capture_event.dart';
 import '../data/models/mcc.dart';
+import '../data/sources/mcc_route.dart';
 import '../data/sources/merchant_identity.dart';
+import '../data/sources/rupay_outlook.dart';
 import '../data/sources/payload_kind.dart';
 import 'mcc_badge.dart';
 
@@ -39,6 +41,8 @@ class CaptureSheet extends StatelessWidget {
     this.verdict,
     this.payeeKind = PayeeKind.undetermined,
     this.tier = MerchantTier.unknown,
+    this.rupay,
+    this.absence,
   });
 
   final CaptureEvent event;
@@ -74,6 +78,14 @@ class CaptureSheet extends StatelessWidget {
   /// `F-46`, `F-47`. P2M or P2PM. Drives the RuPay line and turns "no category
   /// found" into "no category exists" where that is the truth.
   final MerchantTier tier;
+
+  /// `F-124`. The RuPay verdict with its evidence. When present it replaces the
+  /// tier-derived note, because it knows strictly more: the payload's `mc`
+  /// state and the user's own history at this merchant.
+  final RupayVerdict? rupay;
+
+  /// `F-125`. When there is no category: why, and what would find one.
+  final MccAbsence? absence;
 
   @override
   Widget build(BuildContext context) {
@@ -163,7 +175,24 @@ class CaptureSheet extends StatelessWidget {
             // category are the SAME fact: both follow from its NPCI tier. So
             // this is not a second lookup, it is the same finding said in the
             // words the person is actually asking in.
-            if (tier.rupayNote != null) ...[
+            //
+            // `F-124`. The verdict now carries its own evidence, and hedges
+            // exactly where the evidence is thin - "may not", the same word
+            // CRED uses at merchants it is inferring about rather than looking
+            // up. `unknown` renders nothing at all: a screen that says "we
+            // don't know" about everything teaches you to skip it.
+            if (rupay?.headline != null) ...[
+              const SizedBox(height: SwipSpace.md),
+              _Note(
+                text: rupay!.because == null
+                    ? rupay!.headline!
+                    : '${rupay!.headline!}\n${rupay!.because!}',
+                icon: rupay!.outlook.isNegative
+                    ? Icons.credit_card_off_outlined
+                    : Icons.credit_score_outlined,
+                good: !rupay!.outlook.isNegative,
+              ),
+            ] else if (rupay == null && tier.rupayNote != null) ...[
               const SizedBox(height: SwipSpace.md),
               _Note(
                 text: tier.rupayNote!,
@@ -172,6 +201,15 @@ class CaptureSheet extends StatelessWidget {
                     : Icons.credit_card_off_outlined,
                 good: tier == MerchantTier.fullMerchant,
               ),
+            ],
+
+            // `F-125`. **Never a dead end.** When the category is missing, the
+            // routes that would actually find it *for this merchant*, as things
+            // to do rather than as an apology. Empty for a small merchant,
+            // where the honest answer is that nothing will work.
+            if (!known && absence != null) ...[
+              const SizedBox(height: SwipSpace.md),
+              _WhyMissing(absence: absence!),
             ],
 
             // `F-53` — which mode of payment the category was read from.
@@ -627,4 +665,96 @@ class _Note extends StatelessWidget {
       ),
     );
   }
+}
+
+/// `F-125` — why there is no category here, and what would get one.
+///
+/// The complaint that produced this widget was *"the pop up came but it failed
+/// on the catching the mcc"*. For the corn-dog stall's sticker the whole
+/// payload is `upi://pay?pa=paytm.s26upzx@pty&pn=Paytm` — two fields, and no
+/// category anywhere in it. Nothing failed. There was nothing there.
+///
+/// A screen that stops at "no category published" reads as a broken app. The
+/// same screen that says *why* and hands over three things that would work
+/// reads as an app that knows more than you do. Same finding, opposite feeling.
+class _WhyMissing extends StatelessWidget {
+  const _WhyMissing({required this.absence});
+
+  final MccAbsence absence;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(SwipSpace.lg),
+        decoration: BoxDecoration(
+          color: SwipColors.surfaceRaised2,
+          borderRadius: SwipRadius.cardAll,
+          border: Border.all(color: SwipColors.hairline),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              absence.fixable ? 'WHY IT IS NOT HERE' : 'THERE IS NOTHING TO FIND',
+              style: SwipType.labelS.copyWith(color: SwipColors.textTertiary),
+            ),
+            const SizedBox(height: SwipSpace.sm),
+            Text(
+              absence.reason,
+              style: SwipType.bodyM.copyWith(color: SwipColors.textSecondary),
+            ),
+            if (absence.routes.isNotEmpty) ...[
+              const SizedBox(height: SwipSpace.lg),
+              Text('HOW TO GET IT',
+                  style:
+                      SwipType.labelS.copyWith(color: SwipColors.gold300)),
+              const SizedBox(height: SwipSpace.sm),
+              for (final r in absence.routes) ...[
+                Padding(
+                  padding: const EdgeInsets.only(bottom: SwipSpace.md),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 3),
+                        child: Icon(_icon(r.kind),
+                            size: 15, color: SwipColors.gold500),
+                      ),
+                      const SizedBox(width: SwipSpace.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(r.title,
+                                style: SwipType.label.copyWith(
+                                    color: SwipColors.textPrimary)),
+                            const SizedBox(height: 2),
+                            Text(r.detail,
+                                style: SwipType.bodyS.copyWith(
+                                    color: SwipColors.textTertiary)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              Text(
+                'Whichever one you use, SWIP files it against this shop - so '
+                'every past and future scan of the same code fills in too.',
+                style:
+                    SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
+              ),
+            ],
+          ],
+        ),
+      );
+
+  static IconData _icon(MccRouteKind k) => switch (k) {
+        MccRouteKind.tapTerminal => Icons.contactless_rounded,
+        MccRouteKind.dynamicQr => Icons.qr_code_2_rounded,
+        MccRouteKind.statement => Icons.receipt_long_rounded,
+        MccRouteKind.appHandover => Icons.open_in_new_rounded,
+        MccRouteKind.impossible => Icons.block_rounded,
+      };
 }

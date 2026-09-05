@@ -54,6 +54,12 @@ Future<void> showCaptureDetail(
           deviceCountry: event.placeCountry),
       payeeKind: resolved?.payeeKind ?? PayeeKind.undetermined,
       tier: resolved?.tier ?? MerchantTier.unknown,
+      // `F-124`, `F-125`. Re-derived from the stored payload, so a capture
+      // opened from the ledger a week later says exactly what it said at the
+      // counter. Nothing extra is persisted for this: the raw payload was
+      // already being kept, and it is the only input.
+      rupay: resolved?.rupay,
+      absence: event.hasMcc ? null : resolved?.absence,
       details: {
         // The payment company lives here rather than in the row. On a ledger
         // line "Paytm" reads as the shop's name; here, under a label that says

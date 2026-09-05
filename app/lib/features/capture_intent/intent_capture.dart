@@ -133,6 +133,8 @@ class _IntentCaptureListenerState extends ConsumerState<IntentCaptureListener>
               deviceCountry: event.placeCountry),
           payeeKind: resolved.payeeKind,
           tier: resolved.tier,
+          rupay: resolved.rupay,
+          absence: resolved.absence,
           // Without this, the payload sniffer would call a Swiggy or PVR
           // checkout "a personal UPI code, not a shop" — it is plainly a shop,
           // it just did not put a category in the intent.

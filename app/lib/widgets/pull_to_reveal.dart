@@ -34,6 +34,7 @@ class PullToReveal extends StatefulWidget {
     required this.hidden,
     required this.pull,
     required this.revealed,
+    this.onTapReveal,
   });
 
   /// The big sign-off line.
@@ -49,6 +50,9 @@ class PullToReveal extends StatefulWidget {
   final ValueListenable<double> pull;
 
   final bool revealed;
+
+  /// `F-129`. Tapping the chevron opens the same panel the pull does.
+  final VoidCallback? onTapReveal;
 
   /// How far past the end of the page counts as open. About a thumb's travel:
   /// far enough that momentum never gets there by accident, close enough that a
@@ -80,7 +84,7 @@ class _PullToRevealState extends State<PullToReveal>
     if (widget.revealed) return 'THERE IT IS';
     if (t > 0.66) return 'ALMOST WORTH IT';
     if (t > 0.28) return 'KEEP GOING, IT GETS BETTER';
-    return 'PULL FOR THE BIT NOBODY READS';
+    return 'PULL OR TAP FOR THE BIT NOBODY READS';
   }
 
   @override
@@ -121,7 +125,21 @@ class _PullToRevealState extends State<PullToReveal>
               const SizedBox(height: SwipSpace.giant),
 
               // ── the invitation ──
-              Center(
+              //
+              // `F-129`. **Tap works too, and that is not a concession.**
+              //
+              // This gesture has been reported broken twice. The first time it
+              // genuinely was; the second time the fix had shipped but had not
+              // reached the phone. Either way the lesson is the same: a reveal
+              // that can *only* be reached by a gesture nobody can see has no
+              // way of telling you whether it is broken or merely undiscovered.
+              // A tap target removes that ambiguity for good, and costs the
+              // Easter egg nothing - you still have to be at the foot of the
+              // page to find it.
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: widget.onTapReveal,
+                child: Center(
                 child: AnimatedBuilder(
                   animation: _bounce,
                   builder: (_, __) => Transform.translate(
@@ -155,6 +173,7 @@ class _PullToRevealState extends State<PullToReveal>
                       ],
                     ),
                   ),
+                ),
                 ),
               ),
 
@@ -252,6 +271,16 @@ class PullController {
       _peak = 0;
     }
     return false;
+  }
+
+  /// `F-129`. Open it without a gesture. Same state, same haptic, same
+  /// callback - so the tap path and the pull path cannot drift apart.
+  void openNow() {
+    if (revealed) return;
+    revealed = true;
+    HapticFeedback.mediumImpact();
+    _onOpen();
+    _set(1);
   }
 
   void _bump(double v) {

@@ -80,7 +80,27 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
   MobileScannerController _controller = _newController();
 
   static MobileScannerController _newController() => MobileScannerController(
-        detectionSpeed: DetectionSpeed.noDuplicates,
+        detectionSpeed: DetectionSpeed.normal,
+        // `F-126`. **Never `noDuplicates`.** It is a single-slot memory inside
+        // the Android plugin:
+        //
+        //   private var lastScanned: List<String?>? = null
+        //   if (newScannedBarcodes == lastScanned) return@addOnSuccessListener
+        //
+        // and it is cleared only by `stop()` or `dispose()`. So pointing at the
+        // *same* code a second time emits nothing at all - no callback, no
+        // error - until the camera is torn down. That is the whole reason a
+        // force-quit "fixed" scanning: killing the app nulled the slot.
+        //
+        // `normal` throttles to one detection per `detectionTimeoutMs` instead,
+        // and SWIP de-duplicates in Dart over a window it controls, so the same
+        // sticker scanned again ten seconds later works the way anyone would
+        // expect it to.
+        detectionTimeoutMs: 300,
+        // A small code in a big frame was the other half of the problem. The
+        // default resolution is whatever the platform picks; 1920x1080 gives
+        // ML Kit enough pixels on a counter-top sticker at arm's length.
+        cameraResolution: const Size(1920, 1080),
         formats: const [BarcodeFormat.qrCode, BarcodeFormat.dataMatrix],
         // `autoStart: false` — start() is called by hand from a post-frame
         // callback, once the platform view exists to attach to.
@@ -284,11 +304,36 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
         .catchError((_) {});
   }
 
+  /// `F-126`. The de-duplication the plugin used to do wrongly, done here.
+  ///
+  /// The rule is **"ignore this payload until three seconds after I last saw
+  /// it"**, not "ignore this payload forever". Holding a sticker in frame keeps
+  /// refreshing the timestamp, so the sheet never stacks; taking the phone away
+  /// and coming back lets the very same sticker fire again, which is what
+  /// `DetectionSpeed.noDuplicates` made permanently impossible.
+  final Map<String, DateTime> _lastSeen = {};
+  static const _sameCodeCooldown = Duration(seconds: 3);
+
   Future<void> _onDetect(BarcodeCapture capture) async {
     if (_handling) return;
     final raw =
         capture.barcodes.isEmpty ? null : capture.barcodes.first.rawValue;
     if (raw == null || raw.isEmpty) return;
+
+    final now = DateTime.now();
+    final seen = _lastSeen[raw];
+    // Refresh the timestamp whether or not it fires, so a code held in view
+    // stays suppressed for as long as it is in view.
+    _lastSeen[raw] = now;
+    if (seen != null && now.difference(seen) < _sameCodeCooldown) {
+      _sawSomething();
+      return;
+    }
+    // A scanner left running all day must not grow a map all day.
+    if (_lastSeen.length > 32) {
+      _lastSeen.removeWhere(
+          (_, t) => now.difference(t) > const Duration(minutes: 2));
+    }
 
     _handling = true;
     _sawSomething();
