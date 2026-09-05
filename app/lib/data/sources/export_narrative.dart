@@ -30,7 +30,6 @@
 /// audited is just a receipt for a number somebody made up.**
 library;
 
-import '../models/capture_event.dart';
 import 'mcc_route.dart';
 import 'merchant_identity.dart';
 import 'rupay_outlook.dart';
@@ -63,7 +62,14 @@ abstract final class ExportNarrative {
     final mcc = row['mcc'] as String?;
     final vectorName = row['vector'] as String?;
     final merchant = row['merchant_name'] as String?;
-    final handle = row['merchant_handle'] as String?;
+    // `merchant_handle` is NOT a column - the schema stores `merchant_key`,
+    // which is `upi:<vpa>` or `emv:<country>:<mid>`. Reading the wrong name
+    // here would have silently emitted `payeeHandle: null` on every single
+    // row, which is the kind of bug that survives because nothing fails.
+    final key = row['merchant_key'] as String?;
+    final handle = key != null && key.startsWith('upi:')
+        ? key.substring(4)
+        : null;
     final place = row['place_label'] as String?;
     final at = row['captured_at'];
 

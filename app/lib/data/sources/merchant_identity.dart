@@ -273,10 +273,22 @@ abstract final class MerchantIdentifier {
   ///
   ///     TATA STARBUCKS PRIVATE LIMITED
   ///     Zepto Marketplace Private Limite      <- note: truncated by the PSP
-  ///     Greymode Architectural Products
   ///
   /// Matched as a **substring**, not a suffix, because PSPs truncate `pn` to a
   /// fixed width and "Private Limite" is what actually arrives.
+  ///
+  /// ## What is deliberately not matched
+  ///
+  /// The same export contains `Greymode Architectural Products`, which is
+  /// obviously a business to a human and is **not** matched here. Catching it
+  /// would mean treating words like "Products", "Graphics" or "Services" as
+  /// business markers, and that road ends badly: the export also contains
+  /// `janhavigraphics@oksbi` whose `pn` is **`Pramod Parkar`** — a person's
+  /// name on a business-sounding handle. Guessing from vocabulary gets that
+  /// one wrong in both directions.
+  ///
+  /// A legal-entity suffix is different in kind: it is a **registration
+  /// fact**, not a descriptive word. Only those are used.
   static final _entityMarkers = <RegExp>[
     RegExp(r'\bprivate\s+limite', caseSensitive: false),
     RegExp(r'\bpvt\.?\s*ltd', caseSensitive: false),

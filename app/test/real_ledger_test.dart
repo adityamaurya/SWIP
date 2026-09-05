@@ -54,10 +54,19 @@ void main() {
   });
 
   group('a company name in pn is evidence, a personal name is not', () {
-    test('Greymode Architectural Products is a business', () {
+    test('a descriptive business name is NOT enough, and that is deliberate',
+        () {
+      // "Greymode Architectural Products" is obviously a shop to a human, and
+      // SWIP does not claim it. Catching it would mean treating "Products" as
+      // a business marker - and this same export contains
+      // `janhavigraphics@oksbi` whose pn is "Pramod Parkar", a person's name
+      // on a business-sounding handle. Vocabulary gets that wrong in both
+      // directions; a registration suffix does not.
       final r = CaptureResolver.resolve('upi://pay?pa=greym0d3@okhdfcbank'
           '&pn=Greymode%20Architectural%20Products');
-      expect(r.payeeKind, PayeeKind.registeredMerchant);
+      expect(r.payeeKind, isNot(PayeeKind.registeredMerchant));
+      // The name is still kept and shown - it is a real name, unlike "Paytm".
+      expect(r.merchantName, 'Greymode Architectural Products');
     });
 
     test('but the four real people in the export stay people', () {
@@ -115,7 +124,11 @@ void main() {
       expect(r.payeeKind, PayeeKind.registeredMerchant);
       expect(r.merchantName, isNull,
           reason: '"BharatPe Merchant" is a placeholder, not a shop name');
-      expect(r.acquirer, 'BharatPe');
+      // The PSP suffix is `@icici`, so the payment company really is ICICI -
+      // BharatPe is the aggregator in the local part, not the bank behind the
+      // handle. Naming the aggregator here would repeat the "Paytm is the
+      // shop" mistake one level down.
+      expect(r.acquirer, 'ICICI Bank');
     });
   });
 
