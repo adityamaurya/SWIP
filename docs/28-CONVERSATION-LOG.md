@@ -377,6 +377,102 @@ on intent capture, the 02:00 backup, and the exhaustive MCC list.
 
 ---
 
+## Prompt 33 — 5 Sep 2026 · Your own ledger, read properly
+
+**You asked:** the UI inspirations made real; **gyro-gated scanning** so the
+camera stops ambushing you with pop-ups; project memory and a log; how CRED
+actually does it; a sanity check of all code; the MCC cropping in the pop-up;
+the export log made detailed and re-importable; and the floating bubble notes
+from Wispr Flow and Maximise. Then you sent **your real 85-capture export**.
+
+**That export is the most useful thing sent in this project so far.** It turned
+every open question from an argument into a measurement.
+
+### Where the categories are actually being lost
+
+| Count | Shape |
+|---|---|
+| **34** | A UPI sticker with **no `mc` at all** |
+| 5 | Not a payment QR — a stock photo, a print-shop URL, a test string |
+| 2 | `mc=` present and empty |
+| 1 | A raw NFC log |
+
+**Eighty-one per cent of every miss is a sticker that never carried a
+category.** No parser work touches that, and it settles the corn-dog-stall
+question: that was not an anomaly, it is the normal case.
+
+Cross-checked across all 85 rows: 42 absent, 32 published, 9 unclassified,
+2 blank — and **zero** rows where a published `mc` failed to be stored.
+
+### The POS failure, solved from the hex
+
+Two NFC taps in the export. One gave MCC 5411. The other gave nothing, and the
+reason was sitting in the payload:
+
+```
+worked   9F16 = 0FBD96389443542326810000000000    binary, a real merchant ID
+failed   9F16 = 313132323333343435353636373738    ASCII "112233445566778"
+         9F1C = 3132333435363738                  ASCII "12345678"
+```
+
+**Factory placeholder values.** That terminal was never provisioned, which is
+exactly why it had no category. One cause, two symptoms — and SWIP was
+reporting it as "the shop's bank did not fill it in", which is unfalsifiable
+and reads as a shrug.
+
+### Two things the export showed SWIP was throwing away
+
+`tatastarbucks.payu@mairtel` and `zepto.payu@mairtel` were "undetermined".
+Aggregators mint `<merchant>.<aggregator>@<psp>` at onboarding and a person
+cannot obtain one. And nobody's personal handle says "PRIVATE LIMITED" —
+matched as a substring, because your PSP truncated it to "Private Limite".
+
+**What I deliberately did not do:** catch `Greymode Architectural Products`.
+Doing so needs "Products" as a business marker, and the same export contains
+`janhavigraphics@oksbi` whose `pn` is **"Pramod Parkar"** — a person's name on
+a business-sounding handle. Vocabulary is wrong in both directions there.
+
+### The nuisance fix
+
+The de-duplication stopped the *same* code re-firing. It did nothing about the
+camera grinding away while the phone sits on a table. It now only detects while
+the phone is **raised**: one accelerometer axis, hysteresis so it cannot flicker
+at the angle people actually hold a phone, a settle delay so lifting the phone
+to read the ledger does not trip it, and it **fails open** so a device without
+the sensor behaves exactly as before.
+
+### The cropping
+
+`SizedBox(width: 46)` around four digits that measure about 49. A fixed width
+was the wrong tool for a column that has to align — alignment needs a
+*minimum*, not a maximum.
+
+### A bug I nearly shipped
+
+The new per-capture `provenance` block **would have broken import entirely**.
+sqflite throws on an insert containing a key that is not a column, so the first
+import of the first new-format export would have failed — on the file that is
+your only backup. Import now keeps only real columns, which also makes the
+format forward compatible.
+
+**Shipped:** [`0af7d73`](https://github.com/adityamaurya/SWIP/commit/0af7d73),
+[`6315452`](https://github.com/adityamaurya/SWIP/commit/6315452),
+[`6a2a745`](https://github.com/adityamaurya/SWIP/commit/6a2a745), plus
+[`CLAUDE.md`](../CLAUDE.md) and
+[33-VISUAL-DIRECTION-PAPER](33-VISUAL-DIRECTION-PAPER.md).
+
+**Three of my own claims corrected in this round**, all caught by CI or by
+re-reading: Greymode is not detected; BharatPe is not the acquirer of an
+`@icici` handle; and `export_narrative` was reading `merchant_handle`, which is
+not a column — every exported row would have carried a null handle, silently.
+
+**Not received:** the merged PDF. Only the 16 images arrived.
+
+**Still open:** the display serif; the bubble's service and overlay; the iOS
+workflow; the `INTERNET` permission; the black screen on intent capture.
+
+---
+
 <!--
 Template:
 
