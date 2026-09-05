@@ -430,7 +430,7 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
             // the gold clears AA over a moving, unpredictable background.
             IgnorePointer(
               child: Container(
-                color: SwipColors.bg
+                color: SwipColors.onCameraScrim
                     .withValues(alpha: _running ? .58 : .92),
               ),
             ),
@@ -459,7 +459,7 @@ class _LiveViewfinderState extends State<LiveViewfinder> {
                 child: IgnorePointer(
                   child: _OnCameraText(
                     'NOTHING IN VIEW  ·  MORE LIGHT, OR MOVE BACK',
-                    color: SwipColors.gold300,
+                    color: SwipColors.onCameraAccent,
                   ),
                 ),
               ),
@@ -518,7 +518,7 @@ class _OnCameraText extends StatelessWidget {
           padding: const EdgeInsets.symmetric(
               horizontal: SwipSpace.sm, vertical: 3),
           decoration: BoxDecoration(
-            color: SwipColors.bg.withValues(alpha: .62),
+            color: SwipColors.onCameraScrim.withValues(alpha: .62),
             borderRadius: SwipRadius.chipAll,
           ),
           child: Text(
@@ -527,7 +527,7 @@ class _OnCameraText extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: SwipType.labelS.copyWith(
-              color: color ?? SwipColors.textPrimary,
+              color: color ?? SwipColors.onCameraInk,
               letterSpacing: .6,
               shadows: const [
                 Shadow(color: Color(0xCC000000), blurRadius: 3),
@@ -563,7 +563,7 @@ class _BracketPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final p = Paint()
-      ..color = SwipColors.gold500
+      ..color = SwipColors.onCameraAccent
       ..strokeWidth = 2.5
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
@@ -605,13 +605,13 @@ class _SweepLine extends StatelessWidget {
               height: 2,
               decoration: BoxDecoration(
                 gradient: LinearGradient(colors: [
-                  SwipColors.gold500.withValues(alpha: 0),
-                  SwipColors.gold300,
-                  SwipColors.gold500.withValues(alpha: 0),
+                  SwipColors.onCameraAccent.withValues(alpha: 0),
+                  SwipColors.onCameraAccent,
+                  SwipColors.onCameraAccent.withValues(alpha: 0),
                 ]),
                 boxShadow: [
                   BoxShadow(
-                    color: SwipColors.gold500.withValues(alpha: .55),
+                    color: SwipColors.onCameraAccent.withValues(alpha: .55),
                     blurRadius: 12,
                     spreadRadius: 1,
                   ),
@@ -651,7 +651,7 @@ class _Idle extends StatelessWidget {
                   ? Icons.no_photography_outlined
                   : Icons.qr_code_scanner_rounded,
               size: 38,
-              color: SwipColors.gold500,
+              color: SwipColors.onCameraAccent,
             )
                 .animate(onPlay: (c) => c.repeat(reverse: true))
                 .scaleXY(
@@ -666,7 +666,7 @@ class _Idle extends StatelessWidget {
                   : starting
                       ? 'Waking the camera…'
                       : 'Tap to scan',
-              style: SwipType.titleS.copyWith(color: SwipColors.textPrimary),
+              style: SwipType.titleS.copyWith(color: SwipColors.onCameraInk),
             )
                 .animate()
                 .fadeIn(duration: 400.ms)
@@ -680,8 +680,8 @@ class _Idle extends StatelessWidget {
                       : 'Point at any payment QR',
               style: SwipType.bodyS.copyWith(
                   color: refused
-                      ? SwipColors.gold500
-                      : SwipColors.textTertiary),
+                      ? SwipColors.onCameraAccent
+                      : SwipColors.onCameraInk.withValues(alpha: .55)),
             ).animate().fadeIn(delay: 120.ms, duration: 400.ms),
           ],
         ),
@@ -815,7 +815,7 @@ class _DottedWavePainter extends CustomPainter {
     if (dots.isEmpty) return;
 
     final paint = Paint()
-      ..color = SwipColors.gold300.withValues(alpha: (1 - t) * 0.85)
+      ..color = SwipColors.onCameraAccent.withValues(alpha: (1 - t) * 0.85)
       ..strokeWidth = 2.2
       ..strokeCap = StrokeCap.round;
 

@@ -15,22 +15,43 @@ import 'package:flutter/widgets.dart';
 
 // ─────────────────────────────────────────────────────────────── colour
 
-/// Brand and surface colours.
+/// Brand and surface colours — **monochrome**.
 ///
-/// THE GOLD RULE: gold on black, always; gold on white, never as text.
-/// [SwipColors.gold500] is 2.3:1 on white — it fails WCAG AA for text. On light
-/// surfaces gold may appear only as a fill (with [ink900] on top), as a 2–3px
-/// indicator, or as an icon ≥24px. For gold-flavoured *text* on light, use
-/// [goldInk], which is 6.2:1.
+/// `F-130`. The foil interior shipped, was lived with, and was replaced. The
+/// reference was Ramp and CRED's Circle: paper-white ground, near-black type,
+/// hairline borders, and colour used only where it carries meaning.
+///
+/// ## Why the token names still say "gold"
+///
+/// Ninety-five call sites reference `gold500` and friends. Renaming them all
+/// would be a large, risky diff that changes no pixels, so the **values** were
+/// repointed and the names left alone. `gold500` is now near-black ink and is
+/// still "the one accent colour" — which is what every one of those call sites
+/// actually meant. Read the name as *accent*, not as a hue.
+///
+/// ## The rule that replaces THE GOLD RULE
+///
+/// The old rule existed because gold is 2.3:1 on white and fails AA as text.
+/// There is no such trap now, and the constraint is aesthetic rather than
+/// technical: **exactly one thing on a screen may be near-black at weight.**
+/// Normally that is the MCC. On this ground the category is the largest,
+/// darkest thing in view and needs no colour at all to be the hero — which is
+/// the whole argument for monochrome.
+///
+/// Semantic colour survives, narrowly: green, amber, red and blue appear only
+/// where the meaning *is* the colour (a decline, a warning, a confirmation),
+/// and never as decoration. All four are the light-surface variants now, since
+/// the ground is white — the `…OnInk` names, like the gold ones, kept their
+/// spelling and changed their value.
 abstract final class SwipColors {
   // Brand — gold
-  static const gold50 = Color(0xFFFBF6E6);
-  static const gold100 = Color(0xFFF7E7B4);
-  static const gold300 = Color(0xFFE8C766);
-  static const gold500 = Color(0xFFC9A227); // THE brand gold
-  static const gold700 = Color(0xFF8A6620);
-  static const goldInk = Color(0xFF7A5E12); // gold-flavoured TEXT on light
-  static const gold900 = Color(0xFF4A3610);
+  static const gold50 = Color(0xFFF7F7F8);
+  static const gold100 = Color(0xFFEDEDEF);
+  static const gold300 = Color(0xFF3A3A3E);
+  static const gold500 = Color(0xFF0B0B0D); // THE accent: ink, not gold
+  static const gold700 = Color(0xFFD7D7DB);
+  static const goldInk = Color(0xFF0B0B0D); // accent TEXT on light
+  static const gold900 = Color(0xFFE6E6EA);
 
   // Brand — ink
   static const ink900 = Color(0xFF0A0A0A); // SWIP Ink
@@ -41,68 +62,66 @@ abstract final class SwipColors {
   static const ink100 = Color(0xFFE4E4E7);
   static const ink50 = Color(0xFFF4F4F5);
 
-  // ── Surface — FOIL, dark everywhere ──────────────────────────────────
+  // ── Surface — PAPER, light everywhere ──────────────────────────────
   //
-  // Reverses A-06. The light interior shipped, was reviewed, and was rejected
-  // as boring. Inverting the ground is not a cosmetic change: gold is 2.3:1 on
-  // white and fails AA as text, which is why the light draft could only ever
-  // use gold as a hairline. On this ground gold clears 8.4:1 and becomes the
-  // material the product is made of. See docs/14-VISUAL-DIRECTION-FOIL.md.
+  // `F-130`. Inverts the foil direction. The accent is ink, so it clears 18:1
+  // on this ground and there is no contrast trap left anywhere in the palette.
   //
-  // Restraint is the brief: minimal gold, never gaudy. Gold marks the ONE
-  // thing that matters on a screen — usually the MCC — and nothing else.
+  // Restraint is still the brief. Where the old rule was "minimal gold, never
+  // gaudy", the new one is "minimal weight": one dark element per screen, and
+  // hairlines rather than shadows.
 
-  /// The ground. Warm-shifted near-black, deliberately not #000000: pure black
-  /// clips on OLED and kills the shadow stops the foil gradient needs.
-  static const bg = Color(0xFF060507);
+  /// The ground. Pure white — the Ramp reference is paper, and an off-white
+  /// ground makes every white card on top of it look like a mistake.
+  static const bg = Color(0xFFFFFFFF);
 
   /// Default screen surface.
-  static const surface = Color(0xFF0C0B0E);
+  static const surface = Color(0xFFFFFFFF);
 
   /// Cards, sheets, rows.
-  static const surfaceRaised = Color(0xFF141216);
+  static const surfaceRaised = Color(0xFFF6F6F7);
 
   /// Input wells, code blocks, pressed states.
-  static const surfaceRaised2 = Color(0xFF1C191F);
+  static const surfaceRaised2 = Color(0xFFEFEFF1);
 
   /// 1px separators.
-  static const hairline = Color(0xFF262229);
+  static const hairline = Color(0xFFE3E3E7);
 
   // ── Text on the dark ground ──────────────────────────────────────────
-  /// Primary text. Warm off-white, not #FFF — pure white on near-black
-  /// vibrates and is tiring to read a ledger in.
-  static const textPrimary = Color(0xFFF2EFE9);
+  /// Primary text. Near-black, not #000 — pure black on pure white vibrates and
+  /// is tiring to read a ledger in. 18.4:1.
+  static const textPrimary = Color(0xFF0B0B0D);
 
-  /// Secondary text. 7.4:1 on [bg].
-  static const textSecondary = Color(0xFF8E8896);
+  /// Secondary text. 7.1:1 on [bg].
+  static const textSecondary = Color(0xFF5B5B63);
 
-  /// Tertiary. 3.9:1 — ≥18px or non-essential only.
-  static const textTertiary = Color(0xFF5D5866);
+  /// Tertiary. 3.2:1 — large or non-essential text only, never body copy.
+  static const textTertiary = Color(0xFF8C8C95);
 
   // Legacy aliases, repointed so existing widgets keep compiling.
   static const surfaceSubdued = surfaceRaised;
   static const surfaceSunken = surfaceRaised2;
   static const surfaceInverse = bg;
   static const border = hairline;
-  static const borderStrong = Color(0xFF3A353F);
+  static const borderStrong = Color(0xFFC7C7CE);
 
   // ── Semantic, on the dark ground ─────────────────────────────────────
   // The light-surface semantics below are 2–3:1 on [bg] and unusable as text.
   // These are the ones to reach for; all clear AAA on #060507.
-  static const successOnInk = Color(0xFF34C77B);
-  static const warningOnInk = Color(0xFFE0A22B);
-  static const dangerOnInk = Color(0xFFF2685E);
-  static const infoOnInk = Color(0xFF6FA8F5);
+  static const successOnInk = Color(0xFF0E7A4A);
+  static const warningOnInk = Color(0xFF8A5A00);
+  static const dangerOnInk = Color(0xFFB3261E);
+  static const infoOnInk = Color(0xFF1A5FB4);
 
   /// Tinted backfills for banners. Kept very low-alpha: a saturated block on
   /// near-black reads as an error even when it is only information.
-  static const successFill = Color(0x1A34C77B);
-  static const warningFill = Color(0x1AE0A22B);
-  static const dangerFill = Color(0x1AF2685E);
-  static const infoFill = Color(0x1A6FA8F5);
+  static const successFill = Color(0x140E7A4A);
+  static const warningFill = Color(0x148A5A00);
+  static const dangerFill = Color(0x14B3261E);
+  static const infoFill = Color(0x141A5FB4);
 
-  // Semantic — light-surface originals. Retained for the export/print path
-  // and for anything rendered on paper; do NOT use these on screen.
+  // Semantic — the originals, now identical in intent to the `…OnInk` set
+  // above. Kept so existing call sites compile; prefer the `…OnInk` names.
   static const success = Color(0xFF0E7A4A);
   static const successBg = Color(0xFFE9F6F0);
   static const warning = Color(0xFFA66A00);
@@ -113,6 +132,32 @@ abstract final class SwipColors {
   static const infoBg = Color(0xFFEAF1FB);
 
   static const white = Color(0xFFFFFFFF);
+
+  // ── Over the camera feed ────────────────────────────────────────────────
+  //
+  // `F-130`. **These deliberately do not follow the app's ground.**
+  //
+  // Every other colour here sits on a surface SWIP controls. These sit on an
+  // arbitrary live image — a marble counter, a black terminal, a moving hand —
+  // and the only treatment that survives all of them is light-on-dark. When
+  // the palette flipped from foil to paper, the scrim was `bg` and silently
+  // became a white fog over the feed; that is the bug these constants exist to
+  // make impossible to reintroduce.
+  //
+  // Rule: anything painted over the viewfinder uses `onCamera*`, never
+  // `textPrimary`, `bg` or `gold500`.
+
+  /// The dim over the feed. Ink, always, whatever the app ground is.
+  static const onCameraScrim = Color(0xFF08070A);
+
+  /// Text and brackets over the feed. 14:1 on the scrim at 58 %.
+  static const onCameraInk = Color(0xFFF4F3EF);
+
+  /// The one accent over the feed. Gold survives here because the ground under
+  /// it is guaranteed dark — this is the last gold left in the app, and it is
+  /// on the only surface where the old rule still holds.
+  static const onCameraAccent = Color(0xFFE8C766);
+
 }
 
 /// Confidence colours.
@@ -140,10 +185,10 @@ abstract final class SwipConfidenceColors {
   /// The rule generalises: any semantic colour placed on [SwipColors.ink900]
   /// needs an on-ink counterpart. Give `success` and `danger` the same
   /// treatment when they first appear on a black card.
-  static const verifiedOnInk = Color(0xFF34C77B);
-  static const likelyOnInk = Color(0xFFE0A22B);
-  static const unknownOnInk = Color(0xFFA1A1A1);
-  static const conflictOnInk = Color(0xFFF2685E);
+  static const verifiedOnInk = Color(0xFF0E7A4A);
+  static const likelyOnInk = Color(0xFF8A5A00);
+  static const unknownOnInk = Color(0xFF6B6B73);
+  static const conflictOnInk = Color(0xFFB3261E);
 }
 
 // ─────────────────────────────────────────────────────────────── type
@@ -320,25 +365,27 @@ abstract final class SwipMotion {
   static const captureCurve = Cubic(0.16, 1, 0.3, 1);
 }
 
-/// The gold-foil gradient, matching `brand/generate.mjs`.
+/// `F-130`. The graphite gradient. Was gold foil; the geometry and the stops
+/// are unchanged, only the hues — so anything already using it (the goal bar,
+/// the capture shimmer) keeps its motion and loses its colour.
 ///
 /// Use with a shader that spans the whole text run — per-glyph gradients
-/// shatter the foil into unrelated shards, which is the single most common way
-/// a foil treatment goes wrong.
+/// shatter it into unrelated shards, which is the single most common way a
+/// metallic treatment goes wrong.
 abstract final class SwipGradients {
   static const foil = LinearGradient(
     begin: Alignment.bottomLeft,
     end: Alignment.topRight,
     colors: [
-      Color(0xFF6E4F14),
-      Color(0xFFA67C22),
-      Color(0xFFD8B252),
-      Color(0xFFF6E4A6),
-      Color(0xFFFFF7DB),
-      Color(0xFFE3C46B),
-      Color(0xFFB98F2C),
-      Color(0xFF8A6620),
-      Color(0xFF5E430F),
+      Color(0xFF2A2A2E),
+      Color(0xFF4A4A52),
+      Color(0xFF6E6E78),
+      Color(0xFF9A9AA4),
+      Color(0xFFC9C9D1),
+      Color(0xFF9A9AA4),
+      Color(0xFF6E6E78),
+      Color(0xFF3A3A40),
+      Color(0xFF1A1A1E),
     ],
     stops: [0.0, 0.14, 0.33, 0.47, 0.53, 0.62, 0.78, 0.90, 1.0],
   );

@@ -37,9 +37,12 @@ class SwipApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: SwipTheme.dark(),
         darkTheme: SwipTheme.dark(),
-        // Foil is the only look. Reverses A-06 — see
-        // docs/14-VISUAL-DIRECTION-FOIL.md.
-        themeMode: ThemeMode.dark,
+        // `F-130`. Paper is the only look, so both slots hold the same theme
+        // and the mode is pinned. Pinning it to `light` rather than following
+        // the system is deliberate: SWIP is read at a counter, in daylight,
+        // over a camera feed, and a palette that changes under the user
+        // depending on a system setting is one more thing that can look broken.
+        themeMode: ThemeMode.light,
         // Two ways a capture can arrive from outside SWIP: a merchant's
         // pay-by-app intent (Vector 7) and the share sheet (S-24). Both can
         // cold-start the app, so both wrap the shell rather than a screen.

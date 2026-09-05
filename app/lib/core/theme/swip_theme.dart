@@ -3,26 +3,29 @@ import 'package:flutter/services.dart';
 
 import 'swip_tokens.dart';
 
-/// The SWIP theme — "Foil".
+/// The SWIP theme — "Paper".
 ///
-/// Dark everywhere. Material 3 is the substrate (touch targets, focus and
+/// `F-130`. Light everywhere, monochrome, hairlines instead of shadows. Material 3 is the substrate (touch targets, focus and
 /// pressed states, text scaling, RTL, TalkBack/VoiceOver semantics, platform
 /// scroll physics) and every visible surface of it is overridden. What survives
 /// from M3 is *behaviour*, not appearance — those are the things that take a
 /// year to get right and that nobody notices until they are wrong.
 ///
-/// See `docs/14-VISUAL-DIRECTION-FOIL.md`.
+/// The palette lives entirely in [SwipColors]; this file only maps it onto
+/// Material's slots. See `docs/14-VISUAL-DIRECTION-FOIL.md` for the direction
+/// this replaced, and `docs/32-VISUAL-DIRECTION-PAPER.md` for the current one.
 abstract final class SwipTheme {
-  /// The only theme. [light] is kept as an alias so nothing breaks, but it
-  /// returns the same dark theme — SWIP has one look.
+  /// The only theme. Both entry points return it — SWIP has one look, and a
+  /// half-built second one is worse than none.
   static ThemeData dark() {
-    const scheme = ColorScheme.dark(
+    const scheme = ColorScheme.light(
       primary: SwipColors.gold500,
-      onPrimary: Color(0xFF14100A),
+      // Filled buttons are black with white text — the Ramp and CRED shape.
+      onPrimary: SwipColors.white,
       primaryContainer: SwipColors.gold900,
-      onPrimaryContainer: SwipColors.gold100,
+      onPrimaryContainer: SwipColors.gold500,
       secondary: SwipColors.gold300,
-      onSecondary: Color(0xFF14100A),
+      onSecondary: SwipColors.white,
       surface: SwipColors.surface,
       onSurface: SwipColors.textPrimary,
       surfaceContainerHighest: SwipColors.surfaceRaised2,
@@ -30,7 +33,7 @@ abstract final class SwipTheme {
       outline: SwipColors.hairline,
       outlineVariant: SwipColors.hairline,
       error: SwipColors.dangerOnInk,
-      onError: Color(0xFF14100A),
+      onError: SwipColors.white,
     );
 
     final base = ThemeData(
@@ -61,10 +64,13 @@ abstract final class SwipTheme {
         ),
         systemOverlayStyle: SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
-          statusBarIconBrightness: Brightness.light,
-          statusBarBrightness: Brightness.dark,
+          // Dark icons on a white status bar. Getting this backwards is the
+          // single most visible sign of a theme that was flipped and not
+          // re-checked.
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
           systemNavigationBarColor: SwipColors.bg,
-          systemNavigationBarIconBrightness: Brightness.light,
+          systemNavigationBarIconBrightness: Brightness.dark,
         ),
       ),
 

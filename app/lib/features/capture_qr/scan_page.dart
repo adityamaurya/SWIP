@@ -224,11 +224,24 @@ class _ScanPageState extends ConsumerState<ScanPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: SwipColors.bg,
+      backgroundColor: SwipColors.onCameraScrim,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
+        // `F-130`. The app is light; this one screen is not. The bar floats
+        // over a camera feed, so its title, icons and status-bar icons are all
+        // forced light here rather than inherited — an inherited dark icon over
+        // a black scrim is invisible, and it is invisible only on the screen
+        // nobody screenshots.
         backgroundColor: Colors.transparent,
-        title: const Text('Scan a QR'),
+        foregroundColor: SwipColors.onCameraInk,
+        iconTheme: const IconThemeData(color: SwipColors.onCameraInk),
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+        ),
+        title: Text('Scan a QR',
+            style: SwipType.titleM.copyWith(color: SwipColors.onCameraInk)),
         actions: [
           IconButton(
             tooltip: 'Torch',
@@ -261,7 +274,7 @@ class _ScanPageState extends ConsumerState<ScanPage> {
           // Ink scrim — the camera feed is information, not decoration, so it
           // is dimmed rather than hidden.
           IgnorePointer(
-            child: Container(color: SwipColors.bg.withValues(alpha: .55)),
+            child: Container(color: SwipColors.onCameraScrim.withValues(alpha: .55)),
           ),
 
           Center(
@@ -269,7 +282,7 @@ class _ScanPageState extends ConsumerState<ScanPage> {
               width: 260,
               height: 260,
               decoration: BoxDecoration(
-                border: Border.all(color: SwipColors.gold500, width: 2),
+                border: Border.all(color: SwipColors.onCameraAccent, width: 2),
                 borderRadius: BorderRadius.circular(28),
               ),
             )
@@ -288,7 +301,7 @@ class _ScanPageState extends ConsumerState<ScanPage> {
               'Point at any payment QR - UPI, BharatQR, PIX, QRIS,\n'
               'PayNow, PromptPay and thirty more.',
               textAlign: TextAlign.center,
-              style: SwipType.bodyM.copyWith(color: SwipColors.textSecondary),
+              style: SwipType.bodyM.copyWith(color: SwipColors.onCameraInk.withValues(alpha: .72)),
             ),
           ),
         ],
@@ -312,11 +325,11 @@ class _CameraError extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(Icons.no_photography_outlined,
-                  size: 40, color: SwipColors.textTertiary),
+                  size: 40, color: SwipColors.onCameraInk.withValues(alpha: .55)),
               const SizedBox(height: SwipSpace.lg),
               Text(
                 'SWIP needs the camera to read a QR',
-                style: SwipType.titleS.copyWith(color: SwipColors.textPrimary),
+                style: SwipType.titleS.copyWith(color: SwipColors.onCameraInk),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: SwipSpace.sm),
@@ -324,7 +337,7 @@ class _CameraError extends StatelessWidget {
                 'Nothing is recorded or uploaded - the camera is used only to '
                 'read the code in front of you.',
                 style:
-                    SwipType.bodyM.copyWith(color: SwipColors.textSecondary),
+                    SwipType.bodyM.copyWith(color: SwipColors.onCameraInk.withValues(alpha: .72)),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: SwipSpace.xl),
