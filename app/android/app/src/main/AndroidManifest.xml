@@ -33,7 +33,30 @@
         android:name="android.hardware.nfc.hce"
         android:required="false" />
 
-    <!-- Vector 3 — link resolution. -->
+    <!--
+      INTERNET — **the justification written here was Vector 3, link
+      resolution, and that feature was deleted in `F-89`.** The comment
+      outlived the reason, which is exactly how an app ends up shipping a
+      permission nobody can explain to a reviewer.
+
+      What might still need it, neither verified on a device:
+
+        * **Flutter's debug tooling.** `flutter create` puts INTERNET in the
+          debug and profile manifests, not the main one, because the VM service
+          needs it. This project has only a main manifest, so debug builds are
+          relying on it from here.
+        * **`geocoding`.** Android's `Geocoder` is a system service and the
+          system makes the request, so the app may not need INTERNET at all -
+          but reports differ by OEM, and getting it wrong silently kills the
+          "Dombivli East, Kalyan" labels on captures.
+
+      The fix is the standard Flutter split: INTERNET in `src/debug/` and
+      `src/profile/` only, so the release build does not ship it. **That has to
+      be checked on a real device before release** - guessing here either
+      breaks the debug APK or breaks reverse-geocoding, and both would be found
+      by a user rather than by CI. Tracked as 4.1 in
+      docs/30-PRE-LAUNCH-PARAMETERS.md.
+    -->
     <uses-permission android:name="android.permission.INTERNET" />
 
     <!--

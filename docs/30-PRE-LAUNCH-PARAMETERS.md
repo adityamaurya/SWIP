@@ -178,7 +178,7 @@ project is built by one.
 
 | # | Item | Status |
 |---|---|---|
-| 4.1 | `INTERNET` permission is declared but SWIP has no server. Establish which dependency needs it and drop it if none does. **A permission you cannot explain is a review question you cannot answer.** | 🔍 open |
+| 4.1 | `INTERNET` is declared. **Investigated:** the comment justifying it said "Vector 3 — link resolution", and that feature was deleted in `F-89` — so the written justification is dead. Two live candidates remain, neither verified: Flutter's debug VM service (which normally lives in `src/debug/`, and this project has only a main manifest), and `geocoding`. The fix is the standard debug/profile manifest split, and **it must be tested on a device** — guessing breaks either the debug build or the place labels | ◑ diagnosed, fix needs a device |
 | 4.2 | A signed release keystore does not exist yet. Everything so far is a debug APK | 📋 blocking release |
 | 4.3 | Privacy policy is not yet published at a URL | 📋 blocking release |
 | 4.4 | `upi://pay` intent filter: keep it and always forward, or drop it. Still your decision | 🔍 open |
