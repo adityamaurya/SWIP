@@ -16,6 +16,7 @@ import '../../core/settings/home_market.dart';
 import '../../core/theme/swip_tokens.dart';
 import '../../data/repositories/capture_repository.dart';
 import '../../data/sources/ledger_seal.dart';
+import '../bubble/bubble_settings.dart';
 import '../onboarding/home_market_page.dart';
 import '../support/support_section.dart';
 
@@ -106,6 +107,26 @@ class SettingsPage extends ConsumerWidget {
               style: SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
             ),
             onTap: () => _import(context, ref),
+          ),
+
+          const Divider(height: SwipSpace.xxl),
+          _header('Scanning'),
+
+          // `F-131`. Its own screen rather than a switch here, because the
+          // permission behind it can only be granted in Android's Settings and
+          // you get exactly one attempt at asking. See `bubble_settings.dart`.
+          ListTile(
+            leading: const Icon(Icons.blur_circular_rounded),
+            title: const Text('Scan from anywhere'),
+            subtitle: Text(
+              'A floating button over other apps, so you can check a code '
+              'without leaving the checkout',
+              style: SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
+            ),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const BubbleSettingsPage(),
+            )),
           ),
 
           const Divider(height: SwipSpace.xxl),

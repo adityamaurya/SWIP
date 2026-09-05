@@ -232,6 +232,38 @@ class MainActivity : FlutterFragmentActivity() {
                         result.success(ok)
                     }
 
+                    // `F-131`. The floating scan bubble's permission.
+                    //
+                    // `SYSTEM_ALERT_WINDOW` is a **special** permission: it
+                    // cannot be granted by a runtime dialog, only by the user
+                    // walking into Settings and flipping a switch. So there are
+                    // two calls, and Flutter must use them in that order -
+                    // explain first, send second. Firing the Settings intent
+                    // without the explanation is how an app gets denied and
+                    // never asked again.
+                    "canDrawOverlays" -> {
+                        result.success(
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                android.provider.Settings.canDrawOverlays(this)
+                            } else {
+                                true
+                            }
+                        )
+                    }
+
+                    "requestOverlayPermission" -> {
+                        val ok = runCatching {
+                            startActivity(
+                                Intent(
+                                    android.provider.Settings
+                                        .ACTION_MANAGE_OVERLAY_PERMISSION,
+                                    android.net.Uri.parse("package:$packageName")
+                                )
+                            )
+                        }.isSuccess
+                        result.success(ok)
+                    }
+
                     "openNfcSettings" -> {
                         startActivity(Intent(android.provider.Settings.ACTION_NFC_SETTINGS))
                         result.success(null)

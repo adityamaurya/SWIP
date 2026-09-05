@@ -11,6 +11,23 @@
 
     <!-- Vector 2 — NFC / HCE. -->
     <uses-permission android:name="android.permission.NFC" />
+
+    <!--
+      `F-131` - the floating scan bubble.
+
+      SYSTEM_ALERT_WINDOW is a SPECIAL permission: declaring it here grants
+      nothing. The user has to flip a switch in Android Settings, and SWIP asks
+      only after explaining, from one screen whose only job is to explain -
+      see `bubble_settings.dart`. The bubble is OFF until they do.
+
+      FOREGROUND_SERVICE keeps the bubble alive; Android 14 additionally
+      requires a declared type, and `specialUse` is the honest one - this is
+      not media playback, location or a data sync pretending otherwise.
+    -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
     <uses-feature
         android:name="android.hardware.nfc.hce"
@@ -147,11 +164,11 @@
         <!--
           `F-115` - the Quick Settings tile.
 
-          Chosen over a floating overlay bubble on purpose. An overlay needs
-          SYSTEM_ALERT_WINDOW, which lets an app draw on top of a banking
-          screen; a tile needs no permission at all because the user adds it
-          themselves. One swipe from anywhere in Android, including a
-          merchant's checkout, straight into the scanner.
+          Kept alongside the floating bubble (`F-131`), not replaced by it.
+          The tile needs no permission at all, because the user adds it
+          themselves - so it stays the route for anyone who does not want to
+          grant SYSTEM_ALERT_WINDOW, and it is the only route on a work profile
+          where the overlay permission is often blocked by policy.
         -->
         <service
             android:name=".SwipTile"
