@@ -844,6 +844,71 @@ exhaustive MCC list; onboarding "Got it".
 
 ---
 
+## Prompt 33 — 5 Sep 2026 · Measured against 85 real captures
+
+The owner sent his live export. Every finding below is a **measurement**, not
+an argument, and several of them contradicted what I had assumed.
+
+### Where the categories are lost, counted
+
+| Count | Shape | Fixable? |
+|---|---|---|
+| **34** | UPI sticker with **no `mc` at all** | No — nothing is there |
+| 5 | Not a payment QR at all | No |
+| 2 | `mc=` present and empty | The acquirer's omission |
+| 1 | Raw NFC log | — |
+
+Cross-checked across all 85: 42 absent, 32 published, 9 unclassified, 2 blank,
+and **zero** rows where a published `mc` failed to be stored.
+
+### The POS failure, decoded
+
+| | `9F16` | as ASCII | Category |
+|---|---|---|---|
+| Worked | `0FBD963894435423…` | binary | **5411** |
+| Failed | `31313232333334…3738` | **`112233445566778`** | none |
+| | `9F1C` = `3132333435363738` | **`12345678`** | |
+
+Factory placeholder values. The terminal was never provisioned, which is why
+it had no category. `F-138`.
+
+### Code
+
+| File | Change |
+|---|---|
+| [`terminal_health.dart`](../app/lib/data/sources/terminal_health.dart) | **New.** Placeholder-terminal detection; three silences get three sentences |
+| [`aim_detector.dart`](../app/lib/core/sensors/aim_detector.dart) | **New.** `F-134` — detect only while the phone is raised. Hysteresis, settle delay, **fails open** |
+| [`export_narrative.dart`](../app/lib/data/sources/export_narrative.dart) | **New.** `F-135` — per-capture provenance: what, how, where, who, why not |
+| [`swip_database.dart`](../app/lib/data/sources/swip_database.dart) | `F-136` — import keeps only real columns. **Without this the first import of a new-format export would have failed** |
+| [`merchant_identity.dart`](../app/lib/data/sources/merchant_identity.dart) | `F-137` aggregator handles + legal-entity names; `F-139` a reference number is not a shop name |
+| [`scan_flash_card.dart`](../app/lib/widgets/scan_flash_card.dart) | `F-133` — the MCC was cropping: `width: 46` around digits measuring ~49 |
+| [`primers.dart`](../app/lib/core/onboarding/primers.dart) | `F-132` — checkbox gone; "Okay, got it" means it |
+| [`CLAUDE.md`](../CLAUDE.md) | **New.** Project memory: the rules, the declined items, nine hard-won facts |
+| 4 new test files | `real_ledger_test`, `terminal_health_test`, `aim_detector_test`, and the earlier `real_world_qr_test` |
+
+### Docs
+
+[33-VISUAL-DIRECTION-PAPER](33-VISUAL-DIRECTION-PAPER.md) — what the Ramp,
+CRED, Atlys and Plum references actually have in common, and the one thing
+deliberately not copied.
+
+### Four of my own claims corrected
+
+1. `Greymode Architectural Products` is **not** detected, and should not be —
+   the same export has a person's name on a business-sounding handle.
+2. BharatPe is **not** the acquirer of an `@icici` handle.
+3. `export_narrative` read `merchant_handle`, which is not a column.
+4. The first sequential-number matcher missed `12345678` — the exact terminal
+   ID in the export.
+
+### Open
+
+Display serif; the bubble's service and overlay; the iOS workflow; the
+`INTERNET` permission; the black screen on intent capture; the merged PDF,
+which did not arrive.
+
+---
+
 <!--
 Template for the next entry:
 
