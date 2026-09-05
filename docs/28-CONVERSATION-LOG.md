@@ -283,6 +283,100 @@ backup, export/import hardening, the exhaustive MCC list, and the onboarding
 
 ---
 
+## Prompt 32 — 5 Sep 2026 · The QRs that would not scan
+
+**You asked:** an iOS plan and an `.ipa` pipeline; why several merchant QRs
+would not scan; an export filename with date, exact time and a serial; a
+pre-launch security and compliance file to run before every build; blockchain
+integrity like CoWIN; the black-and-white theme; the Wispr Flow floating bubble;
+CRED's language for merchant and RuPay detection; and the pull-to-reveal still
+not working. Then, mid-turn: *"the pop up came but it failed on the catching the
+mcc find the root reason and get it sorted and detect fail proof for future"*.
+
+**I decoded every QR from your photographs before writing a line of code.** That
+is the whole reason this round found anything, and it is written up in full in
+[29-QR-DETECTION-FORENSICS](29-QR-DETECTION-FORENSICS.md).
+
+### The scanner going dead was four words of configuration
+
+`DetectionSpeed.noDuplicates`. Inside mobile_scanner's Android plugin there is a
+**single-slot** memory:
+
+```kotlin
+private var lastScanned: List<String?>? = null
+if (newScannedBarcodes == lastScanned) return@addOnSuccessListener
+```
+
+cleared only by `stop()` or `dispose()`. Point at the **same** code twice and
+the second time emits nothing at all — no callback, no error. **That is your
+force-quit**: killing the app nulled the slot. It also explains why it seemed
+random, because a different code in between clears it.
+
+### Three payloads, three different truths
+
+| Where | What is actually in the QR |
+|---|---|
+| Shree Beauty Centre | `mc=` — **present and empty**. A bank built a merchant QR and left the category blank |
+| Wellness Forever, Pine Labs box | `mc=5912` — the category was there all along |
+| The corn-dog stall | `upi://pay?pa=paytm.s26upzx@pty&pn=Paytm` — **two fields, and no category to catch** |
+
+**On the third one: nothing failed.** There is no MCC in that sticker, and no
+app on any phone can read one out of it — CRED included. What CRED shows at that
+same handle family is *"this merchant accepts RuPay payments"*, which is a
+**tier flag, not a category**. CRED displays no MCC there either.
+
+So "fail-proof" cannot mean "always find it in the QR". It now means **never
+leave you at a dead end**: SWIP says why the category is missing and lists the
+routes that would actually get it for that merchant, and offers none at all at a
+small merchant, where nothing would work.
+
+### How CRED does it, and the word that gives it away
+
+CRED writes **"MERCHANT MAY NOT ACCEPT RUPAY CC"**. *May.* If they held an
+authoritative flag they would say "does not". They are inferring — and at a
+merchant they are sure about, the same app says plainly *"this merchant accepts
+RuPay payments"*. SWIP now uses the same hedge in the same place, for the same
+reason, and its one unhedged claim is the small-merchant tier, because that is
+NPCI policy rather than a merchant's setting.
+
+### On the blockchain
+
+Both papers you sent use a distributed ledger because **the issuer and the
+verifier do not trust each other**. SWIP has one party: you are both. A chain
+would publish your spending permanently and world-readably, and would need a
+network SWIP deliberately does not use. So SWIP takes the mechanism those papers
+actually rely on — the hash chain — and leaves the network out. Exports carry a
+SHA-256 chain and a seal; import verifies it and names the first record that
+does not match. It is **tamper-evident, not tamper-proof**, and the code says so
+rather than letting the word "blockchain" do work it cannot.
+
+### The theme change broke the one screen nobody screenshots
+
+Flipping the ground to white turned the camera scrim — which was `SwipColors.bg`
+— into a **white fog over the viewfinder**, with black brackets on top. Camera
+overlays now have their own constants that do not follow the app's ground.
+
+**Shipped:** [`ceefbbf`](https://github.com/adityamaurya/SWIP/commit/ceefbbf),
+[`f2acf31`](https://github.com/adityamaurya/SWIP/commit/f2acf31),
+[`1f6c472`](https://github.com/adityamaurya/SWIP/commit/1f6c472),
+[`4ac809e`](https://github.com/adityamaurya/SWIP/commit/4ac809e). Plus
+[29-QR-DETECTION-FORENSICS](29-QR-DETECTION-FORENSICS.md),
+[30-PRE-LAUNCH-PARAMETERS](30-PRE-LAUNCH-PARAMETERS.md),
+[31-IOS-AND-IPA](31-IOS-AND-IPA.md) and
+[32-FLOATING-BUBBLE](32-FLOATING-BUBBLE.md).
+
+**Two things I got wrong in this round, both caught before they mattered:** a
+first pass at the merchant handle patterns matched anything with a digit in it,
+which would have called `john123@okaxis` a registered merchant — removed, with a
+test. And a `const Icon(… .withValues(…))` failed analyze; there is now a
+pre-push check for that shape.
+
+**Still open:** the bubble's service and camera overlay (steps 2–6), the iOS CI
+workflow, the `INTERNET` permission that has no justification, the black screen
+on intent capture, the 02:00 backup, and the exhaustive MCC list.
+
+---
+
 <!--
 Template:
 

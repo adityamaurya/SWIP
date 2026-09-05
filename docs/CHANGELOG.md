@@ -777,6 +777,73 @@ guessed under that name. What is in the panel:
 
 ---
 
+## Prompt 32 — 5 Sep 2026 · The QRs that would not scan, and the paper theme
+
+### The method, first, because it is the reason anything was found
+
+Every QR in this round was **decoded from the photograph** with OpenCV before
+any code changed. Three of the four bugs were invisible without that: nobody
+writes a test fixture containing `mc=` with nothing after it.
+
+### Root causes
+
+| Symptom | Root cause | Fix |
+|---|---|---|
+| "The scanner won't scan a few QR codes" | `DetectionSpeed.noDuplicates` — a **single-slot** `lastScanned` in the Android plugin, cleared only by `stop()`/`dispose()`. The same code twice emits nothing | `DetectionSpeed.normal` + Dart de-dupe on "last **seen**", not "last fired" |
+| Needed a force-quit | Same. Killing the app was the only way to null the slot | Same |
+| A merchant QR read as nothing | `mc=` present-and-empty was indistinguishable from absent | `MccPublication`: published / unclassified / **blank** / malformed / absent |
+| `SVCMERC…@svcbank` unidentified | No handle pattern for bank-acquired merchants | `<BANK>MERC<id>` recognised, full-merchant tier |
+| "It failed on catching the MCC" | **It did not.** `upi://pay?pa=paytm.s26upzx@pty&pn=Paytm` is the entire payload | `MccAbsence` — why, plus the routes that would work |
+
+### The payloads, for the record
+
+```
+SVC / Shree Beauty  upi://pay?pa=SVCMERC00306934@svcbank&pn=…&mc=&tr=00306934…
+Wellness Forever    upi://pay?pa=WFMLMH2@ybl&…&mc=5912&mode=15&tr=PINE22697…
+Corn-dog stall      upi://pay?pa=paytm.s26upzx@pty&pn=Paytm
+Paytm sticker       upi://pay?pa=paytmqr70ivq3@ptys&pn=Paytm
+```
+
+### Code
+
+| File | Change |
+|---|---|
+| [`upi_uri_parser.dart`](../app/lib/data/sources/upi_uri_parser.dart) | `MccPublication`; `mode`, `orgId`, `acquirerHint`, `isDynamic` |
+| [`merchant_identity.dart`](../app/lib/data/sources/merchant_identity.dart) | Bank-merchant handles; `ofIntent` identifies from the whole payload |
+| [`rupay_outlook.dart`](../app/lib/data/sources/rupay_outlook.dart) | **New.** Five outcomes, each with its evidence; hedges where CRED hedges |
+| [`mcc_route.dart`](../app/lib/data/sources/mcc_route.dart) | **New.** Why the category is missing and what would find it |
+| [`ledger_seal.dart`](../app/lib/data/sources/ledger_seal.dart) | **New.** SHA-256 hash chain over exports |
+| [`live_viewfinder.dart`](../app/lib/widgets/live_viewfinder.dart) | `normal` + payload-keyed cooldown; `onCamera*` colours |
+| [`swip_tokens.dart`](../app/lib/core/theme/swip_tokens.dart) | **Paper.** Values repointed, names kept — 95 call sites untouched |
+| [`bubble_settings.dart`](../app/lib/features/bubble/bubble_settings.dart) | **New.** The overlay permission, explained then requested |
+| [`real_world_qr_test.dart`](../app/test/real_world_qr_test.dart) | **New.** 16 tests, every fixture a real counter |
+| [`ledger_seal_test.dart`](../app/test/ledger_seal_test.dart) | **New.** 6 tests, including the tamper-evident limit |
+| `tool/check_const.py` | **New.** Pre-push check for `const` blocks containing method calls |
+
+### Docs
+
+[29-QR-DETECTION-FORENSICS](29-QR-DETECTION-FORENSICS.md) ·
+[30-PRE-LAUNCH-PARAMETERS](30-PRE-LAUNCH-PARAMETERS.md) ·
+[31-IOS-AND-IPA](31-IOS-AND-IPA.md) ·
+[32-FLOATING-BUBBLE](32-FLOATING-BUBBLE.md)
+
+### Two mistakes of mine, caught
+
+1. A handle regex that matched anything containing a digit would have called
+   `john123@okaxis` a registered merchant. Removed before commit; there is a
+   test named after the trap.
+2. `const Icon(… .withValues(…))` — not a constant. Analyze caught it, I had
+   not. Hence `tool/check_const.py`.
+
+### Open
+
+The bubble's service and camera overlay (steps 2–6 of
+[32](32-FLOATING-BUBBLE.md)); the iOS workflow; the **`INTERNET` permission with
+no justification**; the black screen on intent capture; the 02:00 backup; the
+exhaustive MCC list; onboarding "Got it".
+
+---
+
 <!--
 Template for the next entry:
 
