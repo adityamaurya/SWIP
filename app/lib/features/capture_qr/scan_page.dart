@@ -11,7 +11,7 @@ import '../../core/settings/home_market.dart';
 import '../../core/theme/swip_tokens.dart';
 import '../../data/repositories/capture_repository.dart';
 import '../../data/sources/capture_resolver.dart';
-import '../../widgets/capture_sheet.dart';
+import '../../widgets/capture_result_page.dart';
 
 /// `S-02` — Scan a QR.
 ///
@@ -185,35 +185,33 @@ class _ScanPageState extends ConsumerState<ScanPage> {
     ref.read(ledgerRevisionProvider.notifier).state++;
 
     if (!mounted) return;
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: SwipColors.surfaceRaised,
-      builder: (_) => CaptureSheet(
-        event: event,
-        mcc: repo.lookup(event.mcc),
-        sourceLabel: resolved.sourceLabel,
-        rawPayload: raw,
-        verdict: home?.verdictFor(resolved.countryCode,
-            deviceCountry: event.placeCountry),
-        payeeKind: resolved.payeeKind,
-        tier: resolved.tier,
-        // `F-124`, `F-125`. The verdict and the routes travel with the capture.
-        rupay: resolved.rupay,
-        absence: resolved.absence,
-        details: {
-          // `F-42`. The payment company and the payee handle are listed as
-          // what they are, so neither can be mistaken for the shop's name.
-          if (resolved.acquirer != null) 'Payment company': resolved.acquirer!,
-          if (resolved.merchantHandle != null)
-            'Pays to': resolved.merchantHandle!,
-          if (resolved.merchantCity != null) 'City': resolved.merchantCity!,
-          if (resolved.countryCode != null) 'Country': resolved.countryCode!,
-          if (resolved.amount != null)
-            'Amount': '${resolved.currency ?? ''} ${resolved.amount}'.trim(),
-          if (resolved.terminalId != null) 'Terminal': resolved.terminalId!,
-        },
-      ),
+    // `F-144`. Full screen, not a sheet. The MCC is the product and a sheet
+    // renders it at 60 px over a live camera feed; this gives it the page.
+    await CaptureResultPage.open(
+      context,
+      event: event,
+      mcc: repo.lookup(event.mcc),
+      sourceLabel: resolved.sourceLabel,
+      rawPayload: raw,
+      verdict: home?.verdictFor(resolved.countryCode,
+          deviceCountry: event.placeCountry),
+      payeeKind: resolved.payeeKind,
+      tier: resolved.tier,
+      // `F-124`, `F-125`. The verdict and the routes travel with the capture.
+      rupay: resolved.rupay,
+      absence: resolved.absence,
+      details: {
+        // `F-42`. The payment company and the payee handle are listed as
+        // what they are, so neither can be mistaken for the shop's name.
+        if (resolved.acquirer != null) 'Payment company': resolved.acquirer!,
+        if (resolved.merchantHandle != null)
+          'Pays to': resolved.merchantHandle!,
+        if (resolved.merchantCity != null) 'City': resolved.merchantCity!,
+        if (resolved.countryCode != null) 'Country': resolved.countryCode!,
+        if (resolved.amount != null)
+          'Amount': '${resolved.currency ?? ''} ${resolved.amount}'.trim(),
+        if (resolved.terminalId != null) 'Terminal': resolved.terminalId!,
+      },
     );
 
     if (!mounted) return;

@@ -8,7 +8,7 @@ import '../../core/theme/swip_tokens.dart';
 import '../../data/models/capture_event.dart';
 import '../../data/repositories/capture_repository.dart';
 import '../../data/sources/capture_resolver.dart';
-import '../../widgets/capture_sheet.dart';
+import '../../widgets/capture_result_page.dart';
 
 /// `S-24` — share-to-SWIP. The answer to `F-41`.
 ///
@@ -197,35 +197,32 @@ class _ShareCaptureListenerState extends ConsumerState<ShareCaptureListener>
     if (!mounted) return;
 
     final home = ref.read(homeMarketProvider).valueOrNull;
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: SwipColors.surfaceRaised,
-      builder: (_) => CaptureSheet(
-        event: event,
-        mcc: repo.lookup(event.mcc),
-        sourceLabel: fromImage
-            ? 'Shared screenshot · ${resolved.sourceLabel}'
-            : 'Shared · ${resolved.sourceLabel}',
-        rawPayload: raw,
-        verdict: home?.verdictFor(resolved.countryCode,
-            deviceCountry: event.placeCountry),
-        payeeKind: resolved.payeeKind,
-        tier: resolved.tier,
-        rupay: resolved.rupay,
-        absence: resolved.absence,
-        details: {
-          if (resolved.acquirer != null) 'Payment company': resolved.acquirer!,
-          if (resolved.merchantHandle != null)
-            'Pays to': resolved.merchantHandle!,
-          if (resolved.merchantCity != null) 'City': resolved.merchantCity!,
-          if (resolved.countryCode != null) 'Country': resolved.countryCode!,
-          if (resolved.amount != null)
-            'Amount': '${resolved.currency ?? ''} ${resolved.amount}'.trim(),
-          'How it got here':
-              fromImage ? 'You shared a screenshot' : 'You shared this to SWIP',
-        },
-      ),
+    // `F-144`. Full screen, like every other live capture.
+    await CaptureResultPage.open(
+      context,
+      event: event,
+      mcc: repo.lookup(event.mcc),
+      sourceLabel: fromImage
+          ? 'Shared screenshot · ${resolved.sourceLabel}'
+          : 'Shared · ${resolved.sourceLabel}',
+      rawPayload: raw,
+      verdict: home?.verdictFor(resolved.countryCode,
+          deviceCountry: event.placeCountry),
+      payeeKind: resolved.payeeKind,
+      tier: resolved.tier,
+      rupay: resolved.rupay,
+      absence: resolved.absence,
+      details: {
+        if (resolved.acquirer != null) 'Payment company': resolved.acquirer!,
+        if (resolved.merchantHandle != null)
+          'Pays to': resolved.merchantHandle!,
+        if (resolved.merchantCity != null) 'City': resolved.merchantCity!,
+        if (resolved.countryCode != null) 'Country': resolved.countryCode!,
+        if (resolved.amount != null)
+          'Amount': '${resolved.currency ?? ''} ${resolved.amount}'.trim(),
+        'How it got here':
+            fromImage ? 'You shared a screenshot' : 'You shared this to SWIP',
+      },
     );
   }
 

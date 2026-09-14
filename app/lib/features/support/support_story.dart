@@ -149,11 +149,30 @@ class SupportStory extends StatelessWidget {
                       const _NotYet(),
 
                     const SizedBox(height: SwipSpace.lg),
+                    // `F-146`. **This sentence had to change the day a
+                    // paywall existed, and changing it is not a retreat.**
+                    //
+                    // It used to end "…and no part of SWIP is behind it",
+                    // which was true until the raw-payload unlock shipped and
+                    // would have been a lie the moment it did. The fix is not
+                    // to soften it — it is to say the precise thing, which is
+                    // that a *donation* unlocks nothing, and that the one paid
+                    // thing in the app is a separate purchase a donor is not
+                    // buying.
+                    //
+                    // Keeping the two apart matters beyond honesty: a
+                    // donation that confers a benefit stops being a donation
+                    // and becomes a supply, with the GST consequences set out
+                    // in docs/27-DONATIONS.md §2. The sentence is the product
+                    // boundary and the tax boundary at once.
                     Text(
-                      'A contribution buys nothing. No feature changes, '
-                      'nothing is unlocked, and no part of SWIP is behind it. '
-                      'SWIP shows you its own category code before it takes a '
-                      'rupee, the same way it does for every shop.',
+                      'A contribution buys nothing. No feature changes and '
+                      'nothing is unlocked by it — not even the one paid '
+                      'thing in SWIP, which is a separate purchase and is not '
+                      'this. Every category, every capture and every export '
+                      'is free, for everyone, forever. SWIP shows you its own '
+                      'category code before it takes a rupee, the same way it '
+                      'does for every shop.',
                       style: SwipType.bodyS
                           .copyWith(color: SwipColors.textTertiary),
                     ),

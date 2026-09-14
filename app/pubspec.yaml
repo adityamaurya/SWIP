@@ -36,6 +36,17 @@ dependencies:
   geolocator: ^13.0.1
   geocoding: ^3.0.0        # coarse fix -> "Bandra, IN", for the ledger to read
 
+  # `F-146` — the one paid surface: unlocking the raw payload view.
+  #
+  # Google Play billing, through Flutter's first-party plugin. Deliberately a
+  # ONE-TIME managed product, not a subscription: a subscription on an app with
+  # no server is a promise to keep running something that does not exist.
+  #
+  # The app degrades honestly when the store is unreachable or the product has
+  # not been created yet — see raw_data_purchase.dart. It never blocks a build
+  # or a launch, and nothing else in the app depends on it.
+  in_app_purchase: ^3.2.0
+
   # Presentation
   flutter_svg: ^2.0.10+1   # brand marks
   intl: ^0.19.0            # dates, currency

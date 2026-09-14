@@ -12,6 +12,41 @@ import '../data/sources/rupay_outlook.dart';
 import '../data/sources/payload_kind.dart';
 import 'mcc_badge.dart';
 
+/// `F-144` — how the capture result is presented.
+///
+/// ## Why this is a flag and not a second widget
+///
+/// The obvious way to build a full-screen result is to write a full-screen
+/// result. That would have meant two files carrying the same forty decisions
+/// about what to say when there is no category, when the payee is a person,
+/// when the terminal stopped halfway — and this file's own opening comment
+/// explains what that costs: *"One screen means one place to fix copy, one
+/// place to add a field, and no chance of the QR path and the tap path
+/// disagreeing about how a capture is described."*
+///
+/// That argument does not stop applying because the container changed. So the
+/// content stays here, in one place, and the layout is a parameter. The only
+/// things that actually differ are the size of the number and where the button
+/// lives, and both are three lines.
+enum CaptureLayout {
+  /// The modal bottom sheet. Still used by the ledger, where a capture is
+  /// being reviewed rather than just taken.
+  sheet,
+
+  /// `F-144`. The full-screen result, which is what every live capture now
+  /// opens into.
+  ///
+  /// > *"If I double-tap into the main screen, the pop-up will not come. It
+  /// > will come as a single full-screen where the MCC is on the full-page
+  /// > screen."*
+  ///
+  /// In this mode the sheet renders its content and **not** its furniture: no
+  /// primary button, no "saved to your ledger" line, no technical-details
+  /// link. [CaptureResultPage] owns those, because they have to be pinned to
+  /// the bottom of the viewport rather than to the end of the content.
+  fullScreen,
+}
+
 /// The one capture sheet. Every vector ends here — QR, POS tap, pay-by-app
 /// intent, link, manual.
 ///
@@ -43,6 +78,7 @@ class CaptureSheet extends StatelessWidget {
     this.tier = MerchantTier.unknown,
     this.rupay,
     this.absence,
+    this.layout = CaptureLayout.sheet,
   });
 
   final CaptureEvent event;
@@ -87,6 +123,11 @@ class CaptureSheet extends StatelessWidget {
   /// `F-125`. When there is no category: why, and what would find one.
   final MccAbsence? absence;
 
+  /// `F-144`. Sheet or full screen. See [CaptureLayout].
+  final CaptureLayout layout;
+
+  bool get _full => layout == CaptureLayout.fullScreen;
+
   @override
   Widget build(BuildContext context) {
     final known = event.hasMcc;
@@ -102,9 +143,14 @@ class CaptureSheet extends StatelessWidget {
     final isRegisteredMerchant = payeeKind == PayeeKind.registeredMerchant;
 
     return SafeArea(
+      // `F-144`. Full screen skips the bottom padding: the page puts a
+      // technical-details panel and a pinned button below this, and a gap
+      // baked into the content would push them apart by a random amount.
+      top: !_full,
+      bottom: !_full,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-            SwipSpace.xl, SwipSpace.md, SwipSpace.xl, SwipSpace.xl),
+        padding: EdgeInsets.fromLTRB(
+            SwipSpace.xl, SwipSpace.md, SwipSpace.xl, _full ? 0 : SwipSpace.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -135,17 +181,34 @@ class CaptureSheet extends StatelessWidget {
 
             if (known) ...[
               // 1 ── the code
-              _FoilCode(event.mcc!),
-              const SizedBox(height: SwipSpace.xs),
+              //
+              // `F-144`. On a full screen this is the only thing above the
+              // fold, so it is centred and very large. `docs/33` §1.1 is the
+              // argument: every reference screen has exactly one near-black,
+              // heavy object on a paper ground, and here that object is
+              // four digits. It needs no colour to dominate — it needs size
+              // and an empty page, which is what a full screen buys that a
+              // sheet never could.
+              if (_full)
+                Center(child: _FoilCode(event.mcc!, big: true))
+              else
+                _FoilCode(event.mcc!),
+              SizedBox(height: _full ? SwipSpace.md : SwipSpace.xs),
 
               // 2 ── what it means
-              Text(
-                mcc?.displayName ?? 'Not in the offline table yet',
-                style: SwipType.bodyL.copyWith(color: SwipColors.textPrimary),
-              )
-                  .animate()
-                  .fadeIn(delay: 240.ms, duration: 320.ms)
-                  .moveY(begin: 10, curve: SwipMotion.captureCurve),
+              SizedBox(
+                width: double.infinity,
+                child: Text(
+                  mcc?.displayName ?? 'Not in the offline table yet',
+                  textAlign: _full ? TextAlign.center : TextAlign.start,
+                  style: (_full ? SwipType.titleM : SwipType.bodyL)
+                      .copyWith(color: SwipColors.textPrimary),
+                )
+                    .animate()
+                    .fadeIn(delay: 240.ms, duration: 320.ms)
+                    .moveY(begin: 10, curve: SwipMotion.captureCurve),
+              ),
+              if (_full) const SizedBox(height: SwipSpace.xl),
             ] else ...[
               // No category. `F-64` — say what this is in a headline you can
               // read at a glance, and ONE short line under it.
@@ -157,16 +220,44 @@ class CaptureSheet extends StatelessWidget {
               //
               // Precedence: what the vector knows > what the handle proves >
               // what the payload sniff guessed.
-              Text(
-                noCategoryTitle ?? _emptyTitle(explanation, isRegisteredMerchant),
-                style: SwipType.titleM.copyWith(color: SwipColors.textPrimary),
+              // `F-144`. The no-category headline takes the hero slot on a
+              // full screen, at the same weight the digits would have had.
+              // A result screen whose top half is blank because the answer
+              // was "no" reads as a failure of the app rather than a fact
+              // about the shop, and this app's whole position is that the
+              // absence IS the finding.
+              if (_full) ...[
+                Center(
+                  child: Icon(
+                    Icons.help_outline_rounded,
+                    size: 44,
+                    color: SwipColors.textTertiary.withValues(alpha: .5),
+                  ),
+                ),
+                const SizedBox(height: SwipSpace.lg),
+              ],
+              SizedBox(
+                width: double.infinity,
+                child: Text(
+                  noCategoryTitle ??
+                      _emptyTitle(explanation, isRegisteredMerchant),
+                  textAlign: _full ? TextAlign.center : TextAlign.start,
+                  style: (_full ? SwipType.titleL : SwipType.titleM)
+                      .copyWith(color: SwipColors.textPrimary),
+                ),
               ),
               const SizedBox(height: SwipSpace.xs),
-              Text(
-                noCategoryBody ?? _emptyBody(explanation, isRegisteredMerchant),
-                style: SwipType.bodyM
-                    .copyWith(color: SwipColors.textSecondary),
+              SizedBox(
+                width: double.infinity,
+                child: Text(
+                  noCategoryBody ??
+                      _emptyBody(explanation, isRegisteredMerchant),
+                  textAlign: _full ? TextAlign.center : TextAlign.start,
+                  style:
+                      SwipType.bodyM.copyWith(color: SwipColors.textSecondary),
+                ),
               ),
+              if (_full) const SizedBox(height: SwipSpace.lg),
             ],
 
             // `F-47` — the line CRED shows, with the reason attached.
@@ -289,7 +380,11 @@ class CaptureSheet extends StatelessWidget {
             ],
 
             // 4 ── everything else, under a rule, with the source's own labels
-            if (details.isNotEmpty) ...[
+            //
+            // `F-144`. On a full screen this whole block is lifted out and
+            // put inside the collapsed panel above the button, because it is
+            // the part the owner asked to be "at the very bottom, collapsed".
+            if (!_full && details.isNotEmpty) ...[
               const SizedBox(height: SwipSpace.lg),
               const Divider(height: 1),
               const SizedBox(height: SwipSpace.md),
@@ -315,40 +410,47 @@ class CaptureSheet extends StatelessWidget {
                 ),
             ],
 
-            const SizedBox(height: SwipSpace.xl),
+            // `F-144`. Everything below this point is **furniture**, and on a
+            // full screen the furniture is owned by [CaptureResultPage] so it
+            // can be pinned to the bottom of the viewport rather than left
+            // floating at the end of however much content this capture
+            // happened to produce.
+            if (!_full) ...[
+              const SizedBox(height: SwipSpace.xl),
 
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed:
-                    onPrimary ?? () => Navigator.of(context).maybePop(),
-                child: Text(primaryLabel),
-              ),
-            ),
-
-            // F-18 — the quiet confirmation under the button.
-            const SizedBox(height: SwipSpace.sm),
-            Center(
-              child: Text(
-                known
-                    ? 'Saved to your ledger'
-                    : 'Saved to your ledger as uncategorised',
-                style:
-                    SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
-              ),
-            ),
-
-            // F-23 — technical detail, available but never in the way.
-            if (rawPayload != null) ...[
-              const SizedBox(height: SwipSpace.xs),
-              Center(
-                child: TextButton(
-                  onPressed: () => _showRaw(context, rawPayload!),
-                  child: Text('View technical details',
-                      style: SwipType.bodyS
-                          .copyWith(color: SwipColors.textSecondary)),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed:
+                      onPrimary ?? () => Navigator.of(context).maybePop(),
+                  child: Text(primaryLabel),
                 ),
               ),
+
+              // F-18 — the quiet confirmation under the button.
+              const SizedBox(height: SwipSpace.sm),
+              Center(
+                child: Text(
+                  known
+                      ? 'Saved to your ledger'
+                      : 'Saved to your ledger as uncategorised',
+                  style:
+                      SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
+                ),
+              ),
+
+              // F-23 — technical detail, available but never in the way.
+              if (rawPayload != null) ...[
+                const SizedBox(height: SwipSpace.xs),
+                Center(
+                  child: TextButton(
+                    onPressed: () => _showRaw(context, rawPayload!),
+                    child: Text('View technical details',
+                        style: SwipType.bodyS
+                            .copyWith(color: SwipColors.textSecondary)),
+                  ),
+                ),
+              ],
             ],
           ],
         ),
@@ -428,14 +530,13 @@ class CaptureSheet extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Exactly what was read',
-                  style: SwipType.titleS
-                      .copyWith(color: SwipColors.textPrimary)),
+                  style:
+                      SwipType.titleS.copyWith(color: SwipColors.textPrimary)),
               const SizedBox(height: SwipSpace.sm),
               Text(
                 'This is the untouched payload. SWIP shows its working so you '
                 'never have to take a category on trust.',
-                style: SwipType.bodyS
-                    .copyWith(color: SwipColors.textSecondary),
+                style: SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
               ),
               const SizedBox(height: SwipSpace.lg),
               Container(
@@ -447,8 +548,9 @@ class CaptureSheet extends StatelessWidget {
                   borderRadius: SwipRadius.inputAll,
                 ),
                 child: SingleChildScrollView(
-                  child: SelectableText(raw, style: SwipType.mono
-                      .copyWith(color: SwipColors.textSecondary)),
+                  child: SelectableText(raw,
+                      style: SwipType.mono
+                          .copyWith(color: SwipColors.textSecondary)),
                 ),
               ),
               const SizedBox(height: SwipSpace.lg),
@@ -473,13 +575,28 @@ class CaptureSheet extends StatelessWidget {
 
 /// The four digits, gold, landing one by one under a single foil sweep.
 class _FoilCode extends StatelessWidget {
-  const _FoilCode(this.code);
+  const _FoilCode(this.code, {this.big = false});
   final String code;
+
+  /// `F-144`. The full-screen hero size.
+  ///
+  /// 60 px is right in a sheet, where the number shares the top of the screen
+  /// with a source badge and a merchant line. On a full screen it is the only
+  /// thing above the fold and 60 px reads as timid — the page looks like a
+  /// sheet that forgot to stop. 84 px is as large as four tabular digits go
+  /// inside a 320 dp gutter without the `FittedBox` below ever engaging.
+  final bool big;
 
   @override
   Widget build(BuildContext context) {
     final digits = code.split('');
-    return ShaderMask(
+    final size = big ? 84.0 : 60.0;
+    // `F-133`, again, one size up. The digits are laid out per-glyph so each
+    // can animate separately, which means the Row can exceed the gutter at a
+    // large text scale. Scaling down is the only failure mode that keeps all
+    // four digits on screen, and a cropped MCC is the one thing this widget
+    // must never do.
+    final number = ShaderMask(
       // One shader across the whole run — per-glyph gradients shatter the foil.
       shaderCallback: (b) => SwipGradients.foil.createShader(b),
       blendMode: BlendMode.srcIn,
@@ -489,7 +606,7 @@ class _FoilCode extends StatelessWidget {
           for (var i = 0; i < digits.length; i++)
             Text(digits[i],
                     style: SwipType.mcc.copyWith(
-                        fontSize: 60,
+                        fontSize: size,
                         height: 64 / 60,
                         color: SwipColors.gold500))
                 .animate()
@@ -522,6 +639,8 @@ class _FoilCode extends StatelessWidget {
           duration: SwipMotion.foilSweep,
           color: SwipColors.gold100,
         );
+
+    return FittedBox(fit: BoxFit.scaleDown, child: number);
   }
 }
 
@@ -537,8 +656,8 @@ class _Badge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(
-            horizontal: SwipSpace.sm, vertical: 3),
+        padding:
+            const EdgeInsets.symmetric(horizontal: SwipSpace.sm, vertical: 3),
         decoration: BoxDecoration(
           color: accent ? SwipColors.warningFill : null,
           borderRadius: SwipRadius.chipAll,
@@ -620,13 +739,11 @@ class _DetectionLine extends StatelessWidget {
             text: TextSpan(children: [
               TextSpan(
                 text: hasMcc ? what : what.replaceFirst('Read', 'Looked'),
-                style:
-                    SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
+                style: SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
               ),
               TextSpan(
                 text: '  ·  $how',
-                style:
-                    SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
+                style: SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
               ),
             ]),
           ),
@@ -646,7 +763,8 @@ class _Note extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = good ? SwipConfidenceColors.verifiedOnInk : SwipColors.warningOnInk;
+    final fg =
+        good ? SwipConfidenceColors.verifiedOnInk : SwipColors.warningOnInk;
     return Container(
       padding: const EdgeInsets.all(SwipSpace.md),
       decoration: BoxDecoration(
@@ -695,7 +813,9 @@ class _WhyMissing extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              absence.fixable ? 'WHY IT IS NOT HERE' : 'THERE IS NOTHING TO FIND',
+              absence.fixable
+                  ? 'WHY IT IS NOT HERE'
+                  : 'THERE IS NOTHING TO FIND',
               style: SwipType.labelS.copyWith(color: SwipColors.textTertiary),
             ),
             const SizedBox(height: SwipSpace.sm),
@@ -706,8 +826,7 @@ class _WhyMissing extends StatelessWidget {
             if (absence.routes.isNotEmpty) ...[
               const SizedBox(height: SwipSpace.lg),
               Text('HOW TO GET IT',
-                  style:
-                      SwipType.labelS.copyWith(color: SwipColors.gold300)),
+                  style: SwipType.labelS.copyWith(color: SwipColors.gold300)),
               const SizedBox(height: SwipSpace.sm),
               for (final r in absence.routes) ...[
                 Padding(
@@ -726,12 +845,12 @@ class _WhyMissing extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(r.title,
-                                style: SwipType.label.copyWith(
-                                    color: SwipColors.textPrimary)),
+                                style: SwipType.label
+                                    .copyWith(color: SwipColors.textPrimary)),
                             const SizedBox(height: 2),
                             Text(r.detail,
-                                style: SwipType.bodyS.copyWith(
-                                    color: SwipColors.textTertiary)),
+                                style: SwipType.bodyS
+                                    .copyWith(color: SwipColors.textTertiary)),
                           ],
                         ),
                       ),
@@ -742,8 +861,7 @@ class _WhyMissing extends StatelessWidget {
               Text(
                 'Whichever one you use, SWIP files it against this shop - so '
                 'every past and future scan of the same code fills in too.',
-                style:
-                    SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
+                style: SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
               ),
             ],
           ],

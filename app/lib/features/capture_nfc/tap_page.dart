@@ -10,7 +10,7 @@ import '../../core/theme/swip_tokens.dart';
 import '../../data/models/capture_event.dart';
 import '../../data/repositories/capture_repository.dart';
 import '../../data/sources/terminal_health.dart';
-import '../../widgets/capture_sheet.dart';
+import '../../widgets/capture_result_page.dart';
 
 /// `S-03` — Tap a POS terminal. Vector 2, `F-08`.
 ///
@@ -215,75 +215,67 @@ class _TapPageState extends ConsumerState<TapPage> with WidgetsBindingObserver {
       ref.read(ledgerRevisionProvider.notifier).state++;
       if (!mounted) return;
 
-      await showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: SwipColors.surfaceRaised,
-        builder: (_) => CaptureSheet(
-          event: event,
-          mcc: repo.lookup(event.mcc),
-          sourceLabel: 'POS terminal',
-          rawPayload: trace,
+      // `F-144`. > "The same goes for the POS tab. Once the POS tab is
+      // detected, it should show in a full-screen format."
+      await CaptureResultPage.open(
+        context,
+        event: event,
+        mcc: repo.lookup(event.mcc),
+        sourceLabel: 'POS terminal',
+        rawPayload: trace,
 
-          // `F-138`. **Three different silences, three different sentences.**
-          //
-          // The old copy said one thing for all of them - "the shop's bank did
-          // not fill it in" - which is unfalsifiable and reads as a shrug. The
-          // export proved at least two distinct causes, and a terminal running
-          // on demo values is a checkable fact the cashier can act on.
-          // `F-138` + `F-143`. **Four different silences, four different
-          // sentences**, and they are answered in the right order.
-          //
-          // The exchange-level outcome comes first, because if the terminal
-          // never finished talking to SWIP then nothing can be said about its
-          // identity fields — they were never sent. Reading the old
-          // terminal-health copy in that case would have accused a perfectly
-          // good machine of being unprovisioned on the strength of data that
-          // never arrived.
-          //
-          // Only once the exchange completed does the identity of the machine
-          // become the interesting question, and that is `F-138`'s table.
-          noCategoryTitle: outcome != TapOutcome.read
-              ? outcome.title
-              : switch (health.health) {
-                  TerminalHealth.placeholder =>
-                    'This terminal is not set up yet',
-                  TerminalHealth.silent =>
-                    'This terminal did not identify itself',
-                  TerminalHealth.provisioned =>
-                    'The terminal did not give a category',
-                },
-          noCategoryBody: outcome != TapOutcome.read
-              ? outcome.body
-              : (health.note ?? TapOutcome.read.body),
-          // The terminal's own field names, exactly as EMV labels them. This
-          // audience does not trust a number it cannot check.
-          details: {
-            if (tlv['9F16'] != null) 'Merchant ID · 9F16': tlv['9F16']!,
-            // The decoded text, where the hex turned out to be text at all.
-            // "112233445566778" explains itself; the hex does not.
-            if (health.merchantIdAscii != null)
-              'Merchant ID, as text': health.merchantIdAscii!,
-            if (health.terminalIdAscii != null)
-              'Terminal, as text': health.terminalIdAscii!,
-            if (tlv['9F1C'] != null) 'Terminal · 9F1C': tlv['9F1C']!,
-            if (tlv['9F1A'] != null)
-              'Country · 9F1A': '${tlv['9F1A']}${country == null ? '' : ' · $country'}',
-            if (tlv['5F2A'] != null) 'Currency · 5F2A': tlv['5F2A']!,
-            if (tlv['9F02'] != null) 'Amount · 9F02': tlv['9F02']!,
-            if (tlv['9F35'] != null) 'Terminal type · 9F35': tlv['9F35']!,
-            // `F-143`. What the exchange actually did, in the technical
-            // block, so the headline stays plain English and the evidence is
-            // still one tap away.
-            'Exchange': switch (outcome) {
-              TapOutcome.read => 'Completed · PDOL answered',
-              TapOutcome.noGpo => 'Selected, then ended before GPO',
-              TapOutcome.noSelect => 'No SELECT reached SWIP',
-            },
-            if (outcome == TapOutcome.read)
-              'Result': 'Declined by SWIP · SW=6985',
+        // `F-138` + `F-143`. **Four different silences, four different
+        // sentences**, and they are answered in the right order.
+        //
+        // The exchange-level outcome comes first, because if the terminal
+        // never finished talking to SWIP then nothing can be said about its
+        // identity fields — they were never sent. Reading the old
+        // terminal-health copy in that case would have accused a perfectly
+        // good machine of being unprovisioned on the strength of data that
+        // never arrived.
+        //
+        // Only once the exchange completed does the identity of the machine
+        // become the interesting question, and that is `F-138`'s table.
+        noCategoryTitle: outcome != TapOutcome.read
+            ? outcome.title
+            : switch (health.health) {
+                TerminalHealth.placeholder =>
+                  'This terminal is not set up yet',
+                TerminalHealth.silent =>
+                  'This terminal did not identify itself',
+                TerminalHealth.provisioned =>
+                  'The terminal did not give a category',
+              },
+        noCategoryBody: outcome != TapOutcome.read
+            ? outcome.body
+            : (health.note ?? TapOutcome.read.body),
+        // The terminal's own field names, exactly as EMV labels them. This
+        // audience does not trust a number it cannot check.
+        details: {
+          if (tlv['9F16'] != null) 'Merchant ID · 9F16': tlv['9F16']!,
+          // The decoded text, where the hex turned out to be text at all.
+          // "112233445566778" explains itself; the hex does not.
+          if (health.merchantIdAscii != null)
+            'Merchant ID, as text': health.merchantIdAscii!,
+          if (health.terminalIdAscii != null)
+            'Terminal, as text': health.terminalIdAscii!,
+          if (tlv['9F1C'] != null) 'Terminal · 9F1C': tlv['9F1C']!,
+          if (tlv['9F1A'] != null)
+            'Country · 9F1A': '${tlv['9F1A']}${country == null ? '' : ' · $country'}',
+          if (tlv['5F2A'] != null) 'Currency · 5F2A': tlv['5F2A']!,
+          if (tlv['9F02'] != null) 'Amount · 9F02': tlv['9F02']!,
+          if (tlv['9F35'] != null) 'Terminal type · 9F35': tlv['9F35']!,
+          // `F-143`. What the exchange actually did, in the technical
+          // block, so the headline stays plain English and the evidence is
+          // still one tap away.
+          'Exchange': switch (outcome) {
+            TapOutcome.read => 'Completed · PDOL answered',
+            TapOutcome.noGpo => 'Selected, then ended before GPO',
+            TapOutcome.noSelect => 'No SELECT reached SWIP',
           },
-        ),
+          if (outcome == TapOutcome.read)
+            'Result': 'Declined by SWIP · SW=6985',
+        },
       );
     } finally {
       if (mounted) setState(() => _handling = false);

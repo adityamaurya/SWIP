@@ -3,11 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/settings/home_market.dart';
-import '../../core/theme/swip_tokens.dart';
 import '../../data/models/capture_event.dart';
 import '../../data/repositories/capture_repository.dart';
 import '../../data/sources/capture_resolver.dart';
-import '../../widgets/capture_sheet.dart';
+import '../../widgets/capture_result_page.dart';
 
 /// Vector 7 — the pay-by-app intent.
 ///
@@ -118,44 +117,48 @@ class _IntentCaptureListenerState extends ConsumerState<IntentCaptureListener>
       ref.read(ledgerRevisionProvider.notifier).state++;
 
       if (!mounted) return;
-      await showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        isDismissible: false,
-        enableDrag: false,
-        backgroundColor: SwipColors.surfaceRaised,
-        builder: (ctx) => CaptureSheet(
-          event: event,
-          mcc: repo.lookup(event.mcc),
-          sourceLabel: 'Pay-by-app · ${resolved.sourceLabel}',
-          rawPayload: uri,
-          verdict: home?.verdictFor(resolved.countryCode,
-              deviceCountry: event.placeCountry),
-          payeeKind: resolved.payeeKind,
-          tier: resolved.tier,
-          rupay: resolved.rupay,
-          absence: resolved.absence,
-          // Without this, the payload sniffer would call a Swiggy or PVR
-          // checkout "a personal UPI code, not a shop" — it is plainly a shop,
-          // it just did not put a category in the intent.
-          noCategoryTitle: 'This checkout did not send a category',
-          noCategoryBody:
-              'The app you are paying from left the category field out of the '
-              'handover. SWIP has recorded the merchant, so scanning their QR '
-              'or tapping their terminal once will fill this in everywhere.',
-          primaryLabel: 'Continue to pay',
-          onPrimary: () async {
-            Navigator.of(ctx).pop();
-            await IntentCapture.forward(uri);
-          },
-          details: {
-            if (resolved.amount != null)
-              'Amount': '${resolved.currency ?? ''} ${resolved.amount}'.trim(),
-            if (resolved.merchantKey != null)
-              'Merchant key': resolved.merchantKey!,
-            'SWIP\'s part': 'Read the category only - no payment is made here',
-          },
-        ),
+      // `F-144`. Full screen, and deliberately **not** dismissible.
+      //
+      // This is the one capture that is not the end of anything: the user is
+      // mid-payment in another app and SWIP has stepped in front of the
+      // handover. A × here would drop them out of a checkout they started,
+      // with the payment neither made nor cancelled, so the only ways off this
+      // screen are the button and the system back button being refused.
+      await CaptureResultPage.open(
+        context,
+        dismissible: false,
+        event: event,
+        mcc: repo.lookup(event.mcc),
+        sourceLabel: 'Pay-by-app · ${resolved.sourceLabel}',
+        rawPayload: uri,
+        verdict: home?.verdictFor(resolved.countryCode,
+            deviceCountry: event.placeCountry),
+        payeeKind: resolved.payeeKind,
+        tier: resolved.tier,
+        rupay: resolved.rupay,
+        absence: resolved.absence,
+        // Without this, the payload sniffer would call a Swiggy or PVR
+        // checkout "a personal UPI code, not a shop" — it is plainly a shop,
+        // it just did not put a category in the intent.
+        noCategoryTitle: 'This checkout did not send a category',
+        noCategoryBody:
+            'The app you are paying from left the category field out of the '
+            'handover. SWIP has recorded the merchant, so scanning their QR '
+            'or tapping their terminal once will fill this in everywhere.',
+        // `F-145`. Not "Capture another": the whole point of this screen is
+        // that a payment is waiting behind it.
+        primaryLabel: 'Continue to pay',
+        onCaptureAnother: () async {
+          Navigator.of(context).pop();
+          await IntentCapture.forward(uri);
+        },
+        details: {
+          if (resolved.amount != null)
+            'Amount': '${resolved.currency ?? ''} ${resolved.amount}'.trim(),
+          if (resolved.merchantKey != null)
+            'Merchant key': resolved.merchantKey!,
+          'SWIP\'s part': 'Read the category only - no payment is made here',
+        },
       );
     } finally {
       _handling = false;
