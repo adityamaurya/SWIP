@@ -909,6 +909,89 @@ which did not arrive.
 
 ---
 
+## Prompt 34 — 5 Sep 2026 · The silent POS, the full screen, and the black box
+
+### Screens changed
+
+| ID | Screen | Change | Serves |
+|---|---|---|---|
+| `S-05` | Capture result | **A full screen, not a bottom sheet.** MCC at 84 px, centred, on white | `F-144` |
+| `S-05` | Capture result | Bottom-stuck CTA: "Capture another" on a hit, "Try another" on a miss | `F-145` |
+| `S-05` | Capture result | Technical detail collapsed **above** the button, capped at 40 % of the viewport | `F-145` |
+| `S-05` | Capture result | The raw payload behind a ₹5,000 one-time unlock | `F-146` |
+| `S-03` | Tap POS | A tap that ends early now says which way it ended, instead of nothing | `F-143` |
+| `S-01` | Dashboard | The red `ErrorWidget` panel on pull-to-reveal is gone | `F-141` |
+| `S-01` | Dashboard | The at-rest camera overlay no longer overflows the band by 62 px | `F-142` |
+| `S-12` | Settings | Two exports — encrypted backup, and a plain readable list | `F-147`, `F-149` |
+| `S-12` | Settings | "Your recovery phrase", reachable before anything goes wrong | `F-148` |
+| — | Recovery phrase | **New.** Twelve words, no Continue until they are dealt with | `F-148` |
+
+### Element changes
+
+| Where | Before | After | Why |
+|---|---|---|---|
+| `apduservice.xml` | Six card AIDs | **PPSE first**, then six card AIDs | Every terminal opens with `SELECT 2PAY.SYS.DDF01`. Android routes by AID, so the first command of every tap went unanswered |
+| `SwipListenService` | Broadcast only on a successful GPO | Broadcasts every ending, with a reason | Silence is indistinguishable from a broken app |
+| `tlv()` | `require(size < 0x80)` | Long-form length above 127 | The PPSE directory is 107 bytes; one more AID would have killed the service mid-tap |
+| `PullController` | Wrote to a notifier from a scroll notification | Defers to a post-frame callback mid-frame | "Build scheduled during frame" is the red string |
+| `_FoilCode` | 60 px, fixed | 84 px on a full screen, inside a `FittedBox` | The number is the product, and it must never crop |
+| Foil shimmer | Repeats forever | Four sweeps | Fine in a sheet dismissed in seconds; a strobe on a page people read |
+| Hint chevron | Bounces forever | Six breaths, restarting when you return | A thing twitching while you read is a fault, not an invitation |
+| Reveal panel | `easeOutCubic`, 340 ms both ways | `easeOutBack` 420 ms out, 260 ms back | A panel released under tension overshoots. Opening is the payoff; closing is dismissal |
+| Backup file | Plain JSON | AES-256-GCM, chain-sealed | A plain ledger of every shop, amount and location, synced to a cloud, is the most sensitive thing this app makes |
+| `record()` | Backfilled the MCC from the graph | Backfills the name, city and country too | One shop was appearing under two identities |
+| Donation copy | "no part of SWIP is behind it" | "nothing is unlocked by it — not even the one paid thing" | Would have become a lie the day the paywall shipped |
+
+### Code
+
+| File | Change |
+|---|---|
+| [`apduservice.xml`](../app/android/app/src/main/res/xml/apduservice.xml) | `F-140` — **the PPSE AID.** The root cause of every tap that did nothing at all |
+| [`SwipListenService.kt`](../app/android/app/src/main/kotlin/in/swip/app/SwipListenService.kt) | `F-143` every ending broadcasts; `F-140` long-form TLV length |
+| [`terminal_health.dart`](../app/lib/data/sources/terminal_health.dart) | `F-143` — `TapOutcome`: read, noGpo, noSelect, each with its own sentence |
+| [`capture_result_page.dart`](../app/lib/widgets/capture_result_page.dart) | **New.** `F-144`, `F-145` — the full screen, the pinned CTA, the collapsed panel |
+| [`capture_sheet.dart`](../app/lib/widgets/capture_sheet.dart) | `F-144` — `CaptureLayout`, so one copy of the content serves both containers |
+| [`raw_data_entitlement.dart`](../app/lib/features/paywall/raw_data_entitlement.dart) | **New.** `F-146` — the ₹5,000 unlock, and what is *not* behind it |
+| [`raw_data_purchase.dart`](../app/lib/features/paywall/raw_data_purchase.dart) | **New.** `F-146` — Play Billing, degrading honestly at every step |
+| [`raw_data_lock.dart`](../app/lib/widgets/raw_data_lock.dart) | **New.** `F-146` — shape, not a blur. Locked means not in the tree |
+| [`black_box.dart`](../app/lib/data/sources/black_box.dart) | **New.** `F-147` — the encrypted envelope, and why CoWIN is not a blockchain |
+| [`recovery_phrase.dart`](../app/lib/features/backup/recovery_phrase.dart) | **New.** `F-148` — why the key cannot live on the device |
+| [`recovery_phrase_page.dart`](../app/lib/features/backup/recovery_phrase_page.dart) | **New.** `F-148` — the one screen where a disabled button is right |
+| [`ledger_lines.dart`](../app/lib/data/sources/ledger_lines.dart) | **New.** `F-149` — date, MCC, merchant **as captured**, amount |
+| [`capture_repository.dart`](../app/lib/data/repositories/capture_repository.dart) | `F-150` — the graph knew the name and was never asked |
+| [`swip_database.dart`](../app/lib/data/sources/swip_database.dart) | `F-150` — `close()`, so tests can have a clean database |
+| [`pull_to_reveal.dart`](../app/lib/widgets/pull_to_reveal.dart) | `F-141` the red string; `F-151` the motion |
+| [`live_viewfinder.dart`](../app/lib/widgets/live_viewfinder.dart) | `F-142` — the at-rest overlay drops its explanation when the box is short |
+| 4 new test files | `black_box_test` (2,240 fuzzed inputs), `ledger_lines_test`, `capture_result_page_test`, `merchant_backfill_test` (the first tests in this project that open a database) |
+
+### Docs
+
+[34-ROUND-34-CHECKLIST](34-ROUND-34-CHECKLIST.md) — the checklist you asked for
+first: every item done and every item held back across prompts 32–34, the PPSE
+forensics, what CoWIN actually did, how CRED really gets a merchant name, and
+what was verified how.
+
+### Four of my own claims corrected
+
+1. **CoWIN is not blockchain-based.** DIVOC issues W3C Verifiable Credentials
+   signed as JWTs. No chain, no consensus.
+2. **CRED does not read the name off the QR** at a sticker that carries none —
+   they resolve the VPA against a PSP merchant directory.
+3. The paywall leak test asserted on the payee handle, which is **not** what
+   the wall is around. It proved nothing until it was fixed.
+4. `expect(() => asyncFn(), returnsNormally)` checks nothing useful, and the
+   failure it hides surfaces from a test that already reported passing.
+
+### Open
+
+The PDF (re-attach it); the display serif; the bubble's service and overlay;
+the iOS workflow; `INTERNET`; the black screen on intent capture; the 02:00
+auto-backup; the exhaustive MCC list; and the Play Console product that would
+put the ₹5,000 unlock on sale. All with reasons in
+[34 §3.2](34-ROUND-34-CHECKLIST.md).
+
+---
+
 <!--
 Template for the next entry:
 

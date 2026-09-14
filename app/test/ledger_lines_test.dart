@@ -209,15 +209,19 @@ void main() {
       ),
     ];
 
-    test('has the four columns asked for, in that order', () {
+    test('has the four columns asked for, date first', () {
+      // The prompt enumerates MCC, merchant, amount, date — and then says
+      // "so you can maybe keep the date on the first column". The later
+      // sentence wins, and it is also right: the list is sorted by date, and a
+      // sort key at the far right means the eye crosses three columns to check
+      // the order is what it claims.
       final text = LedgerLines.render(events, now: DateTime.utc(2026, 9, 14));
-      final header = text
-          .split('\n')
-          .firstWhere((l) => l.startsWith('MCC'));
+      final header =
+          text.split('\n').firstWhere((l) => l.startsWith('DATE'));
 
+      expect(header.indexOf('DATE'), lessThan(header.indexOf('MCC')));
       expect(header.indexOf('MCC'), lessThan(header.indexOf('MERCHANT')));
       expect(header.indexOf('MERCHANT'), lessThan(header.indexOf('AMOUNT')));
-      expect(header.indexOf('AMOUNT'), lessThan(header.indexOf('DATE')));
     });
 
     test('amounts align on the decimal point', () {
@@ -232,10 +236,10 @@ void main() {
     test('a missing category is an em dash, never a hyphen', () {
       // A hyphen in a column next to money reads as a negative number.
       final text = LedgerLines.render(events, now: DateTime.utc(2026, 9, 14));
-      final row = text
-          .split('\n')
-          .firstWhere((l) => l.contains('Paytm'));
-      expect(row.trimLeft(), startsWith('—'));
+      final row = text.split('\n').firstWhere((l) => l.contains('Paytm'));
+      // Date is now column one, so the em dash is the MCC cell after it.
+      expect(row, contains('—'));
+      expect(row, isNot(contains(' - ')));
     });
 
     test('the rows are newest first in the text, not just in the model', () {
@@ -255,7 +259,7 @@ void main() {
       // mistrust both, unless it is said first.
       final text = LedgerLines.render(events, now: DateTime.utc(2026, 9, 14));
       expect(text, contains('verbatim'));
-      expect(text.indexOf('verbatim'), lessThan(text.indexOf('MCC  ')));
+      expect(text.indexOf('verbatim'), lessThan(text.indexOf('DATE ')));
     });
 
     test('the count and the with-category count are both stated', () {

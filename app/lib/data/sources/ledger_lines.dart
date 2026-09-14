@@ -2,7 +2,15 @@
 ///
 /// > *"Also, include a very simple line… in a rich text file format, with the
 /// > date in descending order… 1. MCC 2. the name of the merchant, exactly
-/// > captured 3. [amount] if captured, and fourth would be the date."*
+/// > captured 3. […] the amount if captured, and fourth would be the date on
+/// > which it was swiped, **so you can maybe keep the date on the first
+/// > column**."*
+///
+/// The enumeration says date fourth and the sentence after it says date first.
+/// The sentence wins — it is the later thought, and it is also right: the list
+/// is **sorted** by date, and a column you are sorting on that sits at the far
+/// right means the eye has to cross three columns to check the order is what
+/// it claims. Date, then MCC, then merchant, then amount.
 ///
 /// ## Why this exists next to the black box
 ///
@@ -187,14 +195,14 @@ abstract final class LedgerLines {
     final rows = [
       for (final l in lines)
         [
+          _dateTime(l.date),
           l.mcc ?? _none,
           _merchantCell(l),
           l.amount ?? _none,
-          _dateTime(l.date),
         ],
     ];
 
-    const headers = ['MCC', 'MERCHANT (AS CAPTURED)', 'AMOUNT', 'DATE'];
+    const headers = ['DATE', 'MCC', 'MERCHANT (AS CAPTURED)', 'AMOUNT'];
     final widths = [
       for (var c = 0; c < headers.length; c++)
         [headers[c].length, ...rows.map((r) => r[c].length)]
@@ -207,7 +215,7 @@ abstract final class LedgerLines {
             // other; everything else is left-aligned. A column of money that
             // does not align on the decimal point is unreadable, and this file
             // exists to be read beside a statement.
-            c == 2
+            c == 3
                 ? cells[c].padLeft(widths[c])
                 : cells[c].padRight(widths[c]),
         ].join('  ').trimRight();

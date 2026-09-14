@@ -3,6 +3,8 @@
 // read-only half of the pair is not on that list - so the type used in the
 // public API here has to be imported directly. Discovered the only way it can
 // be: the build failed on the one line that names it.
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -66,15 +68,68 @@ class PullToReveal extends StatefulWidget {
 
 class _PullToRevealState extends State<PullToReveal>
     with SingleTickerProviderStateMixin {
+  /// `F-151` — **the hint breathes a few times and then stops.**
+  ///
+  /// > *"It's not fluid enough."*
+  ///
+  /// This used to be `repeat(reverse: true)` with no end, and
+  /// `docs/33` §3.4 already called it out: the references — Ramp, CRED's
+  /// Circle — share one habit worth stealing, which is that *nothing moves
+  /// unless it is telling you something changed*. A chevron that bobs forever
+  /// at the foot of the page is not an invitation after the first few seconds;
+  /// it is a thing twitching on screen while you try to read the paragraph
+  /// above it, and the eye starts reading it as a fault.
+  ///
+  /// Six cycles is about seven seconds — long enough to be noticed on the way
+  /// down the page, short enough that it is still by the time anyone settles.
+  /// It restarts whenever the page is scrolled back to the foot, so somebody
+  /// who returns looking for it is shown it again.
+  static const _hintCycles = 6;
+
   late final AnimationController _bounce = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1100),
-  )..repeat(reverse: true);
+  );
+
+  int _cyclesRun = 0;
+  double _wasAtRest = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _bounce.addStatusListener(_countCycles);
+    _breathe();
+  }
+
+  void _countCycles(AnimationStatus status) {
+    if (status != AnimationStatus.dismissed) return;
+    _cyclesRun++;
+    if (_cyclesRun < _hintCycles && mounted) _bounce.forward();
+  }
+
+  void _breathe() {
+    _cyclesRun = 0;
+    if (mounted) _bounce.repeat(reverse: true, count: _hintCycles);
+  }
 
   @override
   void dispose() {
+    _bounce.removeStatusListener(_countCycles);
     _bounce.dispose();
     super.dispose();
+  }
+
+  /// Restart the hint when the reader comes back to the foot of the page after
+  /// having been away from it. Without this the animation is a one-time event
+  /// that most people scroll straight past on their first visit and never see
+  /// again.
+  void _maybeBreatheAgain(double t) {
+    final atRest = t <= 0.001;
+    if (atRest && _wasAtRest > 0.08 && !widget.revealed) {
+      // Came back down from a partial pull. They were looking for it.
+      _breathe();
+    }
+    _wasAtRest = t;
   }
 
   /// `F-118`. Three phrases, and the joke is that the label keeps changing its
@@ -93,31 +148,51 @@ class _PullToRevealState extends State<PullToReveal>
         valueListenable: widget.pull,
         builder: (context, raw, _) {
           final t = raw.clamp(0.0, 1.0);
+          _maybeBreatheAgain(t);
+
+          // `F-151`. How far past the threshold the finger has gone, 0..1.
+          // The rubber band keeps reporting past 1.0 (the controller clamps at
+          // 1.4), and that overshoot is the only signal available for "you can
+          // let go now" — so it is spent on the one thing that says it.
+          final over = ((raw - 1.0) / 0.4).clamp(0.0, 1.0);
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ── the sign-off ──
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                    SwipSpace.gutter, SwipSpace.colossal, SwipSpace.gutter, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.signOff,
-                      style: SwipType.display.copyWith(
-                        color: SwipColors.textTertiary.withValues(alpha: .55),
-                        height: 1.02,
-                      ),
+              //
+              // `F-151`. It lifts very slightly and fades as the panel comes
+              // up, so the page reads as one thing making room for another
+              // rather than two things stacked. Eight pixels: enough that the
+              // eye registers the hand-off, not enough to be a movement
+              // anybody would describe.
+              Transform.translate(
+                offset: Offset(0, -8 * t),
+                child: Opacity(
+                  opacity: 1 - 0.35 * t,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(SwipSpace.gutter,
+                        SwipSpace.colossal, SwipSpace.gutter, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.signOff,
+                          style: SwipType.display.copyWith(
+                            color:
+                                SwipColors.textTertiary.withValues(alpha: .55),
+                            height: 1.02,
+                          ),
+                        ),
+                        const SizedBox(height: SwipSpace.md),
+                        Text(
+                          widget.subtitle,
+                          style: SwipType.bodyS
+                              .copyWith(color: SwipColors.textTertiary),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: SwipSpace.md),
-                    Text(
-                      widget.subtitle,
-                      style: SwipType.bodyS
-                          .copyWith(color: SwipColors.textTertiary),
-                    ),
-                  ],
+                  ),
                 ),
               ),
 
@@ -141,52 +216,92 @@ class _PullToRevealState extends State<PullToReveal>
                 behavior: HitTestBehavior.opaque,
                 onTap: widget.onTapReveal,
                 child: Center(
-                child: AnimatedBuilder(
-                  animation: _bounce,
-                  builder: (_, __) => Transform.translate(
-                    // Stops bouncing the moment a pull starts: the hint has
-                    // done its job and the gesture takes over.
-                    offset: Offset(0, t > 0.02 ? 0 : _bounce.value * 6 - 3),
-                    child: Column(
-                      children: [
-                        Icon(
-                          widget.revealed
-                              ? Icons.keyboard_arrow_up_rounded
-                              : Icons.keyboard_arrow_down_rounded,
-                          size: 22,
-                          color: Color.lerp(SwipColors.textTertiary,
-                              SwipColors.gold500, t),
-                        ),
-                        const SizedBox(height: 3),
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 180),
-                          child: Text(
-                            _prompt(t),
-                            key: ValueKey(_prompt(t)),
-                            textAlign: TextAlign.center,
-                            style: SwipType.labelS.copyWith(
+                  child: AnimatedBuilder(
+                    animation: _bounce,
+                    builder: (_, __) => Transform.translate(
+                      // Stops bouncing the moment a pull starts: the hint has
+                      // done its job and the gesture takes over.
+                      offset: Offset(0, t > 0.02 ? 0 : _bounce.value * 6 - 3),
+                      child: Column(
+                        children: [
+                          // `F-151`. The chevron carries the "you can let go
+                          // now" signal, and it carries it two ways at once:
+                          // it darkens with the pull, and it **rotates to
+                          // point the other way** across the last stretch of
+                          // overshoot.
+                          //
+                          // The rotation is what makes the threshold legible.
+                          // Colour alone is a gradient with no edge in it —
+                          // you cannot tell from a slightly darker grey
+                          // whether you have gone far enough. A chevron that
+                          // has visibly turned over has crossed something.
+                          Transform.rotate(
+                            angle: math.pi * (widget.revealed ? 1 : over),
+                            child: Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              size: 22 + 4 * over,
                               color: Color.lerp(SwipColors.textTertiary,
                                   SwipColors.gold500, t),
-                              letterSpacing: .8 + t * 2.2,
                             ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 3),
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 180),
+                            child: Text(
+                              _prompt(t),
+                              key: ValueKey(_prompt(t)),
+                              textAlign: TextAlign.center,
+                              style: SwipType.labelS.copyWith(
+                                color: Color.lerp(SwipColors.textTertiary,
+                                    SwipColors.gold500, t),
+                                letterSpacing: .8 + t * 2.2,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
                 ),
               ),
 
               // ── what is behind it ──
+              // `F-151` — **what makes this feel like a spring rather than a
+              // drawer.**
+              //
+              // Two changes, and the second is the one that matters.
+              //
+              // The curve is `easeOutBack`, not `easeOutCubic`. It overshoots
+              // slightly and settles, which is what a physical panel released
+              // under tension does — and this panel is literally being
+              // released from tension, so the motion is describing the gesture
+              // that caused it rather than decorating it. `easeOutCubic`
+              // decelerates into place like a drawer closing, which is the
+              // right curve for a thing that was pushed and the wrong one for
+              // a thing that was pulled.
+              //
+              // And the opening is **slower than the closing**: 420 ms out,
+              // 260 ms back. Asymmetry is not a detail here. Opening is the
+              // payoff and wants to be watched; closing is dismissal and
+              // wants to be over. Matching the two makes the open feel
+              // hurried and the close feel reluctant, which is exactly
+              // backwards, and is most of what "not fluid enough" describes.
               ClipRect(
                 child: AnimatedAlign(
-                  duration: const Duration(milliseconds: 340),
-                  curve: Curves.easeOutCubic,
+                  duration: Duration(milliseconds: widget.revealed ? 420 : 260),
+                  curve: widget.revealed
+                      ? Curves.easeOutBack
+                      : Curves.easeOutCubic,
                   alignment: Alignment.topCenter,
                   heightFactor: widget.revealed ? 1 : t * 0.3,
                   child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 240),
+                    // Fades in over the first half of the expansion, so the
+                    // content has arrived by the time the panel stops moving.
+                    // Content that fades in after the box has settled reads as
+                    // a second, slower thing happening.
+                    duration:
+                        Duration(milliseconds: widget.revealed ? 240 : 160),
+                    curve: Curves.easeOut,
                     opacity: widget.revealed ? 1 : (t * 0.55).clamp(0.0, 1.0),
                     child: widget.hidden,
                   ),

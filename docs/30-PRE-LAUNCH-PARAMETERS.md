@@ -48,6 +48,9 @@ Run before **every** debug APK. If any line fails, the build does not go out.
 
 ```bash
 #  1  Structure: no unbalanced brackets anywhere in lib/ or test/
+#     NOTE: this counts brackets and cannot see *grouping*. It passed a file
+#     where `FittedBox(` was never closed but the totals happened to match.
+#     It is a cheap pre-filter; step 5's `flutter analyze` is the authority.
 python3 tool/check_balance.py
 
 #  1b `const` blocks that contain a method call — not constant, will not compile.

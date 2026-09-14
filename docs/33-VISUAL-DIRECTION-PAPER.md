@@ -143,8 +143,8 @@ the old "gold on black, always" rule is still true.
 | 2 | MCC crop on the flash card | small | ✅ `F-133` |
 | 3 | Space pass — §3.3 | medium | 📋 |
 | 4 | Display serif for headlines — §3.2 | medium, own commit | 📋 |
-| 5 | Cap the decorative loops — §3.4 | small | 📋 |
-| 6 | Sheet redesign around one big number | medium | 📋 |
+| 5 | Cap the decorative loops — §3.4 | small | ✅ `F-151` |
+| 6 | Sheet redesign around one big number | medium | ✅ `F-144` — it became a **full screen**, not a sheet |
 
 Items 3–6 are deliberately not bundled with the palette change. A palette flip
 is already the largest visual diff this project has taken, and stacking a type

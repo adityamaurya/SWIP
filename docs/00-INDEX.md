@@ -104,3 +104,9 @@ Inter's `tnum` needs enabling by hand on the `MCC` text style.
 - [26 — Going private, and getting on the Play Store](26-PRIVATE-AND-PUBLISHING.md) — the artifact-storage trap, and what charging would actually net
 - [27 — The support section, and the tax position](27-DONATIONS.md) — why a genuine donation is outside GST
 - [28 — Conversation log](28-CONVERSATION-LOG.md) — every prompt, every answer, what shipped
+- [29 — Why those QRs would not scan](29-QR-DETECTION-FORENSICS.md) — every QR decoded before a line of code, and the four-word setting that killed the scanner
+- [30 — Pre-launch parameters](30-PRE-LAUNCH-PARAMETERS.md) — the gate to run before **every** build, and why six of seven playbook sections do not apply
+- [31 — iOS, and getting to an `.ipa`](31-IOS-AND-IPA.md) — what ₹0 buys, what $99 buys, and the one capability iOS cannot have
+- [32 — The floating scan bubble](32-FLOATING-BUBBLE.md) — the permission, the rule it commits to, and why the camera window is native
+- [33 — Visual direction: Paper](33-VISUAL-DIRECTION-PAPER.md) — one dark object per screen, and the one thing deliberately not copied
+- [34 — The round-34 checklist](34-ROUND-34-CHECKLIST.md) — everything done and everything held back; why a POS tap produced **nothing at all**; what CoWIN actually did; how CRED really gets a merchant name

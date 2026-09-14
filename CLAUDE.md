@@ -41,6 +41,22 @@ python3 tool/check_const.py     # `const X(… .withValues(…))` is not constan
 
 ---
 
+## The one paid surface
+
+`F-146`. **Exactly one thing in SWIP costs money: viewing the raw payload
+in-app, ₹5,000, one-time.** Never behind it: the category, the merchant, the
+RuPay outlook, the ledger, and **both exports including the encrypted backup**,
+which contains the payloads in full because it is the user's own data.
+
+A **donation buys nothing, including this.** They are separate transactions and
+must never be merged — a donation that confers a benefit stops being a donation,
+with the GST consequences in [`docs/27-DONATIONS.md`](docs/27-DONATIONS.md) §2.
+
+The product does not exist in the Play Console yet, so today every device sees
+"not on sale yet".
+
+---
+
 ## Declined, and staying declined
 
 * **The cashback-arbitrage donation mechanism** — a donor swipes ₹40,000, gets
@@ -71,6 +87,12 @@ Each of these cost a broken build or a broken screen. Do not re-derive them.
 | `.withValues()` is a method call | It cannot appear inside a `const` block |
 | `app/assets/brand/` is **gitignored**; `bootstrap.sh` copies top-level `brand/` | New brand assets go in `/brand/` |
 | Camera overlays must use `onCamera*` colours, never `bg`/`textPrimary`/`gold500` | The feed is an arbitrary image; the app ground is white |
+| **Android routes HCE by AID, and every terminal opens with `SELECT 2PAY.SYS.DDF01`** | The PPSE AID `325041592E5359532E4444463031` must be registered in `apduservice.xml` or a tap does **nothing at all**. `F-140` — it was missing for four months and `ppseResponse()` was unreachable code |
+| Writing to a `ValueNotifier` from a scroll notification is legal under a finger and **illegal under bouncing physics** | The spring-back runs inside the frame → "Build scheduled during frame" → the red `ErrorWidget`. Defer with `SchedulerBinding` when not idle. `F-141` |
+| `check_balance.py` counts brackets; it **cannot see grouping** | It passed a file where `FittedBox(` was never closed. `flutter analyze` is the authority, and it is in the gate |
+| sqflite caches open databases **by path**, and `openInMemory()` always uses `:memory:` | Two tests silently share one database. `SwipDatabase.close()` in `tearDown`. `F-150` |
+| `expect(() => asyncFn(), returnsNormally)` checks **only the synchronous part** | It leaves an unawaited Future; the failure surfaces later from a test that already passed. Await it |
+| **CoWIN is not blockchain-based** | DIVOC issues W3C Verifiable Credentials signed as JWTs. Encryption + a hash chain give every property that was actually wanted. `docs/34` §4 |
 
 **The recurring mistake, twice over: checking the source instead of the
 artifact.** Read the built thing, not the code that should have built it.
@@ -108,6 +130,7 @@ artifact.** Read the built thing, not the code that should have built it.
 | The floating bubble | [`docs/32-FLOATING-BUBBLE.md`](docs/32-FLOATING-BUBBLE.md) |
 | Visual direction | [`docs/33-VISUAL-DIRECTION-PAPER.md`](docs/33-VISUAL-DIRECTION-PAPER.md) |
 | Account recovery | [`docs/25-CONTINUITY.md`](docs/25-CONTINUITY.md) |
+| The round-34 checklist, PPSE forensics, CRED vs SWIP | [`docs/34-ROUND-34-CHECKLIST.md`](docs/34-ROUND-34-CHECKLIST.md) |
 
 ---
 

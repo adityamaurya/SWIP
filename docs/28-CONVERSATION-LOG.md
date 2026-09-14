@@ -473,6 +473,138 @@ workflow; the `INTERNET` permission; the black screen on intent capture.
 
 ---
 
+## Prompt 34 — 5 Sep 2026 · The silent POS, the black box, and the red string
+
+**You asked:** nine things — the PDF images, a checklist of done and held-back,
+why the Ribbons and Balloons POS produced no pop-up at all, a full-screen MCC
+result instead of a sheet, a bottom-stuck CTA with technical detail collapsed
+above it, a ₹5,000 paywall on the raw data, a blockchain-powered black-box
+export with a recovery phrase plus a plain line export, the merchant-name
+discrepancies, and the red bug string on pull-to-reveal.
+
+### One thing I could not do
+
+**The 40-page PDF is gone.** This session runs in a container that is reclaimed
+after inactivity, and between your prompt arriving and the work starting it was
+rebuilt — the whole uploads directory no longer exists. I searched the
+filesystem before concluding that. I have installed the PDF tooling that was the
+*original* blocker, so a re-upload can be read immediately. Nothing else in the
+round depended on it.
+
+### The POS finding, which is the biggest thing in this round
+
+I looked for Ribbons and Balloons in the ledger. **It is not there** — and that
+absence is the answer.
+
+The POS failures diagnosed last round (`F-138`) produced a row with no category:
+a record exists, you can go and look at it. A tap where "the pop-up did not
+happen at all" left nothing behind. Different failure, and only one of them was
+ever visible to me. So the question was not *why was the category missing* but
+**why was there no record that a tap happened** — and that is answerable from
+the code.
+
+Every contactless terminal in the world opens with `SELECT 2PAY.SYS.DDF01` —
+the PPSE — reads the list of applications that comes back, and only then picks
+one. Android routes HCE traffic **by AID**. `apduservice.xml` declared six card
+AIDs and **not the PPSE**, so the terminal's very first command matched nothing
+and went unanswered. No SELECT AID, no PDOL, no GPO, no `9F15`, no broadcast, no
+sheet, no row.
+
+`SwipListenService.kt` has always had a `ppseResponse()` function whose entire
+job is to answer that command. **It was unreachable code for the life of the
+feature.** The service was correct; nothing could reach it.
+
+Two more things came out of it. The service used to broadcast **only** on a
+successful GPO, so a tap that ended early produced silence — indistinguishable
+from a broken app, which is exactly how you reported it. Every ending now
+produces a record with its own sentence. And `tlv()` threw above 127 bytes,
+with the PPSE directory sitting at 107: one more AID would have killed the
+service mid-tap.
+
+### The red string was Flutter telling you about an assertion
+
+It is `ErrorWidget` — the red panel of small text a debug build renders when a
+widget throws during build. The text is **"Build scheduled during frame"**.
+
+`PullController` wrote to a `ValueNotifier` from inside a scroll notification.
+Legal while a finger drags, because pointer events arrive between frames.
+**Not** legal when the notification comes from the scroll view's own physics: a
+bouncing position springs back under a ticker that runs *inside* the frame. So
+the write scheduled a build mid-frame, at the exact moment the pull was
+released — which is why it looked like it broke on release.
+
+All five existing `PullController` tests passed on the broken build, because a
+synthetic notification is dispatched from test code, between frames, where the
+write is legal. The new test drags a **real** dashboard and asserts nothing is
+thrown. Same lesson as the recurring one: read the built thing, not the code
+that should have built it. It also turned up a second bug — the at-rest camera
+overlay overflowing its band by 62 px.
+
+### Three of your premises I corrected rather than worked around
+
+**CoWIN is not blockchain-based.** It is DIVOC, open source, and a DIVOC
+certificate is a W3C Verifiable Credential signed as a JWT — a signature
+checked against a published public key. No chain, no consensus. That matters
+because the thing they *did* do is the thing you need: encryption for
+unreadability, a hash chain for tamper-evidence, a self-contained file for
+offline checking. A blockchain solves disagreement between distrusting writers;
+this ledger has one writer, your phone, and no network. SWIP now has AES-256-GCM
+over the existing SHA-256 chain.
+
+**CRED does not "simply get the real merchant name from the QR."** For a sticker
+carrying no name, they resolve the VPA against a merchant directory they can
+reach as a licensed PSP. SWIP cannot, and will not pretend to.
+
+**Your own column order.** The list says date fourth; the sentence after it says
+*"you can maybe keep the date on the first column"*. I took the later one.
+
+### The merchant-name discrepancy was ours
+
+Scan Wellness Forever's dynamic QR and the payload carries the name. Scan the
+sticker on the same counter and it carries nothing — so the row showed
+`WFMLMH2@ybl`, and one shop appeared under two identities. The merchant graph
+already knew the name; `record()` looked up the category from that same row and
+stopped. It now takes the name too. The payload's own name always wins, so a
+shop that renames itself corrects on its next QR.
+
+### "Never, ever fail on import"
+
+The header is plaintext and only the payload is encrypted, and that is the whole
+reason the promise is keepable — an opaque blob can only ever say "that did not
+work". A test throws **2,240** truncations, bit-flips, splices and random byte
+strings at the reader and asserts none throws. A wrong phrase is reported as a
+wrong phrase, never as a corrupt file, because "check your words" and "your
+records are gone" are very different things to hear about your own ledger.
+
+### On "find a good animated repo and pull it in"
+
+`flutter_animate` — gskinner's, the most-used animation package in Flutter —
+has been in `pubspec.yaml` since early on and was simply under-used. I did not
+add a second one: a package duplicating one already present is weight without
+capability, and the problem was never a missing library. It was that the motion
+had not been designed. What changed is in
+[`34` §6.2](34-ROUND-34-CHECKLIST.md).
+
+### Two of my own mistakes, caught by tests rather than by me
+
+1. The paywall leak test first asserted on the payee handle — which SWIP also
+   shows as a plain detail, and which is **not** what the wall is around. It
+   proved nothing until pointed at a token unique to the gated string.
+2. `expect(() => asyncFn(), returnsNormally)` is useless. It checks only that
+   the call did not throw synchronously, leaves an unawaited Future, and the
+   failure surfaces later from a test that already reported passing.
+
+**Shipped:** `F-140` through `F-151`, 213 tests, both CI jobs green including
+the APK.
+
+**Still open:** the PDF (re-attach it); the display serif; the bubble's service
+and overlay; the iOS workflow; the `INTERNET` permission; the black screen on
+intent capture; the 02:00 auto-backup; the exhaustive MCC list; and the Play
+Console product that would put the ₹5,000 unlock on sale. All of them, with
+reasons, in [`34` §3.2](34-ROUND-34-CHECKLIST.md).
+
+---
+
 <!--
 Template:
 

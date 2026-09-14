@@ -633,7 +633,22 @@ class _FoilCode extends StatelessWidget {
         // a strobe sitting next to text someone is trying to read; a periodic
         // one is metal in a moving light, and it also lands *after* the digits
         // have finished flying in rather than across them.
-        .animate(onPlay: (controller) => controller.repeat())
+        // `F-151`. **Capped at four sweeps**, which `docs/33` §5 item 5 asked
+        // for and which the full-screen result made urgent.
+        //
+        // `F-85` above argues for repeating rather than sweeping once, and
+        // that argument still holds: a single sweep reads as a loading
+        // flourish that has finished, and this is the one figure the product
+        // exists to deliver. But it was written when the number lived in a
+        // sheet somebody dismissed in a few seconds. `F-144` gave it a whole
+        // page, which people sit on and read — and a highlight crossing the
+        // same four digits every two and a half seconds, forever, next to text
+        // you are trying to take in, is a strobe rather than metal in a moving
+        // light.
+        //
+        // Four sweeps is about eleven seconds: past the arrival, into the
+        // reading, and then still.
+        .animate(onPlay: (controller) => controller.repeat(count: 4))
         .shimmer(
           delay: 1800.ms,
           duration: SwipMotion.foilSweep,

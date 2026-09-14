@@ -1178,7 +1178,7 @@ specification was built from:
 
 ---
 
-## Prompt 31 — the pull that did nothing, and the story behind it *(current)*
+## Prompt 31 — the pull that did nothing, and the story behind it
 
 **Sent 14 Aug 2026, 09:28 IST** (`2026-08-14T03:58:54Z`). **Verbatim:**
 
@@ -1227,6 +1227,167 @@ failed to read the code — there is no code, and no card will reward you there.
 > P2P, P2PM and card-to-card payments shall not be permitted for RuPay credit
 > card transactions on UPI.
 > — [NPCI, Operating circular for RuPay Credit Cards linked to UPI](https://www.npci.org.in/PDF/npci/rupay/2022/Operating-circular-for-RuPay-Credit-Cards-linked-to-UPI.pdf)
+
+---
+
+## Prompt 32 — 5 Sep 2026 · iOS, the QRs that would not scan, the pre-launch file
+
+> **A note on this entry and the next, written rather than hidden.**
+>
+> Prompts 32 and 33 were answered in a session whose transcript was compacted
+> before they reached this ledger, so **their full text is not recoverable** —
+> what follows is every fragment that survives verbatim, plus the asks as they
+> were recorded at the time in
+> [`28-CONVERSATION-LOG`](28-CONVERSATION-LOG.md). This is a gap in a ledger
+> whose whole purpose is that there are none, and the fix available now is that
+> it is labelled rather than papered over. Prompt 34 below is complete and
+> exact.
+
+**Verbatim fragments:**
+
+> *"so i will give you the details above for now, help me with this and let's
+> plan for something as real as getting debug apk like stage for ios, now we
+> have for Android what about ios? how can we get .ipa done for with exact
+> thing and progress done but in ios simultaneously"*
+
+> *"DO NOT MISS ANYTHING without my permission and for now don't ask me for the
+> qr and link thing kepo on hold consciously"*
+
+Mid-turn, with sixteen screenshots:
+
+> *"go throguh all these images the pop up came but it failed on the catching
+> the mcc find the root reason and get it sorted and detect fail proof for
+> future"*
+
+| # | ID | To-do | Status |
+|---|---|---|---|
+| 1 | `F-122` | The scanner going dead — `DetectionSpeed.noDuplicates` | ✅ |
+| 2 | `F-123` | `mc=` present-and-empty is its own state | ✅ |
+| 3 | `F-124` | The RuPay outlook, with its evidence | ✅ |
+| 4 | `F-125` | Never a dead end — routes when there is no category | ✅ |
+| 5 | `F-127` | Ledger seal, SHA-256 hash chain | ✅ |
+| 6 | `F-128` | Export filename: name, date, exact time, serial | ✅ |
+| 7 | `F-130` | The black-and-white "Paper" theme | ✅ |
+| 8 | — | iOS plan and `.ipa` route | ✅ documented, [`31`](31-IOS-AND-IPA.md) |
+| 9 | — | Pre-launch parameters, run before every build | ✅ [`30`](30-PRE-LAUNCH-PARAMETERS.md) |
+| 10 | — | The floating bubble | ◑ [`32`](32-FLOATING-BUBBLE.md) written, step 1 built |
+| 11 | — | Blockchain integrity like CoWIN | ✅ **completed in prompt 34**, `F-147` |
+| 12 | — | UPI ID + Razorpay link | ⏸ on hold, at your instruction |
+
+---
+
+## Prompt 33 — 5 Sep 2026 · The UI references, gyro gating, and your real ledger
+
+**Verbatim fragments:**
+
+> *"given are some ui inspirations for which we need to seriously consider the
+> look and feel, lets pick and make it as beautiful as the above, also one
+> important note make the qr gyro detection based wherein if its not at a
+> certain angle or more than that the inside app camera doest like be ON for
+> detection it overlays with some beautiful copy saying tap or go hold near a
+> qr to continue scanning, reason being it become nuisance that if held in
+> front a qr fot a while it keeps of sxanning and giving pop ups"*
+
+> *"they did it we can do it too"*
+
+Then, attaching `swipledger20260905_1.json` — the real 85-capture export:
+
+> *"continue above all and use this ledger export to map the qr codes in the
+> pdf and above screenshot or merchant qrs make sure the export log is super
+> detailed and redetectable and addable to swip app when re importable like
+> this make it clean and parse friendly for the app to place the data int eg
+> app on import"*
+
+| # | ID | To-do | Status |
+|---|---|---|---|
+| 1 | `F-134` | Gyro-gated scanning — only detect while the phone is raised | ✅ |
+| 2 | `F-133` | The MCC was cropping in the pop-up | ✅ |
+| 3 | `F-135` | Per-capture provenance in the export | ✅ |
+| 4 | `F-136` | Import keeps only real columns | ✅ |
+| 5 | `F-137` | Aggregator handles; legal-entity names | ✅ |
+| 6 | `F-138` | Factory-placeholder terminals get their own sentence | ✅ |
+| 7 | `F-139` | A reference number is not a shop name | ✅ |
+| 8 | — | Project memory | ✅ [`CLAUDE.md`](../CLAUDE.md) |
+| 9 | — | Visual direction from the references | ✅ [`33`](33-VISUAL-DIRECTION-PAPER.md) |
+| 10 | — | Display serif for headlines | 📋 held as its own commit — [`33` §3.2](33-VISUAL-DIRECTION-PAPER.md) |
+| 11 | — | How CRED does it | ✅ [`29` §4](29-QR-DETECTION-FORENSICS.md), extended in [`34` §5](34-ROUND-34-CHECKLIST.md) |
+
+---
+
+## Prompt 34 — 5 Sep 2026, 08:00 UTC · The full screen, the black box, and the silent POS *(current)*
+
+Attached: `1c84b316-1000112700.pdf`, 40 pages. **The file was lost when the
+container was reclaimed and could not be read — see
+[`34` §0](34-ROUND-34-CHECKLIST.md).**
+
+**Original prompt, verbatim:**
+
+> @"/root/.claude/uploads/afe199af-8f37-59f8-b4bb-28fececcb91e/1c84b316-1000112700.pdf" I have attached the PDF above.
+> 1. I want you to look at all the images inside the PDF and let me know why the application failed while scanning.
+> 2. Whatever you guys have done as of now and whatever you have held up from all the prompts that I have given you in the past three prompts, create a checklist first. Execute it first, and if it is failing in execution, find a way through it. Go on the internet, find some open-source solutions, clone the GitHub, use the repo, find it, and do it. Make it possible by any means.
+> 3. The POS failure was never "swipes that terminal returned." Just go ahead in the ledger and find why the ribbon and balloon POS failed. There were multiple POS fails wherein what happened was I tried to go ahead near the POS, but the pop-up did not happen. Why did that go through? Just tell me.
+> 4. If I double-tap into the main screen, the pop-up will not come. It will come as a single full-screen where the MCC is on the full-page screen. The same goes for the POS tab. If I do the POS tab, every instruction is there. Once the POS tab is detected, it should show in a full-screen format, like the MCC at the top or maybe the center, or whatever the design system you are set for it.
+> 5. If I want to add a new CTA just at the very bottom, which is stuck to the bottom, it should say "Capture another." If it fails, then try another comes, but if it captures, show the MCC on the full-page screen. Basically, the power modal button is full screen now. The technical part of it should be at the very bottom, collapsed. We kept it that way, and just below it will be the CTA of "Capture another." That is one way.
+> 6. The most important thing is we need to safeguard our data, which we are capturing, because someone might replicate our application, seeing the captured string from the POS, the URL, and the application. Maybe can you find some idea and create some safeguard solution wherein we show the raw data there, but we put up maybe a paywall of nearly 5,000 to unlock it? Let's say put that into the premium aspect. It should come at a cost for that same data. You can maybe initiate an in-app purchase for this specific viewing. Whatever raw data is captured, which you can see as of now for free, should be visible at a cost of an in-app purchase, which should be 5k, so that is there.
+> 7. The next important thing is
+>  The next important thing is the export aspect. Whatever we are exporting in the application, it should be compatible with our app to read, and it should never, ever fail on import. Let's say, in my case, if the user is reinstalling the data, he will simply export it and keep the file. When he is back onto the application, he simply gets to reimport.
+>
+> We should treat this export ledger as a black box for the application. It should include everything and anything that is captured and is known about the application since he installed and started swiping. That is one way.
+>
+> Next, we can include in the black box format that it should be blockchain-powered. When I say blockchain, if you have the idea, you can convert this whole export file, and it should not be hackable. It should not be readable to malicious software. It should be scrambled. If any malicious software tries to import and decode the user data, power it with blockchain technology, like how the COVID certificate was generated in India.
+>
+> If possible, go through the research papers I have attached to you about when India issued COVID certificates, which were powered by blockchain. Once you get that, make sure you make a technology around it and implement it on this export file. If not, go on GitHub and find some open-source projects which help convert this file to blockchain-encrypted so that it is not hackable or readable to malicious software or any software, in fact.
+>
+> Once the user imports this file, he can import and get the data back. You need to figure out a way where, in an edge case, if he uninstalls and the key resets for the user, he could have maybe a phrase to get it unlocked or stuff. In that case, only the file would be accepted by our application. It would be a mix of a string from our export file and a string from the application, which would be generic, in that sense, or maybe an authenticator time-based something.
+>
+> Also, include a very simple line. Let's say this would be the main black box export: there would be a simple line which would simply export the swipes, captured POS swipes, captured links, captured QR, and captured MCC, so everything. That would be simple in a rich text file format, with the date in descending order, with the latest on top and the last on the lowest. Also, every data item would be:
+> 1. MCC
+> 2. the name of the merchant, exactly captured
+> 3. the
+>  Third is the amount if captured, and fourth would be the date on which it was swiped, so you can maybe keep the date on the first column.
+>
+> Also, I have noticed some discrepancies while capturing the merchant name. How Cred does it? It simply gets the real merchant name from the QR and shows it on the application. I have shared multiple screenshots with you throughout our chat. Go to them, refer to them, use the language from them, use how they are portrayed in them if possible, and go ahead with it. Also, one important thing to notice is that there will be a simple export line just below this black box export.
+>
+> Next, everything that I mentioned to you has to be implemented. Nothing has to be skipped. Find a way around it, debug it if it is failing, ideate, debug, plan, and retest, and just give me the final build.
+>
+> Also, whatever you are asking me for, yes. Next, I have shared with you a bug wherein the "Release it captured pull to reveal something" on the dashboard is not working. There's some red-colored bug-long string. It's not fluid enough.
+>
+> Go and find some good animated repo on the internet, pull it in, and use it to make the app very interesting and also fluid in terms of animation. It has to be fluid no matter what. Use themes from the application screenshots. Are the ideas ready? Ideate the UI, and then do it properly.
+
+| # | ID | To-do | Status |
+|---|---|---|---|
+| 1 | — | Read every image in the 40-page PDF | ⛔ **the file was gone** — [`34` §0](34-ROUND-34-CHECKLIST.md) |
+| 2 | — | A checklist of done and held-back across prompts 32–34 | ✅ [`34`](34-ROUND-34-CHECKLIST.md) |
+| 3 | `F-140` | Why the Ribbons and Balloons POS produced **nothing at all** | ✅ the PPSE AID was never registered — [`34` §2](34-ROUND-34-CHECKLIST.md) |
+| 4 | `F-143` | Every tap produces a record, including the two that carry no data | ✅ |
+| 5 | `F-144` | Full-screen MCC result, on double-tap **and** on POS detection | ✅ |
+| 6 | `F-145` | Bottom-stuck CTA: "Capture another" / "Try another" | ✅ |
+| 7 | `F-145` | Technical detail collapsed at the very bottom, CTA below it | ✅ |
+| 8 | `F-146` | ₹5,000 in-app purchase to unlock the raw payload | ✅ built; not on sale until the Play product exists |
+| 9 | `F-147` | Black-box export: encrypted, chain-sealed, never fails on import | ✅ 2,240 fuzzed inputs |
+| 10 | `F-148` | A recovery phrase for the uninstall / key-reset edge case | ✅ 12 words, BIP-39 |
+| 11 | `F-149` | The plain line export — date, MCC, merchant, amount, newest first | ✅ |
+| 12 | `F-150` | Merchant-name discrepancies | ✅ the graph knew the name and was not asked |
+| 13 | `F-141` | The red bug string on pull-to-reveal | ✅ Flutter's `ErrorWidget` — "Build scheduled during frame" |
+| 14 | `F-142` | The at-rest camera overlay overflowed the band by 62 px | ✅ found by the same test |
+| 15 | `F-151` | Make the motion fluid | ✅ [`34` §6.2](34-ROUND-34-CHECKLIST.md) |
+| 16 | — | "Find a good animated repo and pull it in" | ✅ `flutter_animate` was **already** a dependency and under-used. No second animation package added — see [`34` §6.2](34-ROUND-34-CHECKLIST.md) |
+
+### The three things I corrected rather than accepted
+
+1. **CoWIN is not blockchain-based.** It is DIVOC, and a DIVOC certificate is a
+   W3C Verifiable Credential signed as a JWT. No chain, no consensus. The
+   properties actually wanted — unreadable, unalterable, checkable offline —
+   are delivered by encryption and a hash chain, and SWIP now has both.
+   [`34` §4](34-ROUND-34-CHECKLIST.md).
+2. **CRED does not "simply get the real merchant name from the QR."** For a
+   sticker carrying no name they resolve the VPA against a merchant directory
+   they can reach as a licensed PSP. SWIP cannot, and is not pretending to.
+   What it *can* do — remember a name it has already read at that merchant key —
+   it now does. [`34` §5](34-ROUND-34-CHECKLIST.md).
+3. **The column order.** The enumeration says date fourth; the sentence after
+   it says *"you can maybe keep the date on the first column"*. The later
+   sentence won.
 
 ---
 
