@@ -145,22 +145,40 @@ class DisabledDirectory implements MerchantDirectory {
 
 /// `F-157` — Razorpay's Validate VPA.
 ///
-/// ## Before this is wired to a live key
+/// ## The three constants, now confirmed
 ///
-/// Three things below are marked `VERIFY`. They are the request path, the
-/// request field name and the response field name, and they are marked because
-/// **razorpay.com is blocked from the environment this was written in** — the
-/// egress proxy refused every mirror of their docs. Everything else here is
-/// structural and correct regardless.
+/// They were marked `VERIFY` for a round because razorpay.com is blocked from
+/// the environment this is written in. They have since been confirmed against
+/// the published documentation, and all three were right:
 ///
-/// What is known from the published description rather than guessed: the API
-/// confirms whether a VPA is valid and the response carries `customer_name`,
-/// the name linked to it. The request is authenticated with HTTP Basic using
-/// the key id and secret, which is how every Razorpay REST endpoint works.
+/// ```
+/// curl -u [KEY_ID]:[KEY_SECRET] \
+///   -X POST https://api.razorpay.com/v1/payments/validate/vpa \
+///   -H "Content-Type: application/json" \
+///   -d '{ "vpa": "gauravkumar@exampleupi" }'
+/// ```
 ///
-/// Confirm the three constants against
-/// <https://razorpay.com/docs/payments/payment-methods/upi/vpa-validation/>
-/// and delete this paragraph.
+/// ```json
+/// { "vpa": "gauravkumar@exampleupi", "success": true,
+///   "customer_name": "Gaurav Kumar" }
+/// ```
+///
+/// Source: <https://razorpay.com/docs/payments/payment-methods/upi/vpa-validation/>
+///
+/// ## One risk worth knowing, which is not a bug
+///
+/// **NPCI deprecated the UPI Collect flow on 28 February 2026.** Nobody can
+/// pay by typing a VPA any more, except in a short list of exempted cases
+/// (MCC 6012 and 6211, iOS web, mandates, eRupi, cross-border). This endpoint
+/// exists to validate an address *before a collect request*, so its original
+/// reason to exist has largely gone.
+///
+/// It is still documented and still live, and **SWIP's use of it was never a
+/// collect** — it is a name lookup and nothing else. But an endpoint whose
+/// main customer has been deprecated is an endpoint that could be retired, so
+/// this client treats a `404` or a `410` like every other failure: a sentence
+/// on screen, never a thrown exception, and the app carries on with the
+/// merchant graph it already had.
 ///
 /// ## The key, and why it is not compiled in
 ///
@@ -193,13 +211,13 @@ class RazorpayDirectory implements MerchantDirectory {
   /// somebody had to deliberately write.
   final Future<DirectoryResponse> Function(DirectoryRequest request) send;
 
-  /// VERIFY against live docs before wiring a key.
+  /// Confirmed against the published `curl` example. `POST`, not `GET`.
   static const endpoint = 'https://api.razorpay.com/v1/payments/validate/vpa';
 
-  /// VERIFY. The request field carrying the address to check.
+  /// The request field carrying the address to check. Confirmed.
   static const requestField = 'vpa';
 
-  /// VERIFY. The response field carrying the registered name.
+  /// The response field carrying the registered name. Confirmed.
   static const nameField = 'customer_name';
 
   @override
@@ -240,6 +258,16 @@ class RazorpayDirectory implements MerchantDirectory {
         return DirectoryEntry(
           vpa: address,
           problem: 'Razorpay did not accept those API keys.',
+        );
+      }
+      if (res.statusCode == 404 || res.statusCode == 410) {
+        // The endpoint itself is gone. Possible now that NPCI has deprecated
+        // the collect flow this API was built to serve — see the note at the
+        // top. A sentence, not a crash, and the merchant graph carries on.
+        return DirectoryEntry(
+          vpa: address,
+          problem: 'Razorpay no longer offers this lookup. SWIP will use the '
+              'names it already knows.',
         );
       }
       if (res.statusCode >= 500) {

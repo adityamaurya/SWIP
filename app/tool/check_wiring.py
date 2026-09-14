@@ -50,12 +50,11 @@ KOTLIN = ROOT / "android/app/src/main/kotlin/in/swip/app/MainActivity.kt"
 # Each entry needs a reason, and the reason has to be a decision rather than
 # an oversight. If you cannot write one, that is the check working.
 
-UNIMPORTED_OK = {
-    "lib/data/sources/merchant_directory.dart":
-        "F-157. Built and deliberately not connected: wiring it needs the one "
-        "HTTP client docs/30 §1 greps for and fails the build on, and three "
-        "constants still marked VERIFY. Both are the owner's call — "
-        "docs/35 §3.2.",
+UNIMPORTED_OK: dict[str, str] = {
+    # F-157's entry lived here for one round. It is gone because the file is
+    # wired now (F-160) — which is the only way an entry should ever leave
+    # this dict. Deleting an exception because it is inconvenient is how the
+    # check stops meaning anything.
 }
 
 PREFS_WRITE_ONLY_OK: dict[str, str] = {}

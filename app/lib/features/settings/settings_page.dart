@@ -25,6 +25,7 @@ import '../backup/recovery_phrase.dart';
 import '../backup/recovery_phrase_page.dart';
 import '../bubble/bubble_settings.dart';
 import '../bubble/bubble_wizard.dart';
+import '../lookup/lookup_settings_page.dart';
 import '../onboarding/home_market_page.dart';
 import '../support/support_section.dart';
 
@@ -224,6 +225,24 @@ class SettingsPage extends ConsumerWidget {
             // prerequisites and one counter-intuitive behaviour do not fit in
             // a subtitle, so the first run gets five screens.
             onTap: () => _openBubble(context),
+          ),
+
+          // `F-160`. Its own screen, and placed after the bubble rather
+          // than among the privacy rows, because it is the only feature in
+          // SWIP that contacts anything and it deserves to be found rather
+          // than stumbled into.
+          ListTile(
+            leading: const Icon(Icons.badge_outlined),
+            title: const Text('Merchant names'),
+            subtitle: Text(
+              'Resolve a shop\'s real name the way CRED does. Off until you '
+              'add a key — this is the one thing SWIP sends off your phone',
+              style: SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
+            ),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const LookupSettingsPage(),
+            )),
           ),
 
           const Divider(height: SwipSpace.xxl),

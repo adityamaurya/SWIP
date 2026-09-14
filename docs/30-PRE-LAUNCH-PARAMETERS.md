@@ -82,8 +82,19 @@ python3 tool/check_wiring.py
 #     `rzp_live_` + 12 characters anywhere in the tree, docs included.
 bash tool/check_secrets.sh
 
-#  3  No network client has appeared by accident
+#  3  No network client has appeared by accident.
+#
+#     ONE file is allowed to construct one, by exact path:
+#     lib/data/sources/directory_transport.dart. That is the merchant-name
+#     lookup (F-160), it is off until the user enters their own key, and it
+#     sends a payment address and nothing else.
+#
+#     The exclusion is the point. This check was written to catch a client
+#     arriving BY ACCIDENT — dragged in by a refactor, or by somebody
+#     reaching for the obvious tool. A single deliberate one behind a switch
+#     is not that. Anywhere else still fails the build.
 grep -rn "package:http/\|package:dio/\|HttpClient(" app/lib/ \
+  | grep -v "^app/lib/data/sources/directory_transport.dart:" \
   && echo "NETWORK CLIENT IN A NO-SERVER APP - JUSTIFY OR REMOVE"
 
 #  4  Permissions in the manifest are still the four we can defend
