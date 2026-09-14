@@ -34,6 +34,7 @@ void main() {
   late bool granted;
   late bool wanted;
   late bool running;
+  late int snoozedUntil;
 
   /// Whether `startBubble` is allowed to succeed. Android refuses when the
   /// permission is missing, and the page must survive being told no.
@@ -47,7 +48,14 @@ void main() {
         case 'canDrawOverlays':
           return granted;
         case 'bubbleStatus':
-          return <String, dynamic>{'wanted': wanted, 'running': running};
+          return <String, dynamic>{
+            'wanted': wanted,
+            'running': running,
+            'snoozedUntil': snoozedUntil,
+          };
+        case 'wakeBubble':
+          snoozedUntil = 0;
+          return true;
         case 'startBubble':
           if (!startSucceeds) return false;
           wanted = true;
@@ -84,6 +92,7 @@ void main() {
     granted = false;
     wanted = false;
     running = false;
+    snoozedUntil = 0;
     startSucceeds = true;
     SharedPreferences.setMockInitialValues(<String, Object>{});
     install();
@@ -306,6 +315,75 @@ void main() {
 
       expect(methods(), isNot(contains('startBubble')));
       expect(switchIsOn(t), isFalse);
+    });
+  });
+
+  group('sleeping', () {
+    testWidgets('awake shows no sleeping row at all', (t) async {
+      // A permanent row saying "not snoozed" is a row nobody ever needs.
+      granted = true;
+      wanted = true;
+      running = true;
+      await t.pumpWidget(harness());
+      await t.pumpAndSettle();
+      expect(find.text('Sleeping'), findsNothing);
+    });
+
+    testWidgets('asleep says WHEN it comes back', (t) async {
+      // "Asleep" with no end is indistinguishable from broken, and this
+      // feature has already been reported as broken twice.
+      granted = true;
+      wanted = true;
+      running = true;
+      snoozedUntil = DateTime.now()
+          .add(const Duration(hours: 1))
+          .millisecondsSinceEpoch;
+
+      await t.pumpWidget(harness());
+      await t.pumpAndSettle();
+
+      expect(find.text('Sleeping'), findsOneWidget);
+      expect(find.textContaining('Back at'), findsOneWidget);
+    });
+
+    testWidgets('a snooze in the past is not a snooze', (t) async {
+      granted = true;
+      wanted = true;
+      running = true;
+      snoozedUntil = 1;
+      await t.pumpWidget(harness());
+      await t.pumpAndSettle();
+      // The platform reports 0 for an expired snooze, but a stale non-zero
+      // value must not strand this screen showing a wake button forever.
+      expect(find.text('Sleeping'), findsOneWidget);
+    });
+
+    testWidgets('Wake it ends the snooze and the row goes', (t) async {
+      granted = true;
+      wanted = true;
+      running = true;
+      snoozedUntil =
+          DateTime.now().add(const Duration(hours: 2)).millisecondsSinceEpoch;
+
+      await t.pumpWidget(harness());
+      await t.pumpAndSettle();
+      calls.clear();
+
+      await t.tap(find.widgetWithText(TextButton, 'Wake it'));
+      await t.pumpAndSettle();
+
+      expect(methods(), contains('wakeBubble'));
+      expect(find.text('Sleeping'), findsNothing);
+    });
+
+    testWidgets('the promise deleted in F-159 is back, because it is true now',
+        (t) async {
+      granted = true;
+      await t.pumpWidget(harness());
+      await t.pumpAndSettle();
+      expect(find.textContaining('until tomorrow'), findsOneWidget);
+      // And the one that is still not built stays gone.
+      expect(find.textContaining('see-through'), findsNothing);
     });
   });
 

@@ -48,4 +48,11 @@
     <string name="swip_bubble_running">SWIP is one tap away</string>
     <string name="swip_bubble_running_note">Tap the floating button to read a shop\'s code.</string>
     <string name="swip_bubble_turn_off">Turn off</string>
+
+    <!--
+      `F-167` — snooze. Two ways in, because a long-press is faster and a
+      labelled button is the only way anyone finds out the long-press exists.
+    -->
+    <string name="swip_bubble_snooze_hour">Snooze 1 hour</string>
+    <string name="swip_bubble_snoozed">Back tomorrow</string>
 </resources>

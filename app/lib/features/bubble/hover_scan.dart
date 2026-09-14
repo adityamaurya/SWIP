@@ -145,12 +145,26 @@ class _HoverWindow extends StatelessWidget {
                     child: SizedBox(
                       height: cardHeight,
                       width: double.infinity,
-                      // The real scanner, unmodified. It brings its own
-                      // Scaffold, its own bar with the torch, its own camera
-                      // lifecycle and its own result route — so the card shows
-                      // exactly what the dashboard's scanner shows, because it
-                      // is that widget.
-                      child: const ScanPage(),
+                      // The real scanner, unmodified — its own Scaffold, its
+                      // own bar with the torch, its own camera lifecycle, its
+                      // own result route.
+                      //
+                      // `F-168`. Wrapped in its **own Navigator** so the MCC
+                      // lands in the card rather than over the whole screen.
+                      //
+                      // `ScanPage` finishes a scan with
+                      // `CaptureResultPage.open(context, …)`, which pushes on
+                      // the nearest Navigator. Without this that was the hover
+                      // app's root one, whose surface is the entire
+                      // transparent window — so the result covered everything,
+                      // the app underneath vanished, and dismissing it left
+                      // the user on the card with a second dismissal still to
+                      // go. A Navigator here bounds the push to these pixels.
+                      child: Navigator(
+                        onGenerateRoute: (_) => MaterialPageRoute<void>(
+                          builder: (_) => const ScanPage(),
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: SwipSpace.md),

@@ -815,6 +815,13 @@ class _KeepItRunningStep extends StatelessWidget {
           ),
           const SizedBox(height: SwipSpace.lg),
           const _Note(
+            icon: Icons.bedtime_outlined,
+            text: 'Holding the button sends it away until tomorrow. The notice '
+                'in your shade can send it away for an hour. Neither is the '
+                'same as switching it off — it comes back on its own.',
+          ),
+          const SizedBox(height: SwipSpace.lg),
+          const _Note(
             icon: Icons.accessibility_new_rounded,
             text: 'The one place Android really does allow only one app at a '
                 'time is the accessibility shortcut — holding both volume '

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -238,13 +239,43 @@ class _ScanPageState extends ConsumerState<ScanPage> {
           statusBarIconBrightness: Brightness.light,
           statusBarBrightness: Brightness.dark,
         ),
+        // `F-166`. The mark, then the title, then the torch — with padding
+        // that survives being 380 px wide inside the hovering card.
+        //
+        // `titleSpacing: 0` is the load-bearing one. `AppBar`'s default
+        // inserts 16 px between the leading widget and the title *on top of*
+        // the leading widget's own width, which on a narrow card pushed the
+        // title into the torch and left the mark jammed against the rounded
+        // corner. Spacing is given explicitly below instead, where it can be
+        // seen.
+        titleSpacing: 0,
+        leadingWidth: 76,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: SwipSpace.lg),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: SvgPicture.asset(
+              'assets/brand/swip-slash-wordmark.svg',
+              height: 18,
+              semanticsLabel: 'SW/P',
+              // The white mark, not the ink one: this bar floats over a camera
+              // feed, which is an arbitrary image. Same rule as every other
+              // `onCamera*` colour in this file.
+              colorFilter: const ColorFilter.mode(
+                  SwipColors.onCameraInk, BlendMode.srcIn),
+            ),
+          ),
+        ),
         title: Text('Scan a QR',
             style: SwipType.titleM.copyWith(color: SwipColors.onCameraInk)),
         actions: [
-          IconButton(
-            tooltip: 'Torch',
-            onPressed: () => _controller.toggleTorch(),
-            icon: const Icon(Icons.flashlight_on_outlined),
+          Padding(
+            padding: const EdgeInsets.only(right: SwipSpace.sm),
+            child: IconButton(
+              tooltip: 'Torch',
+              onPressed: () => _controller.toggleTorch(),
+              icon: const Icon(Icons.flashlight_on_outlined),
+            ),
           ),
         ],
       ),

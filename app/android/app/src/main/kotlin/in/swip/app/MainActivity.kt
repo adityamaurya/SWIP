@@ -360,6 +360,12 @@ class MainActivity : FlutterFragmentActivity() {
                         result.success(SwipBubbleService.start(this))
                     }
 
+                    // `F-167`. End a snooze early.
+                    "wakeBubble" -> {
+                        SwipBubbleService.wake(this)
+                        result.success(true)
+                    }
+
                     "stopBubble" -> {
                         SwipBubbleService.stop(this)
                         result.success(true)
@@ -376,6 +382,14 @@ class MainActivity : FlutterFragmentActivity() {
                             mapOf(
                                 "wanted" to SwipBubbleService.isWanted(this),
                                 "running" to SwipBubbleService.running,
+                                // `F-167`. Epoch millis, or 0 for awake. Sent
+                                // as the deadline rather than a boolean so the
+                                // Settings screen can say *when* it comes back
+                                // — "asleep" with no end is indistinguishable
+                                // from broken, which is the shape of report
+                                // this feature keeps generating.
+                                "snoozedUntil" to
+                                    SwipBubbleService.snoozedUntil(this),
                             )
                         )
                     }

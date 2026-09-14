@@ -34,10 +34,11 @@ import 'bubble_wizard.dart';
 ///     receiver;
 ///   * hides while SWIP itself is in front — `MainActivity.onResume`.
 ///
-/// One line was removed rather than kept: the original screen promised that
-/// "size and see-through-ness are yours to set". There are no such controls.
-/// A promise on a privacy disclosure that the code does not keep is worse
-/// than no promise, so it is gone until it is built.
+/// Two lines were removed in `F-159` rather than left unkept. One of them —
+/// "one flick sends it away for the rest of the day" — came back in `F-167`,
+/// because the flick was built. The other, "size and see-through-ness are
+/// yours to set", is still gone: there are no such controls, and a promise on
+/// a privacy disclosure that the code does not keep is worse than no promise.
 ///
 /// And one line is true by construction rather than by promise: **SWIP does not
 /// request an Accessibility Service.** Wispr Flow does — their screenshots show
@@ -90,6 +91,13 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
   bool _granted = false;
   bool _wanted = false;
   bool _running = false;
+
+  /// `F-167`. When the bubble wakes, or null if it is awake.
+  ///
+  /// Held as the deadline rather than a boolean so this screen can say *when*
+  /// it comes back. "Asleep" with no end is indistinguishable from broken, and
+  /// this feature has already been reported as broken twice.
+  DateTime? _asleepUntil;
   bool _loading = true;
 
   /// True between "the user tapped the switch on" and "we found out whether
@@ -197,12 +205,17 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
         () => _channel.invokeMapMethod<String, dynamic>('bubbleStatus'));
     final wanted = status?['wanted'] == true;
     final running = status?['running'] == true;
+    final snoozeMs = status?['snoozedUntil'];
+    final asleepUntil = snoozeMs is int && snoozeMs > 0
+        ? DateTime.fromMillisecondsSinceEpoch(snoozeMs)
+        : null;
 
     if (!mounted) return;
     setState(() {
       _granted = granted;
       _wanted = wanted;
       _running = running;
+      _asleepUntil = asleepUntil;
       _loading = false;
     });
   }
@@ -227,6 +240,12 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
     // idempotent and simply re-shows the bubble. The status read that follows
     // reports what actually happened, so nothing is assumed here.
     await _ask(() => _channel.invokeMethod<bool>('startBubble'));
+  }
+
+  /// `F-167`. End a snooze early.
+  Future<void> _wake() async {
+    await _ask(() => _channel.invokeMethod<bool>('wakeBubble'));
+    await _refresh();
   }
 
   /// Turn the bubble on or off for real.
@@ -370,6 +389,26 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
                     ),
                   ),
 
+                // `F-167`. Only while it is actually asleep. A permanent row
+                // saying "not snoozed" is a row nobody ever needs.
+                if (_asleepUntil != null)
+                  ListTile(
+                    leading: Icon(Icons.bedtime_outlined,
+                        color: SwipColors.warning),
+                    title: const Text('Sleeping'),
+                    subtitle: Text(
+                      'Back at ${_clock(_asleepUntil!)}. Holding the button '
+                      'sends it away until tomorrow; the notice in your shade '
+                      'can send it away for an hour.',
+                      style: SwipType.bodyS
+                          .copyWith(color: SwipColors.textSecondary),
+                    ),
+                    trailing: TextButton(
+                      onPressed: _wake,
+                      child: const Text('Wake it'),
+                    ),
+                  ),
+
                 // `F-159`. The way back into the wizard.
                 //
                 // Without this the five screens are a one-shot: a user who
@@ -434,6 +473,15 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
                       'shade. That is required — no app can draw over another '
                       'quietly — and it carries a Turn off button.',
                 ),
+                // `F-167`. This line was deleted in `F-159` because it was not
+                // true — the screen had promised a flick-away that did not
+                // exist. It is back because the feature is.
+                const _Promise(
+                  icon: Icons.bedtime_outlined,
+                  text: 'Hold the button to send it away until tomorrow, or '
+                      'use Snooze in the notice for an hour. Sleeping is not '
+                      'the same as off — it comes back on its own.',
+                ),
                 const _Promise(
                   icon: Icons.restart_alt_rounded,
                   text: 'After you restart your phone it stays away until you '
@@ -457,6 +505,19 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
             ),
     );
   }
+}
+
+/// A 24-hour clock, and a date too when the snooze runs past midnight.
+///
+/// `intl` is not a dependency of this project and one date string is not a
+/// reason to add one — but "back at 00:30" with no date, read at 23:00, is a
+/// sentence that means the wrong thing.
+String _clock(DateTime t) {
+  final now = DateTime.now();
+  final hhmm = '${t.hour.toString().padLeft(2, '0')}:'
+      '${t.minute.toString().padLeft(2, '0')}';
+  final sameDay = t.year == now.year && t.month == now.month && t.day == now.day;
+  return sameDay ? hhmm : 'tomorrow, $hhmm';
 }
 
 class _Promise extends StatelessWidget {

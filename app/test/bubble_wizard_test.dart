@@ -39,7 +39,11 @@ void main() {
         case 'notificationsAllowed':
           return notificationsGranted;
         case 'bubbleStatus':
-          return <String, dynamic>{'wanted': wanted, 'running': running};
+          return <String, dynamic>{
+            'wanted': wanted,
+            'running': running,
+            'snoozedUntil': 0,
+          };
         case 'startBubble':
           if (!overlayGranted) return false;
           wanted = true;
@@ -333,6 +337,10 @@ void main() {
 
       expect(find.textContaining('do NOT switch SWIP off'), findsOneWidget);
       expect(find.textContaining('accessibility shortcut'), findsOneWidget);
+      // `F-167`. Snooze is explained where the other ways of losing the
+      // button are, because "I held it and it vanished" is otherwise
+      // indistinguishable from the bug this feature keeps being reported as.
+      expect(find.textContaining('until tomorrow'), findsOneWidget);
     });
   });
 }

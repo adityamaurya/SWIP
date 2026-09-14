@@ -128,6 +128,26 @@ class SwipBubbleService : Service() {
         private const val KEY_WANTED = "wanted"
 
         /**
+         * `F-167` — when the bubble is asleep until.
+         *
+         * Wispr Flow lets you flick the bubble away for the day, and `docs/32`
+         * once promised the same. `F-159` **deleted that promise** rather than
+         * leave it unkept. This is it, kept.
+         *
+         * Stored rather than held in memory, because the two things that most
+         * want to end a snooze early — the process dying, or the phone
+         * restarting — are exactly the two that a field in memory would not
+         * survive. A snooze that quietly ends when Android reclaims the
+         * process is not a snooze.
+         */
+        private const val KEY_SNOOZE_UNTIL = "snoozeUntil"
+
+        /** An hour, from the notification. */
+        const val ACTION_SNOOZE_HOUR = "in.swip.app.BUBBLE_SNOOZE_HOUR"
+
+        private const val ONE_HOUR_MS = 60L * 60L * 1000L
+
+        /**
          * `SYSTEM_ALERT_WINDOW` became a special, user-granted permission in
          * API 23. Below that it is an ordinary install-time grant, so it is
          * already held and `canDrawOverlays` does not exist to ask.
@@ -150,6 +170,43 @@ class SwipBubbleService : Service() {
         /** What the user last asked for, regardless of what is on screen. */
         fun isWanted(context: Context): Boolean =
             prefs(context).getBoolean(KEY_WANTED, false)
+
+        /** Epoch millis the snooze ends at, or 0. Past values read as awake. */
+        fun snoozedUntil(context: Context): Long {
+            val until = prefs(context).getLong(KEY_SNOOZE_UNTIL, 0L)
+            return if (until > System.currentTimeMillis()) until else 0L
+        }
+
+        /**
+         * Put the bubble to sleep until [until] (epoch millis).
+         *
+         * Deliberately does **not** clear `KEY_WANTED`. Snoozing and switching
+         * off are different intentions: one says "not right now", the other
+         * says "not at all", and collapsing them would mean a flick to get the
+         * button out of the way silently undid the setup that put it there.
+         */
+        fun snooze(context: Context, until: Long) {
+            prefs(context).edit().putLong(KEY_SNOOZE_UNTIL, until).apply()
+            nudge(context)
+        }
+
+        /** Snooze until the next local midnight — "the rest of the day". */
+        fun snoozeForTheDay(context: Context) {
+            val midnight = java.util.Calendar.getInstance().apply {
+                add(java.util.Calendar.DAY_OF_YEAR, 1)
+                set(java.util.Calendar.HOUR_OF_DAY, 0)
+                set(java.util.Calendar.MINUTE, 0)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }.timeInMillis
+            snooze(context, midnight)
+        }
+
+        /** Bring it back now. */
+        fun wake(context: Context) {
+            prefs(context).edit().remove(KEY_SNOOZE_UNTIL).apply()
+            nudge(context)
+        }
 
         /**
          * Turn the bubble on. Returns false - and changes nothing - if the
@@ -302,6 +359,19 @@ class SwipBubbleService : Service() {
      */
     private var screenOff = false
 
+    /**
+     * `F-165`. Which side the bubble is parked against.
+     *
+     * The window is `WRAP_CONTENT` and positioned by its **left** edge, so
+     * widening into a pill grows it to the right. Parked on the right-hand
+     * side of the screen, that put the label off the edge and "Scanning…"
+     * arrived cropped to "S".
+     *
+     * Knowing the side means the expansion can be compensated for — see
+     * [reanchor].
+     */
+    private var parkedRight = false
+
     /** Re-show the bubble the moment a payment's quiet window expires. */
     private val unquiet = Runnable { applyVisibility() }
 
@@ -361,6 +431,15 @@ class SwipBubbleService : Service() {
             stop(this)
             stopSelf()
             return START_NOT_STICKY
+        }
+
+        if (intent?.action == ACTION_SNOOZE_HOUR) {
+            // Snooze, not stop: the service stays up so it can come back on
+            // its own. Stopping would need something to restart it, and the
+            // only thing that does is opening SWIP.
+            snooze(this, System.currentTimeMillis() + ONE_HOUR_MS)
+            applyVisibility()
+            return START_STICKY
         }
 
         // Without the permission there is nothing to draw and never will be.
@@ -444,15 +523,25 @@ class SwipBubbleService : Service() {
      * each time it asks what is true now.
      */
     private fun applyVisibility() {
-        val quiet = System.currentTimeMillis() < quietUntil
-        val hidden = screenOff || quiet || appInForeground
+        val now = System.currentTimeMillis()
+        val quiet = now < quietUntil
+        // `F-167`. Read from storage rather than a field, so a snooze survives
+        // the process being reclaimed and the phone restarting — which are the
+        // two things most likely to happen during one.
+        val asleep = snoozedUntil(this)
+        val hidden = screenOff || quiet || appInForeground || asleep > 0L
         bubble?.visibility = if (hidden) View.GONE else View.VISIBLE
 
-        // Re-check when the payment window expires; nothing else will wake us.
+        // Re-check when whichever timer expires first; nothing else will wake
+        // us. A snooze can be hours away, and `postDelayed` holds no wakelock,
+        // so this fires late rather than never — acceptable for a button whose
+        // whole job at that moment is to be absent.
         main.removeCallbacks(unquiet)
-        if (quiet) {
-            main.postDelayed(unquiet, quietUntil - System.currentTimeMillis())
-        }
+        val next = listOfNotNull(
+            if (quiet) quietUntil else null,
+            if (asleep > 0L) asleep else null,
+        ).minOrNull()
+        if (next != null) main.postDelayed(unquiet, next - now + 250L)
     }
 
     // ── the bubble itself ───────────────────────────────────────────────────
@@ -564,6 +653,26 @@ class SwipBubbleService : Service() {
         private var downAt = 0L
         private var dragging = false
 
+        /**
+         * `F-167`. Fires if the finger stays still long enough.
+         *
+         * Posted on DOWN and cancelled by a drag or a lift, which is how a
+         * long-press has to be detected when the same listener also owns
+         * dragging: you cannot know a press was long until the moment it
+         * becomes one, and by then the gesture may already have been a drag.
+         */
+        private val longPress = Runnable {
+            // `running` as well as `dragging`: the service can be destroyed
+            // inside the press timeout, and a snooze nobody asked for is a
+            // button that vanishes for a day on its own.
+            if (dragging || !running) return@Runnable
+            snoozeForTheDay(this@SwipBubbleService)
+            // Say so, in the bubble itself, in the moment before it goes. A
+            // button that silently disappears when held reads as a bug.
+            peek(getString(R.string.swip_bubble_snoozed))
+            applyVisibility()
+        }
+
         private val slop by lazy {
             android.view.ViewConfiguration.get(this@SwipBubbleService)
                 .scaledTouchSlop
@@ -580,6 +689,11 @@ class SwipBubbleService : Service() {
                     startY = lp.y
                     downAt = System.currentTimeMillis()
                     dragging = false
+                    main.postDelayed(
+                        longPress,
+                        android.view.ViewConfiguration.getLongPressTimeout()
+                            .toLong(),
+                    )
                     view.animate().scaleX(0.92f).scaleY(0.92f)
                         .setDuration(120).start()
                     return true
@@ -590,6 +704,8 @@ class SwipBubbleService : Service() {
                     val dy = event.rawY - downY
                     if (!dragging && (abs(dx) > slop || abs(dy) > slop)) {
                         dragging = true
+                        // Moving means this was a drag, not a hold.
+                        main.removeCallbacks(longPress)
                     }
                     if (dragging) {
                         lp.x = startX + dx.toInt()
@@ -600,6 +716,7 @@ class SwipBubbleService : Service() {
                 }
 
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    main.removeCallbacks(longPress)
                     view.animate().scaleX(1f).scaleY(1f)
                         .setDuration(120).start()
 
@@ -635,10 +752,11 @@ class SwipBubbleService : Service() {
         private fun snapToEdge(view: View, lp: WindowManager.LayoutParams) {
             val screenWidth = resources.displayMetrics.widthPixels
             val margin = dp(8f)
-            val target = if (lp.x + view.width / 2 < screenWidth / 2) {
-                margin
-            } else {
+            parkedRight = lp.x + view.width / 2 >= screenWidth / 2
+            val target = if (parkedRight) {
                 screenWidth - view.width - margin
+            } else {
+                margin
             }
 
             // Keep it on screen vertically too — a bubble dragged off the top
@@ -718,14 +836,16 @@ class SwipBubbleService : Service() {
      * An index is a silent dependency on the order two `addView` calls happen
      * in, thirty lines away; a field breaks at compile time instead.
      */
-    private fun peek() {
+    private fun peek(message: String = getString(R.string.swip_bubble_peek)) {
         val view = bubble ?: return
         val text = label ?: return
         if (text.visibility == View.VISIBLE) return
+        text.text = message
 
         // This alone is what widens the bubble - the window is WRAP_CONTENT,
         // so making the label visible re-measures it into a pill.
         text.visibility = View.VISIBLE
+        reanchor()
 
         view.animate().scaleX(1.06f).scaleY(1.06f)
             .setInterpolator(DecelerateInterpolator())
@@ -740,11 +860,41 @@ class SwipBubbleService : Service() {
     }
 
     /**
+     * `F-165`. Keep the pill on screen when it changes width.
+     *
+     * A `WRAP_CONTENT` overlay is positioned by its left edge, so showing or
+     * hiding the label moves its *right* edge. Parked against the right-hand
+     * side that pushed the text off the screen — the owner saw "Scanning…"
+     * cropped to a single letter.
+     *
+     * The new width is not known until the view has been measured, which is
+     * why this runs in [View.post] rather than immediately: reading
+     * `view.width` on the same frame as the visibility change returns the
+     * *old* width, and compensating by that is the same bug with extra steps.
+     */
+    private fun reanchor() {
+        val view = bubble ?: return
+        val lp = params ?: return
+        view.post {
+            if (bubble !== view) return@post
+            val margin = dp(8f)
+            val screenWidth = resources.displayMetrics.widthPixels
+            lp.x = if (parkedRight) screenWidth - view.width - margin else margin
+            runCatching { windows.updateViewLayout(view, lp) }
+        }
+    }
+
+    /**
      * Named rather than a lambda so [peek] can cancel a pending one. Two taps
      * inside 900 ms would otherwise queue two settles, and the second would
      * close the pill the first tap had just reopened.
      */
-    private val settle = Runnable { label?.visibility = View.GONE }
+    private val settle = Runnable {
+        label?.visibility = View.GONE
+        // Narrowing moves the right edge too, so the circle would otherwise
+        // be left sitting where the pill's left edge had been.
+        reanchor()
+    }
 
     // ── the notification Android requires ───────────────────────────────────
 
@@ -788,6 +938,17 @@ class SwipBubbleService : Service() {
             PendingIntent.FLAG_IMMUTABLE,
         )
 
+        // `F-167`. The discoverable half of snooze. Long-pressing the bubble
+        // is faster, but nobody discovers a long-press; a labelled button in
+        // the shade is how people find out the gesture exists at all.
+        val snooze = PendingIntent.getService(
+            this,
+            2,
+            Intent(this, SwipBubbleService::class.java)
+                .setAction(ACTION_SNOOZE_HOUR),
+            PendingIntent.FLAG_IMMUTABLE,
+        )
+
         @Suppress("DEPRECATION")
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, CHANNEL_ID)
@@ -803,6 +964,13 @@ class SwipBubbleService : Service() {
                 .setContentTitle(getString(R.string.swip_bubble_running))
                 .setContentText(getString(R.string.swip_bubble_running_note))
                 .setContentIntent(open)
+                .addAction(
+                    Notification.Action.Builder(
+                        null as android.graphics.drawable.Icon?,
+                        getString(R.string.swip_bubble_snooze_hour),
+                        snooze,
+                    ).build()
+                )
                 .addAction(
                     Notification.Action.Builder(
                         // Explicitly the `Icon?` overload. `Action.Builder`

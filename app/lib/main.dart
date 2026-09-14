@@ -405,6 +405,20 @@ class _SwipShellState extends ConsumerState<SwipShell>
           // included. The tile is dimmed and explained, never hidden.
           tapAvailable: Platform.isAndroid,
           onOpenLedger: _openLedger,
+          // `F-169`. **This was declared, called, and never supplied.**
+          //
+          // `DashboardPage` takes an `onOpenEvent`, and both the hero capture
+          // and every recent row call it on tap. Nothing passed one, so the
+          // callback was null and tapping an MCC on the dashboard did
+          // precisely nothing — while the identical row in the Ledger tab
+          // opened the detail sheet, because `ledger_page.dart` wires it.
+          //
+          // Same shape as the dead floating bubble and the unimported
+          // merchant directory: every piece present and correct, and no wire
+          // between them. `tool/check_wiring.py` cannot see this one — it
+          // checks files, channels and preferences, not widget callbacks that
+          // are declared and never passed.
+          onOpenEvent: (event) => showCaptureDetail(context, ref, event),
           onOpenSettings: () => setState(() => _index = 2),
           onOpenCapture: _openCapture,
           onScanned: _onInlineScan,
