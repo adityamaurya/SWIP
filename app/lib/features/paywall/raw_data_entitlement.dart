@@ -52,6 +52,8 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/settings/prefs.dart';
+
 /// The Play product this maps to. Created in the Play Console as a **one-time
 /// managed product**, not a subscription.
 ///
@@ -132,10 +134,6 @@ class RawDataEntitlement extends StateNotifier<bool> {
     state = false;
   }
 }
-
-final sharedPreferencesProvider = FutureProvider<SharedPreferences>(
-  (ref) => SharedPreferences.getInstance(),
-);
 
 /// `false` until preferences have loaded, which is the safe default: a view
 /// that flashes the payload for one frame before deciding it is locked has

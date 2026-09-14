@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -14,9 +13,14 @@ import '../../core/location/capture_location.dart';
 import '../../core/onboarding/primers.dart';
 import '../../core/settings/home_market.dart';
 import '../../core/theme/swip_tokens.dart';
+import '../../data/models/capture_event.dart';
 import '../../data/repositories/capture_repository.dart';
+import '../../data/sources/black_box.dart';
 import '../../data/sources/export_narrative.dart';
+import '../../data/sources/ledger_lines.dart';
 import '../../data/sources/ledger_seal.dart';
+import '../backup/recovery_phrase.dart';
+import '../backup/recovery_phrase_page.dart';
 import '../bubble/bubble_settings.dart';
 import '../onboarding/home_market_page.dart';
 import '../support/support_section.dart';
@@ -24,9 +28,23 @@ import '../support/support_section.dart';
 /// `S-12` — Settings.
 ///
 /// Backup is the headline. SWIP has no server and no account of yours, so the
-/// only way your history survives a lost phone is a file you own. That file is
-/// plain, readable JSON — not an opaque blob — so it stays useful even if SWIP
-/// stops existing.
+/// only way your history survives a lost phone is a file you own.
+///
+/// `F-147`, `F-149`. There are now **two** of those files and they are not
+/// alternatives:
+///
+/// | | For | Readable by |
+/// |---|---|---|
+/// | The backup | Restoring onto another phone | SWIP, with the recovery phrase |
+/// | The list | Reading, checking, pasting into a message | A person, in any text app |
+///
+/// The backup used to be plain JSON, and the argument for that was that it
+/// *"stays useful even if SWIP stops existing"*. That argument lost to a
+/// stronger one: a plain ledger of every shop you have paid, every amount and
+/// every location, sitting in a Downloads folder and synced to a cloud, is the
+/// most sensitive artefact this app produces. It is now encrypted, and the
+/// plain list — which carries no payloads, no handles and no coordinates —
+/// takes over the job of being readable forever.
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
 
@@ -88,26 +106,59 @@ class SettingsPage extends ConsumerWidget {
           const Divider(height: SwipSpace.xxl),
           _header('Your data'),
 
+          // `F-147`. The sealed backup.
           ListTile(
-            leading: const Icon(Icons.download_rounded),
-            title: const Text('Export ledger'),
+            leading: const Icon(Icons.lock_outline_rounded),
+            title: const Text('Back up, encrypted'),
             subtitle: Text(
               count == 0
                   ? 'Nothing captured yet'
-                  : 'Save all $count captures as a file you own',
+                  : 'All $count captures, sealed with your recovery phrase',
               style: SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
             ),
             onTap: count == 0 ? null : () => _export(context, ref),
           ),
 
+          // `F-149`. The readable one. Listed **second** and described by what
+          // it is for rather than by what it lacks, because these are two
+          // tools and not a full version and a lite version.
+          ListTile(
+            leading: const Icon(Icons.list_alt_rounded),
+            title: const Text('Export a plain list'),
+            subtitle: Text(
+              count == 0
+                  ? 'Nothing captured yet'
+                  : 'One line per capture, newest first — readable anywhere',
+              style: SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
+            ),
+            onTap: count == 0 ? null : () => _exportLines(context, ref),
+          ),
+
           ListTile(
             leading: const Icon(Icons.upload_rounded),
-            title: const Text('Import a backup'),
+            title: const Text('Restore a backup'),
             subtitle: Text(
               'Merges by capture id, so importing twice is safe',
               style: SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
             ),
             onTap: () => _import(context, ref),
+          ),
+
+          // `F-148`. Reachable **before** anything goes wrong.
+          //
+          // A recovery phrase that can only be found inside the export flow is
+          // a recovery phrase people meet once, in a hurry, on the way to
+          // doing something else. This row is the one that lets somebody go
+          // and write it down properly on a quiet evening.
+          ListTile(
+            leading: const Icon(Icons.key_outlined),
+            title: const Text('Your recovery phrase'),
+            subtitle: Text(
+              'The twelve words that open your backups. Nobody can reset them',
+              style: SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
+            ),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => _showPhrase(context, ref),
           ),
 
           const Divider(height: SwipSpace.xxl),
@@ -272,28 +323,125 @@ class SettingsPage extends ConsumerWidget {
       'captures': sealed,
     };
 
+    // ── `F-147`. The phrase, and the screen that makes sure it is recorded ──
+    //
+    // This happens **before** anything is written. A backup sealed under a
+    // phrase the user has never seen is a file nobody can ever open, and
+    // producing one silently would be the worst bug this app could ship.
+    final store = ref.read(recoveryPhraseStoreProvider);
+    final phrase = await store.phrase();
+
+    if (phrase == null) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+            'SWIP could not reach its settings store, so it cannot make a '
+            'sealed backup safely. Try again in a moment.'),
+      ));
+      return;
+    }
+
+    if (!store.acknowledged) {
+      if (!context.mounted) return;
+      final done = await Navigator.of(context).push<bool>(MaterialPageRoute(
+        builder: (_) => RecoveryPhrasePage(phrase: phrase),
+      ));
+      // Backed out without recording the words. No file is written, because a
+      // file they cannot open is worse than no file.
+      if (done != true) return;
+      await store.acknowledge();
+    }
+
+    final sealedFile = await BlackBox.seal(
+      ledger: payload,
+      phrase: phrase,
+      captures: sealed.length,
+      sealHash: sealHash,
+      now: now.toUtc(),
+    );
+
     final dir = await getTemporaryDirectory();
     // `F-128`. Readable at a glance in a Downloads folder six months from now:
-    //     SWIP_Ledger_2026-09-05_14-32-07_no-0007_142-captures.json
+    //     SWIP_Backup_2026-09-05_14-32-07_no-0007_142-captures.swipbox.json
     // Date and time are **local**, because the person reading the filename is
     // in a timezone, not in UTC. The UTC instant is inside the file.
-    final name = 'SWIP_Ledger_${_stamp(now)}'
+    //
+    // `.swipbox.json` keeps the `.json` so every file picker, mail client and
+    // chat app still handles it as text — a novel extension is how an
+    // attachment gets refused — while `.swipbox` says at a glance which of the
+    // two exports this is.
+    final name = 'SWIP_Backup_${_stamp(now)}'
         '_no-${serial.toString().padLeft(4, '0')}'
-        '_${sealed.length}-captures.json';
+        '_${sealed.length}-captures.swipbox.json';
     final file = File('${dir.path}/$name');
-    await file.writeAsString(
-        const JsonEncoder.withIndent('  ').convert(payload));
+    await file.writeAsString(sealedFile);
 
     if (!context.mounted) return;
     await Share.shareXFiles(
       [XFile(file.path)],
-      subject: 'SWIP ledger backup $name',
-      text: 'Your SWIP ledger - ${sealed.length} captures, export '
+      subject: 'SWIP encrypted backup $name',
+      // Deliberately says nothing about what is inside. This text travels into
+      // a chat window or an email subject line, where it is readable by
+      // whatever is scanning that inbox — which is precisely what encrypting
+      // the file was for.
+      text: 'An encrypted SWIP backup - ${sealed.length} captures, export '
           'no. $serial, taken ${_stamp(now)}.\n'
-          'Seal ${sealHash.substring(0, 12)}… - SWIP checks this on import and '
-          'tells you if the file changed.\n'
-          'Save it to Google Drive, then import it on a new phone.',
+          'It opens only with your twelve-word recovery phrase. Save it to '
+          'Google Drive; without the phrase nobody can read it, including us.',
     );
+  }
+
+  /// `F-149` — the readable export.
+  ///
+  /// > *"Also, include a very simple line… in a rich text file format, with
+  /// > the date in descending order."*
+  ///
+  /// Note what this file does **not** contain, because it is the reason it can
+  /// be unencrypted while the backup cannot: no raw payloads, no payee
+  /// handles, no geohashes, no terminal identifiers. Four columns, all of them
+  /// things the user already knows about places they already went.
+  Future<void> _exportLines(BuildContext context, WidgetRef ref) async {
+    final db = await ref.read(databaseProvider.future);
+    final rows = await db.exportRows();
+    final events = [
+      for (final r in rows) CaptureEvent.fromRow(r),
+    ];
+
+    final now = DateTime.now();
+    final text = LedgerLines.render(events, now: now);
+
+    final dir = await getTemporaryDirectory();
+    final name = 'SWIP_List_${_stamp(now)}_${events.length}-captures.txt';
+    final file = File('${dir.path}/$name');
+    await file.writeAsString(text);
+
+    if (!context.mounted) return;
+    await Share.shareXFiles(
+      [XFile(file.path)],
+      subject: 'SWIP - your captures',
+      text: '${events.length} captures, newest first.',
+    );
+  }
+
+  /// `F-148` — look the phrase up on a quiet evening rather than mid-export.
+  Future<void> _showPhrase(BuildContext context, WidgetRef ref) async {
+    final store = ref.read(recoveryPhraseStoreProvider);
+    final phrase = await store.phrase();
+    if (phrase == null) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('SWIP could not reach its settings store.'),
+      ));
+      return;
+    }
+    if (!context.mounted) return;
+    await Navigator.of(context).push<bool>(MaterialPageRoute(
+      builder: (_) => RecoveryPhrasePage(
+        phrase: phrase,
+        isFirstTime: !store.acknowledged,
+      ),
+    ));
+    if (!store.acknowledged) await store.acknowledge();
   }
 
 
@@ -322,44 +470,127 @@ class SettingsPage extends ConsumerWidget {
 
   static const _exportSerialKey = 'swip.export.serial';
 
+  /// `F-147` — restore.
+  ///
+  /// ## The shape of this function is the promise
+  ///
+  /// > *"It should never, ever fail on import."*
+  ///
+  /// The old version was a `try` around `jsonDecode` with a `catch` that
+  /// printed the exception: `Could not import: FormatException: Unexpected
+  /// character (at character 1)`. That is a true sentence and a useless one —
+  /// it does not tell the user whether they picked the wrong file, whether it
+  /// arrived damaged, or whether SWIP is broken.
+  ///
+  /// So nothing here throws. [BlackBox.inspect] classifies the file without a
+  /// key and hands back a sentence; [BlackBox.open] does the same for the
+  /// decryption. Every branch below ends in something a person can act on.
   Future<void> _import(BuildContext context, WidgetRef ref) async {
     final picked = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['json'],
+      // `F-147`. Not restricted to `.json` any more. A backup that has been
+      // through Drive, a chat app and a download folder comes back with all
+      // sorts of extensions — and a picker that will not show the user their
+      // own file is its own kind of import failure.
+      type: FileType.any,
     );
     final path = picked?.files.single.path;
     if (path == null) return;
 
+    String text;
     try {
-      final text = await File(path).readAsString();
-      final decoded = jsonDecode(text);
+      text = await File(path).readAsString();
+    } on Object {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('SWIP could not read that file. If it is on Drive or '
+            'another cloud, download it to the phone first.'),
+      ));
+      return;
+    }
 
-      if (decoded is! Map || decoded['format'] != 'swip.ledger') {
-        throw const FormatException(
-            'That file is not a SWIP ledger export.');
+    final reading = BlackBox.inspect(text);
+
+    if (!reading.isImportable || reading.problem != null) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(reading.problem ?? 'That is not a SWIP backup.'),
+        duration: const Duration(seconds: 6),
+      ));
+      return;
+    }
+
+    // ── the phrase, if this file needs one ──
+    //
+    // Looped rather than one-shot: a mistyped word is the single most likely
+    // thing to happen on this screen, and throwing the user back to the file
+    // picker to start again for a typo would be gratuitous.
+    var rows = <Map<String, dynamic>>[];
+    if (reading.needsPhrase) {
+      final store = ref.read(recoveryPhraseStoreProvider);
+      final onThisPhone = await store.phrase();
+      String? problem;
+
+      while (true) {
+        if (!context.mounted) return;
+        final entered = await showDialog<String>(
+          context: context,
+          builder: (_) => RecoveryPhrasePrompt(
+            problem: problem,
+            suggested: onThisPhone,
+          ),
+        );
+        if (entered == null) return; // cancelled
+
+        final opened =
+            await BlackBox.open(reading: reading, phrase: entered);
+        if (opened.ok) {
+          rows = opened.rows;
+          break;
+        }
+
+        problem = opened.problem;
+        // Only a wrong phrase is worth another go round the loop. A damaged
+        // file will be just as damaged the second time, and asking again
+        // would imply the user could fix it by typing harder.
+        if (!opened.wrongPhrase) {
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(problem ?? 'That backup could not be opened.'),
+            duration: const Duration(seconds: 6),
+          ));
+          return;
+        }
       }
+    } else {
+      final opened = await BlackBox.open(reading: reading, phrase: '');
+      rows = opened.rows;
+    }
 
-      final rows = (decoded['captures'] as List)
-          .cast<Map<String, Object?>>();
+    // ── `F-127`. The seal, checked before anything is written ──
+    //
+    // Independent of the encryption, and deliberately so: decrypting proves
+    // the file came from somebody holding the phrase, and the chain proves the
+    // rows have not been reordered or edited since export. A plain ledger from
+    // before `F-147` carries a chain and no encryption; both are checked the
+    // same way.
+    final typed = [for (final r in rows) r.cast<String, Object?>()];
+    final declared = reading.sealHash;
+    final SealCheck? check = declared == null
+        ? null
+        : LedgerSeal.verify(typed, declaredSealHash: declared);
 
-      // `F-127`. Check the seal **before** writing anything. An export made by
-      // an older build carries no seal at all, which is not a failure and must
-      // not be reported as one - it is simply a file from before this existed.
-      final sealed = decoded['sealHash'] as String?;
-      final SealCheck? check = sealed == null
-          ? null
-          : LedgerSeal.verify(rows, declaredSealHash: sealed);
+    if (check != null && !check.intact) {
+      if (!context.mounted) return;
+      // Not refused. The user's own backup is theirs, and a corrupted record
+      // is still better than no record — but they are told plainly, and told
+      // *where*, before it goes in.
+      final proceed = await _confirmBrokenSeal(context, check);
+      if (proceed != true) return;
+    }
 
-      if (check != null && !check.intact) {
-        // Not refused. The user's own backup is theirs, and a corrupted
-        // record is still better than no record - but they are told plainly,
-        // and told *where*, before it goes in.
-        final proceed = await _confirmBrokenSeal(context, check);
-        if (proceed != true) return;
-      }
-
+    try {
       final db = await ref.read(databaseProvider.future);
-      final added = await db.importRows(rows);
+      final added = await db.importRows(typed);
       ref.read(ledgerRevisionProvider.notifier).state++;
 
       if (!context.mounted) return;
@@ -370,16 +601,20 @@ class SettingsPage extends ConsumerWidget {
               : ' · seal did not match';
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(added == 0
-            ? 'Already up to date - nothing new in that file$sealNote'
+            ? 'Already up to date — nothing new in that file$sealNote'
             : 'Restored $added captures$sealNote'),
       ));
-    } on Object catch (e) {
+    } on Object {
+      // `F-136` filters rows to real columns, so this should be unreachable.
+      // It is here because "should be unreachable" is what was believed about
+      // the import that would have thrown on the first new-format file.
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not import: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('SWIP opened that backup but could not write it to the '
+            'ledger. Nothing was changed.'),
+      ));
     }
   }
-
 
   /// `F-127`. The seal did not verify. Say what that means without making the
   /// person feel accused of anything - the overwhelmingly likely cause is a
