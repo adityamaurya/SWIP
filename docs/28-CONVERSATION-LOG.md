@@ -900,6 +900,54 @@ where you were. Worth tidying, not worth rushing into the same round.
 
 ---
 
+## Prompt 39 — 14 Sep 2026 · Six small things, one real bug
+
+**You asked:** for six fixes, and whether the MCC is really being written to
+the ledger.
+
+**On the ledger — yes,** and I checked rather than assumed. The hovering
+scanner is the same `ScanPage`, and it writes the row *before* it shows you
+anything. Same resolver, same ledger, same row as the dashboard.
+
+**The cropped word** was the overlay growing the wrong way. The window is
+sized to its content and positioned by its left edge, so becoming a pill
+pushes its right edge outward — and parked on the right of the screen, that
+was off the edge. It remembers which side it is on now.
+
+**The header** has the mark, then the title, then the torch. The actual fix
+was one property: `AppBar` adds its own 16 px *on top of* the leading widget,
+which at card width shoved the title into the torch.
+
+**Snooze** — your Wispr Flow question. Hold the button and it goes until
+tomorrow; the notice in your shade can send it away for an hour. Two ways in,
+because nobody discovers a long-press on their own. It is stored, not
+remembered in memory, because the two things most likely to happen during a
+snooze are Android reclaiming the app and you restarting the phone. And it
+does **not** switch the button off — "not now" and "not at all" are different
+things, and merging them would mean a flick quietly undid your setup.
+
+That also puts back a promise I deleted two rounds ago for being untrue. It
+is true now.
+
+**The MCC now lands in the card** rather than over the whole screen, so one
+dismissal instead of two.
+
+**And the dashboard.** That one was a real bug, and the same bug as the
+floater. The dashboard declares a "when a capture is tapped" callback, and
+every row calls it — **and nothing ever gave it one.** So the tap called
+nothing. The identical row in the Ledger tab worked the whole time, which is
+why it looked like a design choice rather than a fault.
+
+That is three now: a switch that wrote a setting nobody read, a finished
+lookup nobody imported, and a tap that called a callback nobody supplied. The
+check I wrote for the first two could not see the third, so it checks this
+shape as well now — narrowly, because its first version flagged two more that
+were perfectly fine, and a check that cries wolf is one you stop reading.
+
+**Shipped:** `F-165` through `F-169`.
+
+---
+
 <!--
 Template:
 

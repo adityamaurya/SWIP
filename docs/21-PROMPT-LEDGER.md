@@ -1606,7 +1606,7 @@ standing note in `CLAUDE.md`.
 
 ---
 
-## Prompt 38 — 14 Sep 2026 · The scanner hovers *(current)*
+## Prompt 38 — 14 Sep 2026 · The scanner hovers
 
 **Original prompt, verbatim:**
 
@@ -1652,6 +1652,44 @@ camera has been refused, wrapped in `catchError` — so a missing channel would
 have done **nothing, silently**, on the screen whose whole job at that moment
 is to unblock the user. Found by asking which channels the hover path touches
 rather than assuming the new engine inherits the old one's wiring.
+
+---
+
+## Prompt 39 — 14 Sep 2026 · Six things from three screenshots *(current)*
+
+Attached: three screenshots — the bubble on the home screen with "Scanning…"
+cropped, the hovering scanner working over the launcher, and the bubble over a
+keyboard with the snooze question circled.
+
+**Original prompt, verbatim:**
+
+> so the floater icon is coming properly, few minor experience changes we can do is firstly the scanning word is getting cropped and also the UI of camera scanning is a bit off line the title text and the camera icon fix it keep proper padding and also add logo abive the scan the qr with torch also in the wispr flow the icon can be snzooed , what and how can we achieve it? make it possible fix the ui and th UX of scanning and show the mcc on fhe same camera area region also i hope the mcc is being logged originally in the ledger
+>
+> also on the dashboard the mcc is openable like in the main kedges tab to view DETAILS
+
+| # | ID | To-do | Status |
+|---|---|---|---|
+| 1 | `F-165` | "Scanning…" is cropped | **Done** |
+| 2 | `F-166` | Scanner header padding, mark, torch | **Done** |
+| 3 | `F-167` | Snooze, like Wispr Flow | **Done** — hold, or an hour from the shade |
+| 4 | `F-168` | The MCC in the camera area | **Done** — the card has its own `Navigator` |
+| 5 | — | Is the MCC logged in the ledger? | **Yes** — verified by reading the path |
+| 6 | `F-169` | Dashboard MCC opens details | **Done — it was a dead callback** |
+
+### The one that was a real bug
+
+`DashboardPage` declares an `onOpenEvent` and every recent row calls it on
+tap. **Nothing ever passed one.** Null callback, so the tap did nothing, while
+the same row in the Ledger tab worked.
+
+Third time: the bubble's preference nobody read, the merchant directory
+nobody imported, and now a callback nobody supplied. Each time every piece was
+present and correct and the wire was missing.
+
+`check_wiring.py` could not see this one — it checked files, channels and
+preferences. It checks callbacks now, narrowly: only `name?.call(` with no
+supplier, because a never-passed callback with a `??` fallback is a working
+default and flagging it would make the gate noise.
 
 ---
 

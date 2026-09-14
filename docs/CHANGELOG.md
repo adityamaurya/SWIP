@@ -992,6 +992,75 @@ put the ₹5,000 unlock on sale. All with reasons in
 
 ---
 
+## Prompt 39 — 14 Sep 2026 · Six things from three screenshots
+
+> *"the scanning word is getting cropped… the UI of camera scanning is a bit
+> off… add logo above the scan the qr with torch… in the wispr flow the icon
+> can be snoozed… show the mcc on the same camera area region… i hope the mcc
+> is being logged originally in the ledger… on the dashboard the mcc is
+> openable like in the main ledger tab"*
+
+### The one that was a real bug
+
+**`DashboardPage.onOpenEvent` was declared, called, and never passed.** Both
+the hero capture and every recent row call it on tap; nothing supplied one, so
+it was null and tapping an MCC on the dashboard did nothing — while the
+identical row in the Ledger tab worked, because `ledger_page.dart` wires it.
+
+Third feature found built, correct and unconnected. `F-169`.
+
+### Changed
+
+| File | Change |
+|---|---|
+| `main.dart` | `onOpenEvent` wired to `showCaptureDetail`. `F-169` |
+| `SwipBubbleService.kt` | `F-165` re-anchors the pill so the label cannot leave the screen; `F-167` snooze — long-press, and an hour from the shade |
+| `scan_page.dart` | `F-166` the SW/P mark, then the title, then the torch. `titleSpacing: 0` |
+| `hover_scan.dart` | `F-168` the card gets its own `Navigator`, so the MCC lands in the card |
+| `bubble_settings.dart` | A **Sleeping** row that says when it returns and can wake it early |
+| `tool/check_wiring.py` | A fourth check: callbacks invoked as `name?.call(` that nobody supplies |
+
+### `F-165` — why the label was cropped
+
+The overlay is `WRAP_CONTENT` and positioned by its **left** edge, so widening
+into a pill grows it rightward. Parked on the right-hand side that put the
+label off the screen. It now remembers the side and re-anchors — in
+`View.post`, because reading `view.width` on the same frame as the visibility
+change returns the *old* width.
+
+### `F-167` — snooze
+
+Hold the bubble: away until tomorrow. **Snooze 1 hour** in the shade. Two ways
+in, because nobody discovers a long-press and a labelled button is how they
+learn the gesture exists.
+
+Stored rather than in memory: the two things most likely to happen during a
+snooze are the process being reclaimed and the phone restarting. It
+deliberately does not clear the wanted flag — *not right now* and *not at all*
+are different intentions.
+
+**This restores a promise `F-159` deleted for being untrue.** It is true now.
+The other deleted one — size and see-through-ness — stays gone.
+
+### The ledger question: yes
+
+The hovering scanner runs the same `ScanPage._onDetect`, which calls
+`repo.record(...)` **before** it shows anything. Same resolver, same ledger,
+same row. Confirmed by reading the path.
+
+### The gate, sharpened rather than widened
+
+The new callback check first flagged two more, and both were fine:
+`CaptureSheet.onPrimary` falls back to `?? maybePop()`,
+`LedgerRow.onLongPress` goes to an `InkWell`. A null there is a working
+default. It now reports only `name?.call(` with no supplier — the shape where
+a tap silently does nothing. Verified both ways: with `onOpenEvent` deleted
+again it names it exactly; with it restored it is silent.
+
+Serves `C-12`, `D-03`, `D-11`. `F-165`–`F-169`.
+
+---
+
 ## Prompt 38 — 14 Sep 2026 · The scanner hovers
 
 > *"can we get a hovering window on tap of this widget accessible anywhere
