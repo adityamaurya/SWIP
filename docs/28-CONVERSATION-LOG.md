@@ -745,6 +745,30 @@ the end of that chain, so one unanswered call meant a settings page spinning
 forever with no way out but force-quitting. Every platform read on that screen
 now has a three-second deadline.
 
+**And the sanity check found the same fault a second time, somewhere else.**
+
+`merchant_directory.dart` — the CRED merchant-name lookup you pushed hard for
+last round, with sixteen passing tests — **is imported by its test and by
+nothing in the app.** There is no route from the running SWIP to it. The tests
+pass. They would pass forever.
+
+That is two features now that were finished and never connected, so I stopped
+finding them by hand and wrote
+[`check_wiring.py`](../app/tool/check_wiring.py), which is now in CI. It looks
+for the wires rather than the parts: a file nothing imports, a channel name
+Dart calls with no handler on the other side, a preference written and never
+read. It caught a third thing within a minute of existing — a ternary I had
+written an hour earlier that hid a channel name from grep.
+
+**I have not connected the lookup**, and that is a decision rather than an
+omission. It needs the one HTTP client SWIP does not have — `docs/30` §1
+actively greps for one and fails the build if it appears, so writing it is
+deliberately breaking a gate built to catch exactly that — and three of its
+constants are still marked `VERIFY` because razorpay.com is blocked from where
+this is written. Shipping a client against three guessed constants would fail
+in front of a shop counter. Both are yours to call:
+[`35` §3.2](35-MASTER-CHECKLIST.md).
+
 **Shipped:** `F-158`.
 
 **Still open:** the in-overlay camera, [`32`](32-FLOATING-BUBBLE.md) steps 4–6
