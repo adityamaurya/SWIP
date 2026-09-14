@@ -67,6 +67,20 @@ class _OwnMccSheetState extends State<_OwnMccSheet> {
 
   Future<void> _go() async {
     _tick?.cancel();
+    // `F-153`. **The amount is prefilled on the UPI path and not on the card
+    // path, and that asymmetry is deliberate rather than an oversight.**
+    //
+    // A `upi://pay` intent carries `am=`, so the payment app opens with the
+    // figure already in it. A `razorpay.me/@handle` page asks the payer for
+    // the amount itself — that is what that product is.
+    //
+    // Razorpay's hosted pages do accept a trailing amount segment on some
+    // link types, and appending one here would be a guess: if this particular
+    // handle does not take it the payer gets a 404 instead of a checkout,
+    // which is a far worse outcome than typing a number they have already
+    // chosen. So the link is opened exactly as the owner gave it, and the
+    // sheet's copy says the amount is entered on the next screen. Verify the
+    // trailing-amount form against a live link before optimising this.
     final target = widget.card
         ? SupportGoal.razorpayLink
         : 'upi://pay?pa=${SupportGoal.upiId}'

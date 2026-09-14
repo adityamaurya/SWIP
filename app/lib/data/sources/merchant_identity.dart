@@ -325,6 +325,20 @@ abstract final class MerchantIdentifier {
     'merchant', 'shop', 'store', 'business', 'test merchant', 'na', 'n/a',
     'unknown', 'customer', 'user', 'amazon pay', 'razorpay', 'cashfree',
     'payu', 'billdesk', 'ccavenue', 'instamojo', 'mobikwik', 'freecharge',
+
+    // `F-154`. Straight out of the owner's PDF, where each of these was
+    // printed on a real sticker and would have become a shop's name:
+    //
+    //   pn=Verified Merchant        (BharatPe, @unitype)
+    //   pn=Google Pay Merchant      (gpay-…@okbizaxis)
+    //   pn=PhonePeMerchant          (no space — the old list missed it)
+    //
+    // The pattern is a PSP stamping its own assurance into the name field.
+    // "Verified Merchant" is the worst of them, because it reads like a
+    // finding about the shop rather than a blank the PSP filled in.
+    'verified merchant', 'verified paytm account', 'google pay merchant',
+    'phonepemerchant', 'paytmmerchant', 'bharatpe merchant',
+    'verified', 'verified user', 'upi user', 'qr merchant',
   };
 
   /// Work out who is behind a payment QR.
@@ -456,8 +470,35 @@ abstract final class MerchantIdentifier {
     );
 
     final pub = intent.mccPublication;
+
+    // `F-154` — **`mc=0000` on its own is NOT proof of a merchant, and it
+    // used to be.**
+    //
+    // The reasoning that put `unclassified` in this list was: the `mc` field
+    // only appears on merchant-minted QRs, so its presence in any form settles
+    // the question. The owner's PDF contains the counter-example, printed on a
+    // real sticker:
+    //
+    //     pa=9892033544-2@ybl   pn=VANDANA HANUMANT GAIKWAD
+    //     mc=0000  mode=02  purpose=00        (no `sign`)
+    //
+    // A phone-number handle, a person's name, no signature — and PhonePe mints
+    // exactly this on **personal** QRs. Treating it as a merchant put a RuPay
+    // credit-card verdict on somebody's private code.
+    //
+    // Contrast the other `mc=0000` in the same PDF, which really is a shop:
+    //
+    //     pa=Q848969421@ybl  pn=PhonePeMerchant
+    //     mc=0000  mode=02  orgid=180001  sign=MEUCIB…
+    //
+    // The difference is not the category field. It is the **signature** — and
+    // `of()` above already catches that case through `mode=02 && signed`, so
+    // dropping `unclassified` here costs the real merchant nothing.
+    //
+    // `published` and `blank` stay: a four-digit category, or an `mc=` written
+    // out and left empty, are both things only an acquirer's onboarding flow
+    // produces. A consumer app writes neither.
     final payloadProvesMerchant = pub == MccPublication.published ||
-        pub == MccPublication.unclassified ||
         pub == MccPublication.blank ||
         (intent.isDynamic && intent.acquirerHint != null);
 

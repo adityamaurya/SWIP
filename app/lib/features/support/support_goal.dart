@@ -50,15 +50,23 @@ class SupportGoal {
 
   // ── how to pay ──────────────────────────────────────────────────────────
   //
-  // PLACEHOLDERS. The support surfaces render a "not set up yet" state while
-  // either of these is empty, rather than opening a broken link - see
-  // [isConfigured].
+  // Live since 14 Sep 2026. The support surfaces still render a "not set up
+  // yet" state while either of these is empty rather than opening a broken
+  // link - see [isConfigured] - because a future edit could empty them again.
 
-  /// e.g. `adityamaurya@okhdfcbank`
-  static const upiId = '';
+  /// The UPI ID, given by the owner on 14 Sep 2026.
+  ///
+  /// Marked "for now" when it was given, so it is expected to change — which
+  /// is exactly why it lives in this file and not in a widget.
+  static const upiId = '8779875272@kotak';
 
-  /// A Razorpay payment-page link, e.g. `https://rzp.io/l/xxxxxxxx`
-  static const razorpayLink = '';
+  /// The Razorpay payment page.
+  ///
+  /// A `razorpay.me` link rather than an `rzp.io` payment-page link: it opens
+  /// a hosted page where the payer enters the amount themselves, which is the
+  /// right shape for a donation and means no amount is ever hard-coded here.
+  static const razorpayLink =
+      'https://razorpay.me/@seemaramchandramaurya';
 
   static bool get hasUpi => upiId.isNotEmpty;
   static bool get hasCard => razorpayLink.isNotEmpty;

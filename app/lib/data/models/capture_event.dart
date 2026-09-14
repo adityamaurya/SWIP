@@ -152,7 +152,35 @@ class CaptureEvent {
   bool get hasLocation => geohash != null;
 
   bool get isSynced => syncedAt != null;
-  bool get hasMcc => mcc != null && mcc!.length == 4;
+  /// `F-154` — **`0000` is not a category, and this getter used to say it
+  /// was.**
+  ///
+  /// Found by running the ten QR codes out of the owner's PDF through the
+  /// resolver. Two of them carry `mc=0000` — a PhonePe merchant QR and a
+  /// personal code — and `0000` is an acquirer writing *"not categorised"*,
+  /// not a category whose number happens to be zero.
+  ///
+  /// [CaptureResolver.hasMcc] has always excluded it. This one did not, and
+  /// **this is the one the screens use**:
+  ///
+  /// ```dart
+  /// CaptureResolver.hasMcc => mcc != null && mcc!.length == 4 && mcc != '0000'
+  /// CaptureEvent.hasMcc    => mcc != null && mcc!.length == 4
+  /// ```
+  ///
+  /// So `capture_result_page`, `capture_sheet` and `scan_flash_card` all read
+  /// `true` for an unclassified merchant and rendered **`0000` as the hero
+  /// number**, four digits tall, with "Not in the offline table yet" under it.
+  /// Two getters with the same name on two classes, disagreeing about the
+  /// single most important predicate in the app.
+  ///
+  /// [isUnclassified] is how the difference is still said out loud: the code
+  /// *did* carry a category field and the acquirer *did* fill it in with
+  /// zeros, which is a different sentence from "this sticker never had one".
+  bool get hasMcc => mcc != null && mcc!.length == 4 && mcc != '0000';
+
+  /// The acquirer published `0000` — "merchant exists, category deliberately
+  /// none". Distinct from [hasMcc] being false because nothing was published.
   bool get isUnclassified => mcc == '0000';
 
   /// `F-42`. The payee handle, recovered from [merchantKey] rather than stored
