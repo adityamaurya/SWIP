@@ -992,6 +992,76 @@ put the ₹5,000 unlock on sale. All with reasons in
 
 ---
 
+## Prompt 38 — 14 Sep 2026 · The scanner hovers
+
+> *"can we get a hovering window on tap of this widget accessible anywhere
+> everywhere and same camera window of the dashboard visible on the tap of the
+> swip icon"*
+
+The bubble worked. Tapping it opened **the whole app**, which meant leaving
+the app you were standing in — the one thing a floating button exists to
+avoid. And the first reveal after setup was awkward, because the bubble hides
+while SWIP is in front.
+
+### Android — new
+
+| File | Note |
+|---|---|
+| `SwipHoverActivity.kt` | **New.** A transparent Activity in its own task. The app underneath stays drawn; Flutter paints a card over it |
+| `res/values/swip_hover_styles.xml` | **New.** `SwipHoverTheme`. Deliberately **not** named `styles.xml` — `bootstrap.sh` copies SWIP's `res/` over the generated tree, so that name would replace `flutter create`'s and break `@style/LaunchTheme` on a clean checkout only |
+
+### Flutter — new
+
+| File | Note |
+|---|---|
+| `bubble/hover_scan.dart` | **New.** The floating card. Contains `ScanPage` itself — not a copy of it |
+
+### Changed
+
+| File | Change |
+|---|---|
+| `main.dart` | Branches on `defaultRouteName`. Two Activities, one entrypoint; the launch route is the only thing that tells them apart |
+| `SwipBubbleService.kt` | The tap opens the hovering window instead of `MainActivity` |
+| `bubble_wizard.dart` | `F-164`. The last screen's primary action is **"Show me the button"**, which backgrounds SWIP so the bubble appears within the same second |
+| `MainActivity.kt` | `moveToBackground` |
+
+### Screens
+
+| ID | Screen | State |
+|---|---|---|
+| `S-32` | Hovering scanner | **New.** `ScanPage` in a card over another app |
+
+### Why not the native overlay `docs/32` §3 describes
+
+`F-161` had already removed the blocker, so this was a choice rather than a
+constraint. **A native overlay scanner would be a second implementation of
+scanning** — and SWIP's scanner is not a camera plus a barcode library, it is
+the aim detector, the `noDuplicates` trap, the resolver, the merchant graph,
+the ledger write and the result screen, most of which is in
+[`29`](29-QR-DETECTION-FORENSICS.md) because it was wrong first. A Kotlin twin
+would be correct the day it was written and drift the round after.
+
+### The two costs, stated rather than buried
+
+The app underneath is **visible but paused** — a true overlay would not pause
+it. And the window runs a **second Flutter engine**, so roughly half a second
+to appear and some tens of megabytes while open. A cached warm engine would
+remove the delay and pay that memory the whole time the bubble is switched on,
+which for a button idle all day is worse.
+
+### One caught before it shipped
+
+The hovering window's engine is not `MainActivity`'s, so `MainActivity`'s
+method channel does not exist in it. `ScanPage` reaches for exactly one method
+there — `openAppSettings`, when camera permission has been refused — and wraps
+it in `catchError`. An unregistered channel would not have crashed; it would
+have done **nothing, silently**, on the one screen whose job at that moment is
+to unblock the user.
+
+Serves `C-12`, `C-03`. `F-163`, `F-164`.
+
+---
+
 ## Prompt 37 — 14 Sep 2026 · Omnipresent, and both blockers cleared
 
 > *"the shortcut is still not working… I want it to be present, omnipresent,

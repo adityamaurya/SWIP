@@ -1547,7 +1547,7 @@ believed.
 
 ---
 
-## Prompt 37 — 14 Sep 2026 · Omnipresent, and both blockers were mine *(current)*
+## Prompt 37 — 14 Sep 2026 · Omnipresent, and both blockers were mine
 
 Attached: `ce8453f2-1000117807.pdf` — 23 pages, Wispr Flow's full onboarding.
 
@@ -1603,6 +1603,55 @@ It is the red-crossed row on the wizard's fourth screen.
 
 All three were me reasoning instead of checking, which is now the second
 standing note in `CLAUDE.md`.
+
+---
+
+## Prompt 38 — 14 Sep 2026 · The scanner hovers *(current)*
+
+**Original prompt, verbatim:**
+
+> awesome we are getting the widget icon atleast visible everywhere, the onyl friction i saw is the first time visibility after the setup completes, first part where in your icon is visible, so now it is opening the SWIP app's dash qr scanning mode but in hover mode, can we get a hovering window on tap of this widget accessible anywhere everywhere and same camera  window of the dashbaord visible on the tap of the swip icon
+
+| # | ID | To-do | Status |
+|---|---|---|---|
+| 1 | `F-163` | A hovering window on tap, anywhere | **Done** |
+| 2 | `F-163` | The same camera window as the dashboard | **Done** — literally `ScanPage`, not a copy |
+| 3 | `F-164` | The first-time visibility friction after setup | **Done** — the wizard now shows it rather than describing it |
+
+### What it is
+
+A **transparent Activity** in its own task. The app underneath stays drawn and
+Flutter paints a card over it containing `ScanPage` itself — same camera, same
+detection, same resolver, same ledger, same result, because it is the same
+widget.
+
+Three things make it transparent and none is optional: the theme's
+`windowIsTranslucent`, Flutter's `BackgroundMode.transparent`, and a
+`Scaffold` with a transparent background. **Get any one wrong and the result
+is a black card rather than an error.**
+
+### Not the native overlay, and that is now a choice
+
+`F-161` had already removed the Gradle blocker. A native CameraX overlay would
+be a **second implementation of scanning**, and SWIP's scanner is several
+rounds of hard-won behaviour recorded in [`29`](29-QR-DETECTION-FORENSICS.md).
+A Kotlin twin would be correct on the day it was written and drift the round
+after.
+
+### The two honest costs
+
+The app underneath is visible but **paused**. And the window runs a second
+Flutter engine — about half a second to appear, some tens of megabytes while
+open, both ending when it closes.
+
+### The one caught before shipping
+
+The hovering engine is not `MainActivity`'s, so that Activity's method channel
+does not exist in it. `ScanPage` reaches for `openAppSettings` there when the
+camera has been refused, wrapped in `catchError` — so a missing channel would
+have done **nothing, silently**, on the screen whose whole job at that moment
+is to unblock the user. Found by asking which channels the hover path touches
+rather than assuming the new engine inherits the old one's wiring.
 
 ---
 

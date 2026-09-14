@@ -260,7 +260,7 @@ the live docs, then wire a key.
 | Go private | 29 | ✅ |
 | iOS plan and `.ipa` route | 32 | ✅ documented, [`31`](31-IOS-AND-IPA.md) |
 | iOS CI (Stage 1–2) | 32 | 📋 needs a macOS runner at 10× minutes — a budget decision, not a code one |
-| Floating bubble | 32, 36, 37 | ◑ steps 1–3 built and **actually working** (`F-131`, `F-158`, `F-159`). `F-158` shipped a dropped-broadcast bug that kept the bubble permanently hidden; fixed in `F-159`, which also added the five-screen wizard and made it survive a reboot and an app update. **Step 4, the in-overlay camera, is open but no longer blocked** — `F-161` taught `bootstrap.sh` to inject Gradle dependencies, [`37` §5](37-OMNIPRESENCE-AND-THE-TWO-BLOCKERS.md) |
+| Floating bubble | 32, 36, 37, 38 | ◑ steps 1–3 built and **actually working** (`F-131`, `F-158`, `F-159`). `F-158` shipped a dropped-broadcast bug that kept the bubble permanently hidden; fixed in `F-159`, which also added the five-screen wizard and made it survive a reboot and an app update. **Step 4 done in `F-163`** — the real `ScanPage` hovered in a transparent Activity rather than a native CameraX twin, [`32` §10](32-FLOATING-BUBBLE.md) |
 | `INTERNET` permission | 30 | ◑ diagnosed; the fix is a debug/profile manifest split and **must be tested on a device** |
 | Signed release keystore | 30 | 📋 blocking a store release, not a debug APK |
 | Privacy policy at a URL | 30 | 📋 blocking release |
@@ -300,7 +300,8 @@ money, or is deliberately held.
 | Item | Why it is open | Whose move |
 |---|---|---|
 | Display serif | Held as its own commit so a bad outcome is bisectable | Mine, next round |
-| Bubble step 4 — the in-overlay camera | **Unblocked** (`F-161`). Not written: several hundred lines of camera code that cannot be run here — no device, and CI only compiles — and this project's [`29`](29-QR-DETECTION-FORENSICS.md) is a record of how subtle camera code turns out to be | Mine, next round |
+| ~~Bubble step 4 — the scanner over other apps~~ | **Done** (`F-163`), and deliberately **not** as a native CameraX overlay: that would be a second implementation of scanning, and SWIP's is several rounds of hard-won behaviour. The real `ScanPage` is hovered instead, in a transparent Activity. [`32` §10](32-FLOATING-BUBBLE.md) | — |
+| The result page inside the hovering card | After a scan it fills the screen rather than staying in the card, so dismissing it returns to the card rather than to the app underneath. Two dismissals where one would do | Mine, next round |
 | iOS CI | macOS runners bill at 10× | **Yours** — budget |
 | `INTERNET` permission | Fix must be verified on a device | **Yours** — a device |
 | 02:00 auto-backup | Now unblocked by `F-147` | Mine, next round |

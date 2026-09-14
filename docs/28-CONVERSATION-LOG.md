@@ -850,6 +850,56 @@ phone — which is a real decision, unlike the two I handed you last round.
 
 ---
 
+## Prompt 38 — 14 Sep 2026 · Hovering
+
+**You asked:** for the bubble to open a hovering window with the dashboard's
+camera in it, anywhere — and flagged the first-time reveal after setup as the
+one remaining friction.
+
+**I answered:** both are built.
+
+**The hovering window** is a transparent Android screen in its own task. The
+app you are in stays drawn behind it, and SWIP paints a card over the top with
+the scanner in it. Not a copy of the scanner — *the* scanner, the same widget
+the dashboard opens, so the camera, the detection, the resolver, the ledger
+and the result screen are all the same code. There is one scanner in SWIP and
+there will go on being one.
+
+I could have built the native overlay the old plan describes — last round
+removed the thing that was blocking it. I did not, and the reason is worth
+saying: a native scanner would be a **second** scanner. SWIP's is not a camera
+and a barcode library, it is several rounds of things that were wrong first
+and are written down in [`29`](29-QR-DETECTION-FORENSICS.md). A second one
+would be right the day it was written and wrong a round later.
+
+**Two costs, because you should hear them from me rather than notice them.**
+The app underneath is visible but *paused* — a video behind the card will hold
+still. And the window starts its own copy of SWIP's engine, so there is about
+half a second before the card appears. I could keep one warm to make it
+instant, but that would hold the memory all day for a button you tap twice.
+
+**On the reveal:** you were right that explaining it was not enough. The last
+wizard screen's main button is now "Show me the button" — it closes the wizard
+and puts SWIP in the background, so the bubble is on screen within the same
+second, over whatever was behind. "Done" is still there for when you want to
+keep using the app.
+
+**One thing I caught before it shipped,** because it is the same shape as the
+bug that made the floater look dead. The hovering window runs its own engine,
+so `MainActivity`'s channel does not exist in it. The scanner reaches for that
+channel in exactly one place — to open Android's settings when the camera has
+been refused — and it swallows failures. It would not have crashed. It would
+have done nothing, silently, on the one screen whose job at that moment is to
+get you unstuck. Everything present, nothing connected. Now registered.
+
+**Shipped:** `F-163`, `F-164`.
+
+**Still open:** after a scan the result page fills the screen rather than
+staying inside the card, and closing it returns you to the card rather than to
+where you were. Worth tidying, not worth rushing into the same round.
+
+---
+
 <!--
 Template:
 
