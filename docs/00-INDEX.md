@@ -110,3 +110,5 @@ Inter's `tnum` needs enabling by hand on the `MCC` text style.
 - [32 — The floating scan bubble](32-FLOATING-BUBBLE.md) — the permission, the rule it commits to, and why the camera window is native
 - [33 — Visual direction: Paper](33-VISUAL-DIRECTION-PAPER.md) — one dark object per screen, and the one thing deliberately not copied
 - [34 — The round-34 checklist](34-ROUND-34-CHECKLIST.md) — everything done and everything held back; why a POS tap produced **nothing at all**; what CoWIN actually did; how CRED really gets a merchant name
+- [35 — The master checklist](35-MASTER-CHECKLIST.md) — every ask from every prompt, with status and a reason on every open line
+- [36 — Deviations](36-DEVIATIONS.md) — the 38 decisions that moved away from the original idea, what each cost, and how to reverse it

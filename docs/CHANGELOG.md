@@ -992,6 +992,77 @@ put the ₹5,000 unlock on sale. All with reasons in
 
 ---
 
+## Prompt 35 — 14 Sep 2026 · The PDF, the duplicate key, and a real blockchain
+
+### Screens changed
+
+| ID | Screen | Change | Serves |
+|---|---|---|---|
+| `S-01` | Dashboard | **The duplicate-key crash is gone** — this is the red panel *and* the black screen | `F-152` |
+| `S-01` | Dashboard | The prompt label no longer strobes as the band settles | `F-152` |
+| `S-12` | Settings | **Appearance**: Match my phone · Light · Dark | `F-155` |
+| `S-12` | Settings | Import reports the blockchain, naming the block that failed | `F-156` |
+| all | every screen | Two grounds. Foil is back as an option, recovered from `f2acf31^` | `F-155` |
+| `S-05` | Capture result | `mc=0000` no longer renders as the hero number | `F-154` |
+
+### Element changes
+
+| Where | Before | After | Why |
+|---|---|---|---|
+| `AnimatedSwitcher` key | `ValueKey(prompt text)` | A monotonic sequence | Text oscillated across a threshold inside one transition; two Stack children collided |
+| Prompt stage | Read raw `t` | Hysteresis, 0.28/0.66 in and 0.18/0.54 out | Flicker is the user-visible defect; the crash is what flicker does to a keyed switcher |
+| `CaptureEvent.hasMcc` | `length == 4` | `… && mcc != '0000'` | It disagreed with `CaptureResolver.hasMcc`, and the screens use this one |
+| `ofIntent` merchant proof | included `mc=0000` | `published` and `blank` only | PhonePe mints `mc=0000&mode=02` on **personal** QRs |
+| `_genericNames` | 30 entries | + `Verified Merchant`, `Google Pay Merchant`, `PhonePeMerchant` | All three printed on real stickers in the PDF |
+| `SwipColors` | `static const` | Getters over `SwipPalette.active` | Two grounds without threading 440 context lookups |
+| `MaterialApp` | no key | keyed on the theme choice | A palette switch has to re-evaluate 440 static reads |
+| `BlackBox.seal` | seal hash | + a mined, signed blockchain | `F-156` |
+| `SupportGoal` | empty placeholders | the real link and UPI ID | Given in prompt 35 |
+
+### Code
+
+| File | Change |
+|---|---|
+| [`pull_to_reveal.dart`](../app/lib/widgets/pull_to_reveal.dart) | `F-152` — the duplicate key, and the hysteresis that stops it recurring |
+| [`swip_palette.dart`](../app/lib/core/theme/swip_palette.dart) | **New.** `F-155` — Paper and Foil, and why this is a global rather than a `ThemeExtension` |
+| [`theme_setting.dart`](../app/lib/core/theme/theme_setting.dart) | **New.** `F-155` — three choices, defaulting to the phone |
+| [`swip_chain.dart`](../app/lib/data/sources/swip_chain.dart) | **New.** `F-156` — merkle, PoW, Ed25519, validator, selective-disclosure receipts |
+| [`merchant_directory.dart`](../app/lib/data/sources/merchant_directory.dart) | **New.** `F-157` — the VPA lookup CRED makes, with the transport injected |
+| [`capture_event.dart`](../app/lib/data/models/capture_event.dart) | `F-154` — `0000` is not a category |
+| [`merchant_identity.dart`](../app/lib/data/sources/merchant_identity.dart) | `F-154` — `mc=0000` is not proof of a merchant; three more placeholder names |
+| [`black_box.dart`](../app/lib/data/sources/black_box.dart) | `F-156` — the chain travels inside the ciphertext and is verified on the way back |
+| [`main.dart`](../app/lib/main.dart) | `F-155` — the one place the palette is written |
+| 51 `const` removals across 20 files | `F-155` — a getter is not a compile-time constant |
+| 5 new test files | `pdf_qr_corpus`, `theme`, `swip_chain`, `merchant_directory`, plus additions to `pull_controller` and `black_box` |
+
+### Docs
+
+[35-MASTER-CHECKLIST](35-MASTER-CHECKLIST.md) — every ask from every prompt,
+with status and a reason on every open line.
+[36-DEVIATIONS](36-DEVIATIONS.md) — the 38 decisions that moved away from the
+original idea, and how to reverse each.
+
+### Five of my own claims corrected
+
+1. **The red string was "Duplicate keys found"**, not "Build scheduled during
+   frame". I reported the wrong one last round.
+2. **The black screen is that same bug**, not a separate unexplained one.
+3. **CRED does not need a PSP licence** for the merchant name. A VPA lookup is
+   a commercial API. I concluded otherwise without looking.
+4. **`0000` was rendering as a category** on the one screen that matters.
+5. **`mc=0000` was promoting a person to a merchant**, putting a RuPay verdict
+   on a personal QR.
+
+### Open
+
+Display serif; the bubble's service and overlay; iOS CI; `INTERNET`; the 02:00
+auto-backup; the exhaustive MCC list. Yours: the keystore, the privacy URL,
+the intent filter, the Play Console product, and confirming the three `VERIFY`
+constants in `merchant_directory.dart`. All in
+[35 §5](35-MASTER-CHECKLIST.md).
+
+---
+
 <!--
 Template for the next entry:
 

@@ -41,6 +41,21 @@ python3 tool/check_const.py     # `const X(… .withValues(…))` is not constan
 
 ---
 
+## Themes
+
+`F-155`. **Two grounds: Paper (light) and Foil (dark), toggled in Settings,
+defaulting to the phone.** `SwipColors.*` are static getters over
+`SwipPalette.active`, which is written in exactly one place — `SwipApp.build`
+— and `MaterialApp` is keyed on the choice so a switch rebuilds the tree once.
+
+A colour token is therefore **not a compile-time constant**. `const Foo(color:
+SwipColors.bg)` will not compile, and that is expected rather than a mistake to
+undo.
+
+`onCamera*` deliberately does **not** follow the palette. There is a test.
+
+---
+
 ## The one paid surface
 
 `F-146`. **Exactly one thing in SWIP costs money: viewing the raw payload
@@ -92,10 +107,21 @@ Each of these cost a broken build or a broken screen. Do not re-derive them.
 | `check_balance.py` counts brackets; it **cannot see grouping** | It passed a file where `FittedBox(` was never closed. `flutter analyze` is the authority, and it is in the gate |
 | sqflite caches open databases **by path**, and `openInMemory()` always uses `:memory:` | Two tests silently share one database. `SwipDatabase.close()` in `tearDown`. `F-150` |
 | `expect(() => asyncFn(), returnsNormally)` checks **only the synchronous part** | It leaves an unawaited Future; the failure surfaces later from a test that already passed. Await it |
-| **CoWIN is not blockchain-based** | DIVOC issues W3C Verifiable Credentials signed as JWTs. Encryption + a hash chain give every property that was actually wanted. `docs/34` §4 |
+| **CoWIN is not blockchain-based** | DIVOC issues W3C Verifiable Credentials signed as JWTs. The premise correction was right; **the conclusion was not** — the owner reaffirmed and a real chain was built (`F-156`), and its Merkle tree buys selective disclosure, which a flat hash chain cannot |
+| An `AnimatedSwitcher` keyed on **text that can return to a previous value** collides | A bouncing overscroll crosses a threshold several times inside one 180 ms transition → two `Stack` children share a key → *"Duplicate keys found"*. Key on a monotonic counter, and add hysteresis. `F-152` |
+| **That assertion throws inside a sliver, which black-screens the whole `CustomScrollView`** | The red panel and the "black screen on intent capture" were always the same bug. `F-152` |
+| `CaptureResolver.hasMcc` excluded `'0000'`; `CaptureEvent.hasMcc` did not | The screens use the **event** one, so an unclassified merchant rendered `0000` as the hero number. Two getters of the same name disagreeing is the shape to look for. `F-154` |
+| **`mc=0000` is not proof of a merchant** | PhonePe mints `mc=0000&mode=02` on *personal* QRs. The discriminator is the `sign=` block. `F-154` |
+| **CRED does not need a PSP licence to show a merchant name** | Resolving a VPA is a commercial API (Razorpay, Cashfree, Decentro, Juspay) sold to any business with KYC. No API returns the **MCC** — that lives in the acquirer's switch, which is why CRED writes *"may not"*. `F-157` |
 
 **The recurring mistake, twice over: checking the source instead of the
 artifact.** Read the built thing, not the code that should have built it.
+
+**The other recurring mistake: concluding instead of looking.** Three times —
+the floating bubble, the blockchain, and CRED's PSP licence — I reasoned from
+what I already believed, said it could not be done, and was overruled by the
+owner telling me to go and check. Each time the checking changed the answer.
+Before writing "that is not possible", go and look. `docs/36` §5.
 
 ---
 
@@ -131,6 +157,8 @@ artifact.** Read the built thing, not the code that should have built it.
 | Visual direction | [`docs/33-VISUAL-DIRECTION-PAPER.md`](docs/33-VISUAL-DIRECTION-PAPER.md) |
 | Account recovery | [`docs/25-CONTINUITY.md`](docs/25-CONTINUITY.md) |
 | The round-34 checklist, PPSE forensics, CRED vs SWIP | [`docs/34-ROUND-34-CHECKLIST.md`](docs/34-ROUND-34-CHECKLIST.md) |
+| **Every ask from every prompt, with status** | [`docs/35-MASTER-CHECKLIST.md`](docs/35-MASTER-CHECKLIST.md) |
+| **Every deviation from the original idea** | [`docs/36-DEVIATIONS.md`](docs/36-DEVIATIONS.md) |
 
 ---
 

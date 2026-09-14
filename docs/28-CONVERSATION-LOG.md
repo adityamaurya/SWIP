@@ -605,6 +605,99 @@ reasons, in [`34` §3.2](34-ROUND-34-CHECKLIST.md).
 
 ---
 
+## Prompt 35 — 14 Sep 2026 · The PDF arrived, and it corrected me three times
+
+**You asked:** a checklist of every ask across every prompt; a separate file
+for decisions that drifted from the original idea; the MCC for every QR in the
+PDF *"no matter what"* plus a RuPay verdict on each; dark and light with a
+toggle; your Razorpay link and UPI ID; the blockchain built regardless of what
+CoWIN did; the CRED lookup *"no excuses"*; the ledgers; and a sanity check.
+
+**The PDF is the most useful thing you have sent.** Not because of the QR
+codes — there are ten and only one carries a category — but because it pairs
+each code with **what a payment app said about it**, and because it contains
+photographs of SWIP failing in ways I had described wrongly.
+
+### It overturned three of my conclusions
+
+**The red string.** Last round I said it was "Build scheduled during frame".
+That was a real bug and the fix stands, but page 11 of your PDF shows the
+actual one: **"Duplicate keys found"**. The prompt label sat in an
+`AnimatedSwitcher` keyed on its own text, and a bouncing overscroll oscillates
+across the threshold several times inside one 180 ms transition — so the text
+went A → B → A while the first A was still fading out, and two children in a
+`Stack` shared a key.
+
+**The black screen.** It is not a separate bug and never was. That assertion
+throws while building a sliver, which takes the entire `CustomScrollView` with
+it. Pages 13 and 28 show the dashboard rendered black with only the nav bar
+left. It has been sitting on the open list for rounds as something unexplained.
+
+**CRED and the PSP licence.** I told you SWIP could not have what CRED has. I
+was wrong, and I had not looked. Page 1 is a sticker whose payload is
+`pa=paytm.s1jii6k@pty&pn=Paytm`; page 3 is CRED showing **"Jagannathrao
+Hospitality Private Limited"**. The name is not in the QR — so CRED is
+resolving the VPA, and resolving a VPA is a commercial API that Razorpay,
+Cashfree, Decentro and Juspay all sell to any business with KYC. **You already
+have a Razorpay account.** Built.
+
+### "Find the MCC no matter what"
+
+Ten unique codes. **One carries a category** (`mc=5411`). That is not a parser
+failing — it matches your own 85-capture export, where 34 of 42 misses were
+stickers with no `mc` field at all. A category cannot be read out of a code
+that does not contain one.
+
+What can be done, and is: read it when it is there; read it from the terminal
+instead; remember it once any route learns it; learn it from a statement; and
+say precisely why it is missing.
+
+Your PDF illustrates that perfectly. Pages 4–7 are one visit to Yaashkrishni
+Food Science: the **POS tap** hit a factory-placeholder terminal with no
+category, and the **QR scan of the same shop** returned **5462, Bakeries**.
+
+### The corpus found three more defects
+
+`mc=0000` was rendering as the hero number, because `CaptureResolver.hasMcc`
+excluded it and `CaptureEvent.hasMcc` — the one the screens use — did not.
+`mc=0000` was also being treated as proof of a merchant, which put a RuPay
+credit-card verdict on a **personal** QR in your PDF (`VANDANA HANUMANT
+GAIKWAD`, a phone-number handle, no signature). And `Verified Merchant`,
+`Google Pay Merchant` and `PhonePeMerchant` were all becoming shop names.
+
+### The blockchain
+
+Built as asked, and built properly: Merkle trees, proof of work, Ed25519
+signatures and a validator, with 23 tests most of which are attacks. The
+strongest thing it buys is one I had not thought of — **selective
+disclosure**. One capture plus its Merkle path plus the signed block header is
+under 3 KB and proves that capture was recorded, by you, in that block,
+revealing nothing about any other row.
+
+On proof of work I have been honest in the file rather than in the marketing:
+with no competing miners it is belt-and-braces behind the signature, so
+difficulty is 3 and a block takes milliseconds. There is a test that performs
+the realistic attack — edit a capture, recompute the root, re-mine until the
+proof holds — and everything lines up except the signature.
+
+### On being pushed
+
+Three times now you have told me to go and look instead of concluding, and
+three times the looking changed the answer: the bubble, the blockchain, and
+the PSP. That pattern is written down in [`36`](36-DEVIATIONS.md) §5 because
+it is the most useful thing on that page.
+
+**Shipped:** `F-152` through `F-157`, 281 tests, both CI jobs green including
+the APK.
+
+**Still open, all with reasons:** the display serif; the bubble's service and
+overlay; iOS CI; the `INTERNET` permission; the 02:00 auto-backup; the
+exhaustive MCC list; and four things that are your call — the keystore, the
+privacy URL, the intent filter, and the Play Console product that would put
+the ₹5,000 unlock on sale. [`35` §5](35-MASTER-CHECKLIST.md).
+
+---
+
 <!--
 Template:
 

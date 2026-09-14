@@ -1314,7 +1314,7 @@ Then, attaching `swipledger20260905_1.json` — the real 85-capture export:
 
 ---
 
-## Prompt 34 — 5 Sep 2026, 08:00 UTC · The full screen, the black box, and the silent POS *(current)*
+## Prompt 34 — 5 Sep 2026, 08:00 UTC · The full screen, the black box, and the silent POS
 
 Attached: `1c84b316-1000112700.pdf`, 40 pages. **The file was lost when the
 container was reclaimed and could not be read — see
@@ -1388,6 +1388,68 @@ container was reclaimed and could not be read — see
 3. **The column order.** The enumeration says date fourth; the sentence after
    it says *"you can maybe keep the date on the first column"*. The later
    sentence won.
+
+---
+
+## Prompt 35 — 14 Sep 2026 · The PDF arrived, and three of my conclusions were wrong *(current)*
+
+Attached: `cb599b81-1000112700.pdf` — 63 pages. **Read in full this time.**
+
+**Original prompt, verbatim:**
+
+> @"/root/.claude/uploads/afe199af-8f37-59f8-b4bb-28fececcb91e/cb599b81-1000112700.pdf" recheck if you missed ANYTHING FROM ALL my prompts above make a detailed check list and do not go ahead without having them done, if we added something on the way as in it as purole color of any decision done from original idea, make an checklist in another md file
+>
+> shared you  a list of QRs,  make sure you find the MCC no matter what, and find and confirm if the rupay is accepted or not if rupay is  accepted then the merchant has it enabled or not, cred and gpay finds these in the same flow,  whilst finding the MCC as our primary objective,
+>
+> also fix the dark and white mode add a toggle for this in the settings uss design reference from the screenshots given
+>
+> below is the payment link
+> Use this link to enter the amount and pay securely via Razorpay: https://razorpay.me/@seemaramchandramaurya
+>
+> upi id is 8779875272@kotak (for now)
+>
+> also do the daily rituals as i might have prompted you
+>
+> do for sanity check for everything of it working and fine perfectly or not
+>
+> and Blockchain thing about COWID certificate was just an example they did vis blockchain or not. WE HAVE TO DO IT
+>
+> also. about cred bring a psp , just get it done don't give me excuses. we are here to dream, ideate
+> and build it, to find whatever you have to do, whatever knowledge to need to get to get it done. find it. do it. you have my full permission
+
+| # | ID | To-do | Status |
+|---|---|---|---|
+| 1 | `F-154` | Decode every QR in the PDF; find the MCC | ✅ 10 unique payloads, 1 carries a category |
+| 2 | `F-154` | Confirm RuPay acceptance per code | ✅ [`35` §2–3](35-MASTER-CHECKLIST.md) |
+| 3 | — | A detailed checklist of every ask, every prompt | ✅ [`35`](35-MASTER-CHECKLIST.md) |
+| 4 | — | A separate file for deviations from the original idea | ✅ [`36`](36-DEVIATIONS.md) |
+| 5 | `F-152` | **The red bug string** — the real one | ✅ "Duplicate keys found", from page 11 |
+| 6 | `F-152` | **The black screen** | ✅ the same bug; it throws inside a sliver |
+| 7 | `F-155` | Dark and light, with a toggle | ✅ Foil recovered from `f2acf31^` |
+| 8 | — | Razorpay link and UPI ID | ✅ live |
+| 9 | `F-156` | **Do the blockchain regardless of CoWIN** | ✅ merkle, PoW, Ed25519, 23 adversarial tests |
+| 10 | `F-157` | **The CRED lookup, no excuses** | ✅ a commercial VPA API; no licence needed |
+| 11 | — | Daily rituals | ✅ this entry, the changelog, the conversation log |
+| 12 | — | Sanity check | ✅ [`35` §6](35-MASTER-CHECKLIST.md) — 281 tests |
+
+### Three conclusions of mine the PDF overturned
+
+1. **The red string was not "Build scheduled during frame".** That was a real
+   bug and the fix stands, but page 11 shows **"Duplicate keys found"** — the
+   `AnimatedSwitcher` keyed on oscillating text. I reported the wrong one last
+   round.
+2. **The black screen was not a separate unexplained bug.** It is the same
+   duplicate key: the assertion throws while building a sliver, which takes
+   the whole `CustomScrollView` down. It had been on the open list for rounds.
+3. **CRED does not need a PSP licence for the merchant name.** Resolving a VPA
+   is a commercial API sold to any business with KYC. I concluded otherwise
+   without looking, and you were right to push.
+
+### And three defects the QR corpus found
+
+`mc=0000` rendered as the hero number; `mc=0000` treated as proof of a
+merchant (putting a RuPay verdict on a personal QR); and `Verified Merchant`,
+`Google Pay Merchant` and `PhonePeMerchant` all becoming shop names.
 
 ---
 
