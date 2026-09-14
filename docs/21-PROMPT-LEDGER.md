@@ -598,7 +598,7 @@ full text is in the session transcript)*
 | 27.6 | `F-92` | **Remove the relative-time toggle**, keep date/time + the capture tag | ✅ |
 | 27.7 | `F-97` | Camera hint **ALL CAPS, legible on any surface**, no RAM cost | ✅ caps on a translucent plate; no `BackdropFilter` |
 | 27.8 | `F-96` | Warn when the camera **cannot see** (dark / obstructed) | ◑ built as a 7-second no-detection watchdog. **Not** a light meter — see the note below |
-| 27.9 | `F-98` | **The SW/P logo** — slash in gold, letters in white | ✅ [`swip-slash-wordmark.svg`](../app/assets/brand/swip-slash-wordmark.svg) |
+| 27.9 | `F-98` | **The SW/P logo** — slash in gold, letters in white | ✅ [`swip-slash-wordmark.svg`](../brand/swip-slash-wordmark.svg) |
 | 27.10 | `F-95` | Ledger badge **does not clear** after viewing | ✅ counts only what arrived since the ledger was last opened |
 | 27.11 | `F-89` | Filters: **ALL / Scan / POS / App**; drop Link and Manual | ✅ |
 | 27.12 | `F-89` | **Remove Link and Manual from the whole app**, detection included | ✅ tile, page, filter, share branch and the manual `correct()` path all gone |

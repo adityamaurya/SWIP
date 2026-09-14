@@ -38,6 +38,8 @@ cd app
 python3 tool/check_balance.py   # unbalanced brackets — a stray `Text(` once broke the parse
 python3 tool/check_const.py     # `const X(… .withValues(…))` is not constant
 python3 tool/check_wiring.py    # code that is finished, correct and unreachable
+python3 tool/check_links.py     # doc links that point at nothing
+bash    tool/check_secrets.sh   # a key that must never reach the repository
 ```
 
 `check_wiring.py` exists because **twice** a feature was built, tested and

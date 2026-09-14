@@ -78,6 +78,15 @@ jobs:
       # floating bubble's switch wrote a preference nothing read for four
       # months, and every test passed the whole time — because every piece
       # worked, and what was missing was the wire between them.
+      # `F-162`. CLAUDE.md's standing rule is that every claim carries a link
+      # and the owner is never left "blind with words". A link that 404s is
+      # worse than none — it looks like evidence and is not. Five had rotted
+      # before anyone checked.
+      - name: Check the doc links
+        id: links
+        continue-on-error: true
+        run: python3 tool/check_links.py
+
       - name: Check the wiring
         id: wiring
         continue-on-error: true
@@ -97,16 +106,18 @@ jobs:
       # captured; this makes the job's overall status honest.
       - name: Report
         run: |
+          echo "links:   ${{ steps.links.outcome }}"
           echo "wiring:  ${{ steps.wiring.outcome }}"
           echo "analyze: ${{ steps.analyze.outcome }}"
           echo "test:    ${{ steps.test.outcome }}"
-          if [ "${{ steps.wiring.outcome }}" != "success" ] \
+          if [ "${{ steps.links.outcome }}" != "success" ] \
+          || [ "${{ steps.wiring.outcome }}" != "success" ] \
           || [ "${{ steps.analyze.outcome }}" != "success" ] \
           || [ "${{ steps.test.outcome }}" != "success" ]; then
-            echo "::error::wiring, analyze or test failed — see the logs above."
+            echo "::error::links, wiring, analyze or test failed — see above."
             exit 1
           fi
-          echo "✓ wiring connected, analyze clean, tests green"
+          echo "✓ links resolve, wiring connected, analyze clean, tests green"
 
   # Proves the app actually assembles into an installable artifact, which
   # `analyze` alone does not. The APK is downloadable from the run page.

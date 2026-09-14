@@ -117,7 +117,7 @@ side that turns it on, listens, and renders. That is the next thing I build.~~
 
 **Built.** The Dart side now exists —
 [`tap_page.dart`](../app/lib/features/capture_nfc/tap_page.dart) and
-[`link_page.dart`](../app/lib/features/capture_link/link_page.dart) — and the
+`link_page.dart` *(removed in `F-89` with Vector 3)* — and the
 reason both tiles did nothing turned out to be one line in the shell: the
 dashboard was passing which tile you tapped and
 [`main.dart`](../app/lib/main.dart) was discarding it and opening the scanner

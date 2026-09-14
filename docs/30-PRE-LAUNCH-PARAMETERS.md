@@ -68,6 +68,13 @@ python3 tool/check_const.py
 #     written but never read.
 python3 tool/check_wiring.py
 
+#  1d Every link in the docs points at something that exists.
+#     CLAUDE.md's rule is that every claim carries a link and the owner is
+#     never left "blind with words". A link that 404s is worse than no link:
+#     it looks like evidence and is not, and the reader only finds out by
+#     clicking. Five had rotted before anyone checked.
+python3 tool/check_links.py
+
 #  2  No secrets in the tree, ever. Now a script, and now in CI, because a
 #     standing rule enforced by a snippet in a markdown file is enforced
 #     whenever somebody remembers.

@@ -217,7 +217,7 @@ environment.** Run `flutter analyze`.
 |---|---|
 | [`app/lib/main.dart`](../app/lib/main.dart) | `_openCapture` routes by `CaptureVector` |
 | [`app/lib/features/capture_nfc/tap_page.dart`](../app/lib/features/capture_nfc/tap_page.dart) | **New.** Capability probe → NFC-off prompt → preferred-service registration → capture stream → `stopListening` always on dispose, so SWIP never holds the NFC field in the background |
-| [`app/lib/features/capture_link/link_page.dart`](../app/lib/features/capture_link/link_page.dart) | **New.** States plainly that this vector can only ever infer — an MCC is assigned by the acquiring bank and is never written into a URL, so a link never returns *Verified* |
+| `app/lib/features/capture_link/link_page.dart` *(deleted in `F-89`)* | **New.** States plainly that this vector can only ever infer — an MCC is assigned by the acquiring bank and is never written into a URL, so a link never returns *Verified* |
 | [`app/lib/widgets/capture_sheet.dart`](../app/lib/widgets/capture_sheet.dart) | **New.** The one sheet, replacing ~610 duplicated lines |
 | [`app/lib/data/sources/payload_kind.dart`](../app/lib/data/sources/payload_kind.dart) | **New.** Kept out of `CaptureResolver` so copy can change without touching parsing that has 40 tests against it |
 
@@ -666,7 +666,7 @@ is now immutable and carries the first; `confidence` carries the second.
 | [`ledger_page.dart`](../app/lib/features/ledger/ledger_page.dart) | Three filters; one fixed label |
 | [`main.dart`](../app/lib/main.dart) | Unread badge; Link route deleted |
 | `features/capture_link/` | **Deleted** |
-| [`swip-slash-wordmark.svg`](../app/assets/brand/swip-slash-wordmark.svg) | **New.** Paths, not type, so it never depends on a font resolving |
+| [`swip-slash-wordmark.svg`](../brand/swip-slash-wordmark.svg) | **New.** Paths, not type, so it never depends on a font resolving |
 | [`dashboard_layout_test.dart`](../app/test/dashboard_layout_test.dart) | +3 tests: Link gone, routes named in full, no hedging word |
 
 ---

@@ -172,7 +172,7 @@ paste teaches it every UPI merchant in the statement at once.
 | Confidence | **Verified** — and it earns it. This is what the acquirer posted after the money moved, not a prediction made before |
 
 Code: [`statement_parser.dart`](../app/lib/data/sources/statement_parser.dart) ·
-[`S-25`](../app/lib/features/statement/statement_import_page.dart) ·
+`S-25` *(statement import now lives in [`settings_page.dart`](../app/lib/features/settings/settings_page.dart))* ·
 [tests](../app/test/statement_parser_test.dart)
 
 **The design decision worth checking.** Fields are identified by *shape*, not by
