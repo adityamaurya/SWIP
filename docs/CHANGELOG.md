@@ -1058,6 +1058,20 @@ does not reply**, and `_loading` was cleared at the end of that chain — a
 settings screen that could spin forever. Every platform read now has a
 three-second deadline.
 
+### One tap means one thing
+
+Granting `SYSTEM_ALERT_WINDOW` happens in Android Settings, in another app, so
+the tap and the answer are separated by SWIP losing the foreground. The first
+version of this lost the intent across that gap: tap the switch, grant the
+permission, come back — **and the switch is still off**, because all SWIP
+learned on resume is that the permission exists, not that anybody wanted it.
+Tap again and it works.
+
+Which looks exactly like the fault this round is about, and would have been
+reported as it. The tap now survives the trip. It is one-shot and an explicit
+off cancels it, so granting that permission later for an unrelated reason
+cannot summon a bubble nobody asked for. Three tests.
+
 ### Two new gates, both from what the sanity check found
 
 | Tool | Catches |

@@ -224,6 +224,91 @@ void main() {
     });
   });
 
+  group('the trip to Android Settings, which backgrounds the app', () {
+    /// Android grants this permission in Settings, in another app, so the tap
+    /// and the answer are separated by SWIP losing the foreground. The screen
+    /// learns the outcome only from `didChangeAppLifecycleState`.
+    /// Driven through the `flutter/lifecycle` platform channel rather than
+    /// `binding.handleAppLifecycleStateChanged`, which is `@protected` and
+    /// would be an analyzer warning — and a warning fails the gate.
+    ///
+    /// The full sequence matters: since Flutter 3.13 the framework asserts on
+    /// invalid lifecycle transitions, so it is not possible to jump from
+    /// `paused` straight back to `resumed`. This is the real round trip an app
+    /// makes when the user leaves for Settings and returns.
+    Future<void> comeBackFromSettings(WidgetTester t) async {
+      Future<void> send(String state) =>
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+              .handlePlatformMessage(
+        'flutter/lifecycle',
+        const StringCodec().encodeMessage('AppLifecycleState.$state'),
+        (_) {},
+      );
+
+      for (final state in <String>[
+        'inactive', 'hidden', 'paused', // leaving for Settings
+        'hidden', 'inactive', 'resumed', // and coming back
+      ]) {
+        await send(state);
+      }
+      await t.pumpAndSettle();
+    }
+
+    testWidgets('granting the permission honours the tap that asked for it',
+        (t) async {
+      // Without this the user taps the switch, grants the permission, comes
+      // back — and the switch is still off, because all SWIP learned on
+      // resume is that the permission exists, not that anybody wanted it.
+      // They tap again and it works. Which looks exactly like the bug this
+      // whole round is about, and would be reported as it.
+      granted = false;
+      await t.pumpWidget(harness());
+      await t.pumpAndSettle();
+
+      await t.tap(theSwitch());
+      await t.pumpAndSettle();
+      expect(methods(), contains('requestOverlayPermission'));
+
+      granted = true; // they granted it
+      await comeBackFromSettings(t);
+
+      expect(methods(), contains('startBubble'));
+      expect(switchIsOn(t), isTrue, reason: 'one tap should mean one thing');
+    });
+
+    testWidgets('coming back WITHOUT granting turns nothing on', (t) async {
+      granted = false;
+      await t.pumpWidget(harness());
+      await t.pumpAndSettle();
+
+      await t.tap(theSwitch());
+      await t.pumpAndSettle();
+      await comeBackFromSettings(t); // still not granted
+
+      expect(methods(), isNot(contains('startBubble')));
+      expect(switchIsOn(t), isFalse);
+    });
+
+    testWidgets('the pending tap is one-shot, not a standing order', (t) async {
+      // Somebody who taps the switch, thinks better of it in Settings and
+      // comes back without granting must not get a bubble the next time they
+      // grant that permission for some unrelated reason.
+      granted = false;
+      await t.pumpWidget(harness());
+      await t.pumpAndSettle();
+
+      await t.tap(theSwitch());
+      await t.pumpAndSettle();
+      await comeBackFromSettings(t); // declined
+
+      granted = true; // granted much later, for something else
+      await comeBackFromSettings(t);
+
+      expect(methods(), isNot(contains('startBubble')));
+      expect(switchIsOn(t), isFalse);
+    });
+  });
+
   group('turning it off', () {
     testWidgets('stops the service', (t) async {
       granted = true;

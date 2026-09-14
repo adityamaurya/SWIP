@@ -91,6 +91,21 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
   bool _running = false;
   bool _loading = true;
 
+  /// True between "the user tapped the switch on" and "we found out whether
+  /// Android let them".
+  ///
+  /// The permission lives in Android Settings, in another app, so the tap and
+  /// the answer are separated by SWIP being backgrounded. Without this the
+  /// intent is lost across that gap: the user taps the switch, grants the
+  /// permission, comes back — **and the switch is still off**, because all
+  /// SWIP learned on resume is that the permission exists, not that anybody
+  /// wanted it.
+  ///
+  /// They then have to tap the same switch a second time. Which looks exactly
+  /// like the bug this whole round is about, and would have been reported as
+  /// it. One tap meant one thing; this is what carries it across.
+  bool _askedFor = false;
+
   @override
   void initState() {
     super.initState();
@@ -112,6 +127,20 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) _refresh();
+  }
+
+  /// Honour a tap that was interrupted by a trip to Android Settings.
+  ///
+  /// Deliberately **one-shot**: cleared whether or not the permission was
+  /// granted. A user who taps the switch, thinks better of it in Settings and
+  /// comes back without granting must not have a bubble appear the next time
+  /// they happen to grant that permission for some other reason.
+  Future<bool> _resumePendingWish(bool granted) async {
+    if (!_askedFor) return false;
+    _askedFor = false;
+    if (!granted) return false;
+    await _ask(() => _channel.invokeMethod<bool>('startBubble'));
+    return true;
   }
 
   /// One question to Android, with a deadline and no way to throw.
@@ -158,6 +187,11 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
     // screen. Ask once, after everything that could change the answer.
     if (granted) await _migrateLegacyWish();
 
+    // Before the status read, for the same reason the migration is: it can
+    // start the service, and `running` must be read after everything that
+    // could change it.
+    await _resumePendingWish(granted);
+
     final status = await _ask(
         () => _channel.invokeMapMethod<String, dynamic>('bubbleStatus'));
     final wanted = status?['wanted'] == true;
@@ -202,11 +236,18 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
   /// on while Android had refused.
   Future<void> _setWanted(bool on) async {
     if (on && !_granted) {
-      // Nothing is recorded. If this fails the screen stays as it was, with
-      // the explanation still on display.
+      // Remember the tap. Nothing is *recorded* — no preference is written and
+      // no service is started until Android actually allows it — but the
+      // intent has to survive the trip to Settings or the user comes back to
+      // the switch they just moved, sitting in the off position.
+      _askedFor = true;
       await _ask(() => _channel.invokeMethod<bool>('requestOverlayPermission'));
       return; // `didChangeAppLifecycleState` picks up the result.
     }
+
+    // An explicit off cancels any pending wish. Otherwise a tap-on,
+    // tap-off before Settings ever opened would still turn it on.
+    _askedFor = false;
 
     // `startBubble` returns false if Android refuses, and the state is read
     // back afterwards rather than assumed. A switch is allowed to stay off; a
