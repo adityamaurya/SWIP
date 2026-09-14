@@ -75,14 +75,48 @@ class CaptureRepository {
     var confidence =
         vector.isLiveCapture && !noCode ? MccConfidence.verified : MccConfidence.unknown;
 
-    if (noCode && merchantKey != null) {
+    // ── `F-150`. **The same shop, named on one capture and a bare handle on
+    // the next.**
+    //
+    // > *"I have noticed some discrepancies while capturing the merchant
+    // > name."*
+    //
+    // Here is the discrepancy, and it is entirely SWIP's doing. Scan Wellness
+    // Forever's dynamic QR at the till and the payload carries
+    // `pn=WELLNESS FOREVER MH 2`, so the capture is named. Scan the static
+    // sticker taped to the same counter a minute later and there is no `pn` at
+    // all — so the row showed `WFMLMH2@ybl`, and the ledger listed one shop
+    // under two different-looking identities.
+    //
+    // The merchant graph already knew the name. It had been written on the
+    // first capture and was sitting in `display_name`, and the only reason it
+    // was not used is that this block looked up the category and stopped.
+    // Backfilling the code but not the name is an odd place to draw a line:
+    // both come from the same row, keyed on the same merchant, learned the
+    // same way.
+    //
+    // **This is not inference and it is deliberately not CRED's method.**
+    // `docs/34` §5 sets out what they can do that SWIP cannot — they hold a
+    // licensed PSP's merchant directory and can look a VPA up in it. SWIP has
+    // no directory and is not guessing at one: a name appears here only
+    // because *this phone* has already read it off a payload at *this
+    // merchant key*. The worst case is a shop that renamed itself showing its
+    // old name until it is next captured with a new one, which the next
+    // dynamic QR corrects.
+    if (merchantKey != null && (noCode || merchantName == null)) {
       final known = await _db.knownMerchant(merchantKey);
-      if (known?.mcc != null) {
+
+      if (noCode && known?.mcc != null) {
         code = known!.mcc;
         // Inherited honestly: a code learned from a bank statement is stored
         // verified, because the acquirer posted it after the money moved.
         confidence = known.confidence;
       }
+
+      // The payload's own name always wins. This only ever fills a blank.
+      merchantName ??= known?.displayName;
+      merchantCity ??= known?.city;
+      countryCode ??= known?.countryCode;
     }
 
     final event = CaptureEvent(

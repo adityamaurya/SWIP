@@ -68,6 +68,19 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^4.0.0
 
+  # `F-150`. sqflite talks to a platform channel, so `openInMemory()` cannot
+  # run in a plain `flutter test` — the channel has no implementation there and
+  # every call hangs. This is the official FFI backend, which runs the real
+  # SQLite against the real schema on the host.
+  #
+  # It earns its place: the two worst near-misses in this project were both in
+  # the database layer and both found by reading rather than by testing —
+  # `F-136`, where an import would have thrown on the first new-format export,
+  # and `F-139`, where a reference number was being stored as a shop name.
+  # Neither had a test that could have caught it, because nothing could open a
+  # database.
+  sqflite_common_ffi: ^2.3.3
+
 flutter:
   uses-material-design: true
 

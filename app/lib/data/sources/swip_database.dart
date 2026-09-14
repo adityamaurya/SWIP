@@ -24,6 +24,19 @@ class SwipDatabase {
   SwipDatabase._(this._db);
 
   final Database _db;
+
+  /// Close the connection.
+  ///
+  /// The app itself never calls this — there is one database, opened once, for
+  /// the life of the process, and Android reclaims it. It exists for tests.
+  ///
+  /// `F-150`: sqflite caches open databases **by path**, and every
+  /// `openInMemory()` uses the same `:memory:` path, so a second call inside
+  /// one test run hands back the first connection with all of its rows still
+  /// in it. Two tests that each expected a clean database then shared one, and
+  /// the second failed with a count from the first. Closing between tests is
+  /// what makes them independent.
+  Future<void> close() => _db.close();
   static SwipDatabase? _instance;
 
   static const _fileName = 'swip.db';
