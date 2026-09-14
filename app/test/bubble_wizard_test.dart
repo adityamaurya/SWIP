@@ -58,11 +58,19 @@ void main() {
 
   setUp(() {
     final binding = TestWidgetsFlutterBinding.ensureInitialized();
-    // The wizard is a column of disclosure text with a button pinned to the
-    // bottom. At the 800x600 test default the button overlaps the body and
-    // taps land on the wrong thing.
+    // Tall on purpose, and taller than any real phone.
+    //
+    // Two reasons. At the 800x600 test default the pinned button overlaps the
+    // body and taps land on the wrong widget. And each screen's body is a
+    // `ListView`, which only builds what is near the viewport — so copy below
+    // the fold does not merely fail to be *visible*, it does not exist in the
+    // tree to be found. Asserting on wording needs it built.
+    //
+    // This does not weaken the text-scale test below: `_Screen` scrolls its
+    // body, so what that test proves is "builds without throwing", which a
+    // taller viewport does not make easier.
     final view = binding.platformDispatcher.implicitView!;
-    view.physicalSize = const Size(400, 1600);
+    view.physicalSize = const Size(400, 2600);
     view.devicePixelRatio = 1.0;
     addTearDown(view.reset);
 
@@ -124,6 +132,17 @@ void main() {
           .setMockMethodCallHandler(channel, null);
 
       await t.pumpWidget(harness());
+      // The first screen renders immediately — there is no spinner — so
+      // `pumpAndSettle` returns while `_ask`'s three-second deadlines are
+      // still pending, and the test then fails on "A Timer is still pending
+      // even after the widget tree was disposed".
+      //
+      // The deadlines are sequential: each `_ask` only starts once the one
+      // before it has given up. So the clock has to be advanced repeatedly
+      // rather than once by a large amount.
+      for (var i = 0; i < 6; i++) {
+        await t.pump(const Duration(seconds: 4));
+      }
       await t.pumpAndSettle();
 
       expect(find.textContaining('on top of'), findsOneWidget);
