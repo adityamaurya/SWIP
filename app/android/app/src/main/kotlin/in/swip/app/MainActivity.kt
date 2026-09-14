@@ -336,6 +336,23 @@ class MainActivity : FlutterFragmentActivity() {
                         result.success(ok)
                     }
 
+                    // `F-164`. Send SWIP to the background so the bubble is
+                    // visible immediately.
+                    //
+                    // The bubble hides while SWIP is in the foreground, which
+                    // means the moment the setup wizard finishes is the exact
+                    // moment the user cannot see the thing they just switched
+                    // on. The wizard's last screen explains that, and an
+                    // explanation is still a worse answer than showing them.
+                    //
+                    // `moveTaskToBack` rather than `finish()`: finishing would
+                    // close SWIP outright, so returning to it would be a cold
+                    // start rather than picking up where they were.
+                    "moveToBackground" -> {
+                        result.success(runCatching { moveTaskToBack(true) }
+                            .getOrDefault(false))
+                    }
+
                     "startBubble" -> {
                         // Returns false when the overlay permission is not
                         // granted. Dart must not paint the switch as ON in

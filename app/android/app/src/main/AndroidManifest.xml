@@ -210,6 +210,40 @@
         </service>
 
         <!--
+          `F-163` — the hovering scanner.
+
+          `exported="false"`: only SWIP's own bubble may open it. An exported
+          transparent Activity that switches on the camera is something any
+          app on the device could launch.
+
+          `singleInstance` + `excludeFromRecents` put it in its own task.
+          Without that it joins MainActivity's, so closing the card can
+          surface the whole app — the user taps the bubble over their bank,
+          dismisses the scanner, and lands in SWIP instead of back where they
+          were.
+
+          `configChanges` covers rotation and the rest for the same reason
+          MainActivity does: Flutter handles these itself, and letting Android
+          recreate the Activity would restart the engine and the camera
+          mid-scan.
+
+          The theme is what makes it translucent, and it must be set here —
+          Android decides translucency when the window is created and it
+          cannot be switched on from code afterwards. See
+          res/values/swip_hover_styles.xml.
+        -->
+        <activity
+            android:name=".SwipHoverActivity"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            android:excludeFromRecents="true"
+            android:taskAffinity="in.swip.app.hover"
+            android:theme="@style/SwipHoverTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!--
           `F-159` — brings the bubble back after a reboot or an app update.
 
           `exported="true"` is required for BOOT_COMPLETED, which is a system

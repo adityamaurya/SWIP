@@ -232,6 +232,80 @@ void main() {
     });
   });
 
+  group('finishing', () {
+    /// Pushed rather than used as `home`, because the reveal pops itself and
+    /// a root route has nothing to pop to.
+    Widget pushed() => MaterialApp(
+          home: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const BubbleWizard())),
+              child: const Text('open'),
+            ),
+          ),
+        );
+
+    Future<void> reachLastScreen(WidgetTester t) async {
+      await t.pumpWidget(pushed());
+      await t.tap(find.text('open'));
+      await t.pumpAndSettle();
+      await advance(t, 'Next');
+      await advance(t, 'Next');
+      await advance(t, 'Allow notifications');
+      await advance(t, 'Open SWIP\'s app settings');
+      await t.pumpAndSettle();
+    }
+
+    testWidgets('the primary action shows the button rather than describing it',
+        (t) async {
+      // The bubble hides while SWIP is in the foreground, so the moment this
+      // wizard finishes is the exact moment it cannot be seen. Backgrounding
+      // SWIP is the demonstration; the alternative is a sentence, and a
+      // sentence is what the owner reported as friction.
+      overlayGranted = true;
+      await reachLastScreen(t);
+      calls.clear();
+
+      await t.tap(find.widgetWithText(FilledButton, 'Show me the button'));
+      await t.pumpAndSettle();
+
+      expect(methods(), contains('moveToBackground'));
+    });
+
+    testWidgets('Done closes without backgrounding the app', (t) async {
+      // Somebody who wants to carry on using SWIP must not have it thrown
+      // into the background for reading to the end of a wizard.
+      overlayGranted = true;
+      await reachLastScreen(t);
+      calls.clear();
+
+      await t.tap(find.widgetWithText(TextButton, 'Done'));
+      await t.pumpAndSettle();
+
+      expect(methods(), isNot(contains('moveToBackground')));
+      expect(find.byType(BubbleWizard), findsNothing);
+    });
+
+    testWidgets('without the permission there is nothing to reveal',
+        (t) async {
+      overlayGranted = false;
+      await t.pumpWidget(pushed());
+      await t.tap(find.text('open'));
+      await t.pumpAndSettle();
+      await advance(t, 'Next');
+      await t.tap(find.widgetWithText(TextButton, 'Not now'));
+      await t.pumpAndSettle();
+      await t.tap(find.widgetWithText(TextButton, 'Skip'));
+      await t.pumpAndSettle();
+      await t.tap(find.widgetWithText(TextButton, 'Skip for now'));
+      await t.pumpAndSettle();
+
+      expect(find.textContaining('Not turned on yet'), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Show me the button'),
+          findsNothing);
+    });
+  });
+
   group('the honest warnings', () {
     testWidgets('force stop is called out as unrecoverable', (t) async {
       overlayGranted = true;

@@ -172,6 +172,23 @@ class _BubbleWizardState extends State<BubbleWizard>
     await _ask(() => _channel.invokeMethod<bool>('openThisAppSettings'));
   }
 
+  /// `F-164` — end the wizard by **showing** them the button.
+  ///
+  /// The bubble hides while SWIP is in the foreground, so the moment this
+  /// wizard finishes is the exact moment it cannot be seen. The last screen
+  /// explains that, and the owner still hit it as friction — which is fair,
+  /// because an explanation is a worse answer than a demonstration.
+  ///
+  /// Pop first, then background. The other order leaves the wizard on the
+  /// stack, so returning to SWIP later lands the user back on a setup flow
+  /// they have already finished.
+  Future<void> _revealBubble() async {
+    Navigator.of(context).pop(true);
+    // `context` is gone after that pop and `setState` would throw, but the
+    // channel is static and this call touches neither.
+    await _ask(() => _channel.invokeMethod<bool>('moveToBackground'));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -226,6 +243,7 @@ class _BubbleWizardState extends State<BubbleWizard>
             running: _running,
             overlayGranted: _overlayGranted,
             onFinish: () => Navigator.of(context).pop(true),
+            onReveal: _revealBubble,
           ),
         ],
       ),
@@ -818,11 +836,13 @@ class _AllSetStep extends StatelessWidget {
     required this.running,
     required this.overlayGranted,
     required this.onFinish,
+    required this.onReveal,
   });
 
   final bool running;
   final bool overlayGranted;
   final VoidCallback onFinish;
+  final Future<void> Function() onReveal;
 
   @override
   Widget build(BuildContext context) {
@@ -883,7 +903,15 @@ class _AllSetStep extends StatelessWidget {
           todoText: 'Starting…',
         ),
       ],
-      action: FilledButton(onPressed: onFinish, child: const Text('Finish')),
+      // `F-164`. The primary action is the demonstration, not the
+      // acknowledgement: it closes SWIP to the background so the bubble is on
+      // screen within the same second, over whatever was behind.
+      action: FilledButton.icon(
+        onPressed: onReveal,
+        icon: const Icon(Icons.open_in_full_rounded, size: 18),
+        label: const Text('Show me the button'),
+      ),
+      secondary: TextButton(onPressed: onFinish, child: const Text('Done')),
     );
   }
 }

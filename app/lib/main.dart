@@ -15,6 +15,7 @@ import 'data/sources/merchant_reconciler.dart';
 import 'features/capture_intent/intent_capture.dart';
 import 'features/capture_nfc/tap_page.dart';
 import 'features/capture_qr/scan_page.dart';
+import 'features/bubble/hover_scan.dart';
 import 'features/capture_share/share_capture.dart';
 import 'features/dashboard/dashboard_page.dart';
 import 'core/theme/swip_palette.dart';
@@ -25,9 +26,28 @@ import 'features/settings/settings_page.dart';
 import 'widgets/capture_detail.dart';
 import 'widgets/scan_stack.dart';
 
+/// `F-163`. **Two Activities, one entrypoint.**
+///
+/// `SwipHoverActivity` — the floating scanner the bubble opens — runs this
+/// same `main()` in its own Flutter engine, and the *only* thing that
+/// distinguishes it is the initial route Android launched it with.
+/// `defaultRouteName` carries that across, so the branch below is what decides
+/// whether this engine becomes the whole app or a single hovering card.
+///
+/// Read from `PlatformDispatcher` rather than from a `MaterialApp`'s routing,
+/// because the decision has to be made *before* there is a `MaterialApp` — the
+/// two roots are different widgets, not two routes inside one.
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const ProviderScope(child: SwipApp()));
+
+  final launchedAs =
+      WidgetsBinding.instance.platformDispatcher.defaultRouteName;
+
+  runApp(ProviderScope(
+    child: launchedAs == HoverScanApp.route
+        ? const HoverScanApp()
+        : const SwipApp(),
+  ));
 }
 
 /// `F-155` — the one place [SwipPalette.active] is written.

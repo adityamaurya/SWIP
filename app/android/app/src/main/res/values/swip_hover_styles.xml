@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  `F-163` — the theme that lets the scanner hover.
+
+  ## Why this is its own file and not styles.xml
+
+  `flutter create` generates `res/values/styles.xml` with `LaunchTheme` and
+  `NormalTheme`, and `tool/bootstrap.sh` copies SWIP's `res/` tree over the
+  generated one. A file named `styles.xml` here would therefore **replace** the
+  generated one, and the manifest points `MainActivity` at `@style/LaunchTheme`
+  — so the app would fail to link, on a clean checkout only, with an error
+  naming a theme nobody had touched.
+
+  AAPT merges every file under `values/`, so a differently-named file adds this
+  theme without shadowing anything. The same trick is why `colors.xml` and
+  `strings.xml` are safe: `flutter create` does not generate those.
+
+  ## Why each attribute is here
+
+  `windowIsTranslucent` and a transparent `windowBackground` are the pair that
+  let the app underneath keep being drawn. **Android decides this when the
+  window is created**, which is the whole reason the hovering scanner is a
+  separate Activity rather than a mode of `MainActivity` — it cannot be turned
+  on later from code.
+
+  `windowContentOverlay` is nulled because the default is a drop shadow drawn
+  under the status bar, which on a transparent window appears as a grey smear
+  across someone else's app.
+
+  `windowAnimationStyle` is nulled deliberately: the default activity slide
+  makes a hovering panel look like a screen transition, and the point of this
+  window is that it does not feel like leaving where you are.
+
+  `windowIsFloating` is **false**, which looks wrong and is not. A floating
+  window is sized by its content and refuses to fill the screen — but the card
+  here is positioned by Flutter, which needs the full surface to lay out
+  against and to place the tap-to-dismiss scrim. The floating *appearance*
+  comes from Flutter drawing a card on a transparent full-screen surface.
+-->
+<resources>
+    <style name="SwipHoverTheme" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

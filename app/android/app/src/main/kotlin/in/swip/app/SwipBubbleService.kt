@@ -667,27 +667,47 @@ class SwipBubbleService : Service() {
     }
 
     /**
-     * `F-158`. Hand off to the scanner SWIP already has.
+     * `F-163`. Open the scanner **over** whatever the user is in.
      *
-     * Reuses the Quick Settings tile's route exactly — `SwipTile.EXTRA_OPEN_SCANNER`,
-     * read once and cleared through `consumeTileLaunch` — so the bubble and
-     * the tile cannot drift apart in what they open, and a rotation cannot
-     * replay a launch as a second capture.
+     * This used to launch `MainActivity` with `SwipTile.EXTRA_OPEN_SCANNER`,
+     * which opened the whole of SWIP full-screen — so tapping the floating
+     * button took you out of the app you were standing in, which is the one
+     * thing a floating button exists to avoid.
+     *
+     * It now opens [SwipHoverActivity]: a transparent Activity in its own
+     * task, drawing a card with `ScanPage` in it over the app underneath. Same
+     * camera, same detection, same resolver, same ledger — because it is the
+     * same widget, not a second implementation of one.
+     *
+     * The Quick Settings tile still opens `MainActivity`, and should: a tile
+     * press happens from the shade with nothing behind it to hover over.
      */
     private fun openScanner() {
-        // A brief expansion so the tap is acknowledged before the app appears.
-        // `docs/32` §4: the delay before the scanner opens is the thing to
-        // hide, and a press animation is how you hide it.
+        // A brief expansion so the tap is acknowledged before the window
+        // appears. `docs/32` §4: the delay before the scanner opens is the
+        // thing to hide, and a press animation is how you hide it. It matters
+        // more here than it did — the hovering window starts its own Flutter
+        // engine, so there is about half a second to cover.
         peek()
 
-        val launch = Intent(this, MainActivity::class.java).apply {
+        val launch = Intent(this, SwipHoverActivity::class.java).apply {
+            // NEW_TASK is required to start an Activity from a Service at all.
+            // CLEAR_TOP rather than REORDER_TO_FRONT so a second tap restarts
+            // the scanner cleanly instead of resurfacing a card whose camera
+            // has already been released.
             addFlags(
                 Intent.FLAG_ACTIVITY_NEW_TASK or
-                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                    Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP
             )
-            putExtra(SwipTile.EXTRA_OPEN_SCANNER, true)
+            // Flutter's own extra. `main()` branches on it: without this the
+            // engine would come up as the entire app inside a transparent
+            // window, which looks like SWIP has been pasted over the screen.
+            putExtra(
+                SwipHoverActivity.EXTRA_ROUTE,
+                SwipHoverActivity.ROUTE_HOVER,
+            )
         }
+
         runCatching { startActivity(launch) }
     }
 
