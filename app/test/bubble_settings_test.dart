@@ -295,17 +295,28 @@ void main() {
   });
 
   group('the screen survives a platform that answers nothing', () {
-    testWidgets('no handler at all still renders', (t) async {
-      // iOS, or an Activity older than these methods. The page already says
-      // this is an Android feature; it must not be a crash.
+    testWidgets('a platform that never replies does not spin forever',
+        (t) async {
+      // **This test found a real defect rather than confirming one.**
+      //
+      // A `MethodChannel` future completes when the platform replies, and
+      // there is no reply here at all — a widget test has no engine behind the
+      // channel. The first version of this screen awaited that future with no
+      // deadline, so `_loading` was never cleared, the spinner animated
+      // forever, and `pumpAndSettle` timed out.
+      //
+      // On a device the same shape is reachable whenever the Activity fails to
+      // call `result`: a Settings screen stuck on a spinner with no way out
+      // but force-quitting. The fix is the timeout in `_ask`, and this is what
+      // holds it in place.
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, null);
 
       await t.pumpWidget(harness());
       await t.pumpAndSettle();
 
-      // `pumpAndSettle` rethrows anything the build threw, so reaching this
-      // line is half the assertion and the switch state is the other half.
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(theSwitch(), findsOneWidget);
       expect(switchIsOn(t), isFalse);
     });
 
@@ -318,6 +329,21 @@ void main() {
       await t.pumpWidget(harness());
       await t.pumpAndSettle();
 
+      expect(switchIsOn(t), isFalse);
+    });
+
+    testWidgets('a MissingPluginException — iOS — is not a crash', (t) async {
+      // What a real non-Android build does. The page already tells the user
+      // this is an Android feature; it must not also be a red screen.
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        throw MissingPluginException('no such method');
+      });
+
+      await t.pumpWidget(harness());
+      await t.pumpAndSettle();
+
+      expect(theSwitch(), findsOneWidget);
       expect(switchIsOn(t), isFalse);
     });
   });

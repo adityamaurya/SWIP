@@ -112,6 +112,8 @@ Each of these cost a broken build or a broken screen. Do not re-derive them.
 | **That assertion throws inside a sliver, which black-screens the whole `CustomScrollView`** | The red panel and the "black screen on intent capture" were always the same bug. `F-152` |
 | `CaptureResolver.hasMcc` excluded `'0000'`; `CaptureEvent.hasMcc` did not | The screens use the **event** one, so an unclassified merchant rendered `0000` as the hero number. Two getters of the same name disagreeing is the shape to look for. `F-154` |
 | **`mc=0000` is not proof of a merchant** | PhonePe mints `mc=0000&mode=02` on *personal* QRs. The discriminator is the `sign=` block. `F-154` |
+| A `MethodChannel` future completes when the platform replies, and **never completes if it does not** | There is no built-in timeout. A screen that clears its spinner at the end of an `await` chain therefore spins forever, and in a widget test there is **no engine at all**, so every un-mocked call hangs — `pumpAndSettle timed out` is the symptom, not a slow test. `.timeout()` every platform read. `F-158` |
+| A switch that stores its own state instead of asking the platform **cannot be wrong on screen** | Which is why nothing caught the dead floating bubble for four months: the screen set a boolean and displayed the boolean it had set. Assert on what reaches the channel, never on what the widget remembers. `F-158` |
 | **CRED does not need a PSP licence to show a merchant name** | Resolving a VPA is a commercial API (Razorpay, Cashfree, Decentro, Juspay) sold to any business with KYC. No API returns the **MCC** — that lives in the acquirer's switch, which is why CRED writes *"may not"*. `F-157` |
 
 **The recurring mistake, twice over: checking the source instead of the

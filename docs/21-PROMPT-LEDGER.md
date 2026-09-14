@@ -1391,7 +1391,7 @@ container was reclaimed and could not be read — see
 
 ---
 
-## Prompt 35 — 14 Sep 2026 · The PDF arrived, and three of my conclusions were wrong *(current)*
+## Prompt 35 — 14 Sep 2026 · The PDF arrived, and three of my conclusions were wrong
 
 Attached: `cb599b81-1000112700.pdf` — 63 pages. **Read in full this time.**
 
@@ -1450,6 +1450,100 @@ Attached: `cb599b81-1000112700.pdf` — 63 pages. **Read in full this time.**
 `mc=0000` rendered as the hero number; `mc=0000` treated as proof of a
 merchant (putting a RuPay verdict on a personal QR); and `Verified Merchant`,
 `Google Pay Merchant` and `PhonePeMerchant` all becoming shop names.
+
+---
+
+## Prompt 36 — 14 Sep 2026 · The floater was never built *(current)*
+
+**Original prompt, verbatim:**
+
+> the floater launcher icon is not working  also make use of the UI  from the pdf and sanity check the code
+
+| # | ID | To-do | Status |
+|---|---|---|---|
+| 1 | `F-158` | Make the floating bubble work | **Done** — it had never been built; see below |
+| 2 | `F-158` | Use the PDF's UI for it | **Done** — pages 22–24, the GIVA assistant |
+| 3 | — | Sanity check the code | **Done** — findings below |
+
+### The finding, which is not what the report sounded like
+
+The bubble was not broken. **There was no bubble.**
+
+`F-131` built the permission screen — the explain-then-send-to-Settings flow
+that [`32`](32-FLOATING-BUBBLE.md) §6 calls step 1 — and steps 2 to 6 were
+never started. What shipped was a switch that wrote
+`SharedPreferences['swip.bubble.enabled']` and **nothing in the project ever
+read that key.** No service, no overlay, no window, nothing registered in the
+manifest. The permission was granted, the switch went on, and Android was
+never asked to draw anything.
+
+Verified before building rather than assumed:
+
+| Checked | Found |
+|---|---|
+| `AndroidManifest.xml` | `SYSTEM_ALERT_WINDOW`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE` all declared — and only `SwipListenService` and `SwipTile` registered |
+| `kotlin/in/swip/app/` | `MainActivity`, `SwipListenService`, `SwipTile`. Three files |
+| `lib/features/bubble/` | `bubble_settings.dart`, and nothing else |
+| The method channel | `canDrawOverlays` and `requestOverlayPermission`. No start, no stop, no status |
+
+The permissions being present is what made it look plausible. Everything
+around the feature existed except the feature.
+
+### What the PDF's UI contributed
+
+Pages 22–24 are the GIVA assistant overlay, and all three states are there:
+a circle parked at the screen edge (22), the same control widened into a pill
+with its mark in a contrasting disc (23), and the circle again over a busy
+screen (24).
+
+The disc is the detail worth stealing. The mark is not painted onto the pill —
+it sits in its own circle at the leading end, which is what keeps it readable
+while the pill is widening and stops the collapsed state reading as a glyph
+lost in space.
+
+One thing was deliberately **not** copied: the reference bubble measures about
+28 dp. SWIP's is 48 dp, Material's minimum touch target, because it is pressed
+one-handed at a counter.
+
+### What the sanity check found
+
+Five defects, four of them in code written this same round:
+
+1. `SwipBubbleService` referenced `MainActivity.EXTRA_OPEN_SCANNER`. That
+   constant is on **`SwipTile`**. It would not have compiled.
+2. `coerceIn(min, max)` **throws** when `max < min`, and `max` was
+   `screenHeight - view.height - 72dp`. On a short display that is a crash
+   inside a touch handler, on a window the user cannot dismiss.
+3. The bubble was a `FrameLayout`, which stacks children — the pill's label
+   would have been drawn **on top of** the mark inside a circle that never
+   widened.
+4. `appInFront` started `false`, which would have put a bubble over the
+   Settings screen the user had just used to switch it on.
+5. `getSystemService(Class)` is API 23 and was called unguarded.
+
+And in the Dart: `List<String> get methods` declared inside `main()`. **Dart
+has no local getters.** The test file would not have compiled.
+
+### The one CI found that I did not
+
+`pumpAndSettle timed out` on the "survives a platform that answers nothing"
+test. Not a slow test — **a `MethodChannel` future completes when the platform
+replies, and never completes if it does not.** There is no built-in timeout.
+`_loading` was cleared at the end of the `await` chain, so one unanswered call
+left the screen spinning forever with no way out but force-quitting.
+
+A widget test has no engine behind a channel at all, which makes it a harsher
+platform than any real phone — and that is why it found this. Every platform
+read on that screen now has a three-second deadline. The test that failed is
+the test that holds the fix in place.
+
+### One promise deleted rather than kept
+
+The bubble screen told the user *"size and see-through-ness are yours to set,
+and one flick sends it away for the rest of the day."* There are no such
+controls and there never were. It is removed. An unkept promise on a privacy
+disclosure is worse than no promise, and that screen's whole job is to be
+believed.
 
 ---
 

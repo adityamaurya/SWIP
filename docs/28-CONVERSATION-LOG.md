@@ -698,6 +698,65 @@ the ₹5,000 unlock on sale. [`35` §5](35-MASTER-CHECKLIST.md).
 
 ---
 
+## Prompt 36 — 14 Sep 2026 · The floater
+
+**You asked:** why the floating button does not work, to use the PDF's UI,
+and for a sanity check.
+
+**I answered:** it does not work because it does not exist. Not a bug — an
+absence. `F-131` shipped the screen that asks for the permission, and the
+switch on it wrote a preference that nothing anywhere read. You granted the
+permission, you flipped the switch, and there was no code in SWIP capable of
+drawing a circle. Everything around the feature was there: the permissions
+were declared in the manifest, the screen looked finished, the switch moved.
+That is what made it look plausible.
+
+It is built now. A foreground service holding an overlay window, draggable,
+snapping to whichever edge is nearer, opening the scanner on a tap through
+exactly the same route the Quick Settings tile uses so the two cannot drift
+apart.
+
+**On the UI:** pages 22 to 24 of your PDF are the GIVA assistant, and all
+three states are in them — the circle at the edge, the pill it widens into,
+and the circle again over a busy screen. The detail worth taking is that the
+mark sits in **its own contrasting disc** rather than being painted on the
+pill. SWIP's is 48 dp rather than the reference's ~28 dp, because yours is
+pressed one-handed at a counter and 28 dp is hard to hit.
+
+**On the sanity check,** six things, and five of them were in code I had
+written that same hour: a constant referenced on the wrong class, a
+`coerceIn` that throws when the screen is short, a layout that could never
+have become a pill, a default that would have put a bubble over the Settings
+screen you had just used to switch it on, an unguarded API-23 call, and a
+local getter in a Dart file — which Dart does not have.
+
+**One thing I deleted rather than fixed.** That screen promised *"size and
+see-through-ness are yours to set, and one flick sends it away for the rest
+of the day."* There are no such controls and there never were. It is a privacy
+disclosure; its whole job is to be believed. So the line is gone until the
+controls exist.
+
+And a seventh that CI found rather than I did, which is the interesting one.
+A test I had written to prove the screen survives a platform that answers
+nothing *hung* — `pumpAndSettle timed out`. The reason is worth knowing: **a
+platform-channel call completes when Android replies, and never completes if
+it does not.** There is no built-in timeout. The screen cleared its spinner at
+the end of that chain, so one unanswered call meant a settings page spinning
+forever with no way out but force-quitting. Every platform read on that screen
+now has a three-second deadline.
+
+**Shipped:** `F-158`.
+
+**Still open:** the in-overlay camera, [`32`](32-FLOATING-BUBBLE.md) steps 4–6
+— the bubble opens SWIP's scanner rather than scanning in place, because
+CameraX and ML Kit are Gradle dependencies and `build.gradle` is regenerated
+by `flutter create` inside `tool/bootstrap.sh` on every machine and in CI.
+Adding them means teaching bootstrap to inject into a file it generates, which
+is its own change with its own failure modes. One app switch instead of zero,
+rather than a toggle that does nothing.
+
+---
+
 <!--
 Template:
 

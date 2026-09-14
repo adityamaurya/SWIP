@@ -67,6 +67,25 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
     with WidgetsBindingObserver {
   static const _channel = MethodChannel('in.swip.app/nfc');
 
+  /// How long to wait for Android before giving up on it.
+  ///
+  /// **A `MethodChannel` future completes when the platform replies, and if
+  /// the platform never replies it never completes.** There is no built-in
+  /// timeout. `_loading` is only cleared at the end of [_refresh], so a single
+  /// unanswered call leaves this screen on its spinner forever, with no way
+  /// out but force-quitting the app.
+  ///
+  /// That is not hypothetical — it is how the test for this screen first
+  /// failed. In a widget test there is no engine to answer a channel at all,
+  /// so `invokeMethod` hung and `pumpAndSettle` timed out. A real iOS build
+  /// answers immediately with `MissingPluginException`; a real Android build
+  /// answers unless `MainActivity` is wedged. The test was a harsher platform
+  /// than either, and it found something worth fixing.
+  ///
+  /// Three seconds because this screen has nothing to show until the answer
+  /// arrives, and a spinner is worse than a switch that says "off".
+  static const _patience = Duration(seconds: 3);
+
   bool _granted = false;
   bool _wanted = false;
   bool _running = false;
@@ -113,20 +132,25 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
   /// circumstances under which a bubble can be there. `running` is used for
   /// the one sentence underneath, which is the only place in the app that can
   /// tell the user the truth when those two disagree.
-  Future<void> _refresh() async {
-    var granted = false;
-    var wanted = false;
-    var running = false;
-
+  /// One question to Android, with a deadline and no way to throw.
+  ///
+  /// `PlatformException` (the Activity reported a problem),
+  /// `MissingPluginException` (iOS, or an Activity older than these methods)
+  /// and `TimeoutException` (nothing answered) all mean the same thing to this
+  /// screen — assume there is no bubble — so they are caught together rather
+  /// than as three branches that do the same thing.
+  Future<T?> _ask<T>(Future<T?> Function() call) async {
     try {
-      granted = await _channel.invokeMethod<bool>('canDrawOverlays') ?? false;
-    } on PlatformException {
-      granted = false;
-    } on MissingPluginException {
-      // iOS, or a debug build against an older Activity. Not an error: the
-      // page already says this is an Android feature.
-      granted = false;
+      return await call().timeout(_patience);
+    } on Object {
+      return null;
     }
+  }
+
+  Future<void> _refresh() async {
+    final granted =
+        await _ask(() => _channel.invokeMethod<bool>('canDrawOverlays')) ??
+            false;
 
     // Migration runs BEFORE the status read, not after. It can start the
     // service, and reading `running` first would leave this screen saying
@@ -134,16 +158,10 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
     // screen. Ask once, after everything that could change the answer.
     if (granted) await _migrateLegacyWish();
 
-    try {
-      final status =
-          await _channel.invokeMapMethod<String, dynamic>('bubbleStatus');
-      wanted = status?['wanted'] == true;
-      running = status?['running'] == true;
-    } on PlatformException {
-      // leave both false
-    } on MissingPluginException {
-      // leave both false
-    }
+    final status = await _ask(
+        () => _channel.invokeMapMethod<String, dynamic>('bubbleStatus'));
+    final wanted = status?['wanted'] == true;
+    final running = status?['running'] == true;
 
     if (!mounted) return;
     setState(() {
@@ -170,15 +188,10 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
     // and the branch can be deleted in a later round.
     await prefs.remove(BubbleSettingsPage.prefKey);
     if (!legacy) return;
-    try {
-      // Safe to call even if the service is already up — `ACTION_START` is
-      // idempotent and simply re-shows the bubble.
-      await _channel.invokeMethod<bool>('startBubble');
-    } on PlatformException {
-      // The status read below reports what actually happened.
-    } on MissingPluginException {
-      // ditto
-    }
+    // Safe to call even if the service is already up — `ACTION_START` is
+    // idempotent and simply re-shows the bubble. The status read that follows
+    // reports what actually happened, so nothing is assumed here.
+    await _ask(() => _channel.invokeMethod<bool>('startBubble'));
   }
 
   /// Turn the bubble on or off for real.
@@ -189,29 +202,17 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
   /// on while Android had refused.
   Future<void> _setWanted(bool on) async {
     if (on && !_granted) {
-      try {
-        await _channel.invokeMethod<bool>('requestOverlayPermission');
-      } on PlatformException {
-        // Nothing to do — the screen stays as it was and the explanation
-        // below it is still on display.
-      }
+      // Nothing is recorded. If this fails the screen stays as it was, with
+      // the explanation still on display.
+      await _ask(() => _channel.invokeMethod<bool>('requestOverlayPermission'));
       return; // `didChangeAppLifecycleState` picks up the result.
     }
 
-    try {
-      if (on) {
-        // `startBubble` returns false if Android refuses, and the state is
-        // then read back rather than assumed. A switch is allowed to stay
-        // off; a switch that lies is what brought us here.
-        await _channel.invokeMethod<bool>('startBubble');
-      } else {
-        await _channel.invokeMethod<bool>('stopBubble');
-      }
-    } on PlatformException {
-      // fall through to the refresh, which reports what actually happened
-    } on MissingPluginException {
-      // ditto
-    }
+    // `startBubble` returns false if Android refuses, and the state is read
+    // back afterwards rather than assumed. A switch is allowed to stay off; a
+    // switch that lies is what brought us here.
+    await _ask(() => _channel
+        .invokeMethod<bool>(on ? 'startBubble' : 'stopBubble'));
     await _refresh();
   }
 

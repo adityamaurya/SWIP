@@ -992,6 +992,76 @@ put the ₹5,000 unlock on sale. All with reasons in
 
 ---
 
+## Prompt 36 — 14 Sep 2026 · The floating bubble, built
+
+> *"the floater launcher icon is not working  also make use of the UI  from
+> the pdf and sanity check the code"*
+
+**It was not working because it had never been built.** `F-131` shipped the
+permission screen and the switch; the switch wrote a preference key and no
+code in the project read it. This round is steps 2 to 6 of
+[`32`](32-FLOATING-BUBBLE.md) §6.
+
+### Android — new
+
+| File | Note |
+|---|---|
+| `SwipBubbleService.kt` | **New.** Foreground service holding a `TYPE_APPLICATION_OVERLAY` window. Drag, edge-snap with an overshoot, tap to open the scanner |
+| `res/drawable/swip_bubble_bg.xml` | **New.** A rectangle at 24 dp radius — a true circle at 48 dp square, a true pill the moment it is not |
+| `res/drawable/swip_bubble_disc.xml` | **New.** The gold disc the mark sits in. Page 23 |
+| `res/drawable/swip_bubble_mark.xml` | **New.** The slash. Doubles as the notification small icon, which is why it is one solid path |
+
+### Android — changed
+
+| File | Change |
+|---|---|
+| `AndroidManifest.xml` | Registers the service, `exported="false"`, `foregroundServiceType="specialUse"` with the justification a reviewer reads |
+| `MainActivity.kt` | `startBubble` / `stopBubble` / `bubbleStatus` on the channel; `restoreIfWanted` on resume; foreground and background signals; payment-quiet from both hand-off routes |
+| `res/values/strings.xml` | Bubble strings, including a TalkBack description |
+| `res/values/colors.xml` | `swip_bubble_ground`, `swip_bubble_edge` |
+
+### Flutter — changed
+
+| File | Change |
+|---|---|
+| `bubble_settings.dart` | Asks the platform instead of remembering. Three states rather than two, so the screen can say *"switched on, it comes back next time you open SWIP"* when that is the truth. The old preference is honoured once, then deleted |
+
+### Screens
+
+| ID | Screen | State |
+|---|---|---|
+| `S-29` | Scan from anywhere | **Changed.** The switch does something. One promise removed as unkept |
+| — | The bubble itself | **New.** Not a screen — a window over other apps |
+
+### The three suppression rules, now enforced rather than promised
+
+| Rule | Where |
+|---|---|
+| Never over a payment | `MainActivity.forwardUpiIntent` and `openExternal` both signal `ACTION_PAYMENT_STARTED`; 90 s of silence |
+| Never while locked | `ACTION_SCREEN_OFF` in the service's receiver |
+| Never over SWIP itself | `MainActivity.onResume` / `onPause` |
+
+Each errs towards the bubble being **absent**. An absent bubble costs one tap.
+A bubble over a PIN pad costs the app.
+
+### Defects found and fixed in the same round
+
+`MainActivity.EXTRA_OPEN_SCANNER` did not exist (it is on `SwipTile`);
+`coerceIn(min, max)` throws when `max < min` and `max` was a screen
+measurement; a `FrameLayout` can never become a pill; `appInFront` starting
+`false` put a bubble over the Settings screen that had just enabled it;
+`getSystemService(Class)` is API 23 and was unguarded; and `List<String> get
+methods` inside `main()` — **Dart has no local getters.**
+
+And one CI found: a platform-channel future **never completes if the platform
+does not reply**, and `_loading` was cleared at the end of that chain — a
+settings screen that could spin forever. Every platform read now has a
+three-second deadline.
+
+Serves `C-12`, `D-11`. `F-158`.
+
+---
+
 ## Prompt 35 — 14 Sep 2026 · The PDF, the duplicate key, and a real blockchain
 
 ### Screens changed
