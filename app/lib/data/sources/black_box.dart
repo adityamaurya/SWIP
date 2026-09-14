@@ -95,6 +95,8 @@ import 'dart:typed_data';
 import 'package:bip39/bip39.dart' as bip39;
 import 'package:cryptography/cryptography.dart';
 
+import 'swip_chain.dart';
+
 /// The domain string mixed into every key derivation.
 ///
 /// > *"He could have maybe a phrase to get it unlocked… mixing a string from
@@ -195,15 +197,21 @@ class BlackBoxReading {
 
 /// The result of trying to open a black box.
 class BlackBoxOpening {
-  const BlackBoxOpening.opened(this.rows)
+  const BlackBoxOpening.opened(this.rows, {this.chain})
       : problem = null,
         wrongPhrase = false;
 
   const BlackBoxOpening.failed(this.problem, {this.wrongPhrase = false})
-      : rows = const [];
+      : rows = const [],
+        chain = null;
 
   final List<Map<String, dynamic>> rows;
   final String? problem;
+
+  /// `F-156`. What the blockchain said, when the backup carried one. Null for
+  /// an older plain export, which is not a failure — it is a file from before
+  /// the chain existed.
+  final ChainVerdict? chain;
 
   /// True when the phrase is the thing that was wrong, as distinct from the
   /// file. Drives whether the UI says "check your words" or "this file is
@@ -325,6 +333,14 @@ abstract final class BlackBox {
   /// — the chain is computed before it gets here, so the integrity guarantee
   /// is independent of the encryption and survives being decrypted back into a
   /// plain file.
+  /// `F-156`. [ledger] gains a `chain` — a real blockchain over its captures,
+  /// mined and signed with a key derived from the same phrase. See
+  /// `swip_chain.dart` for what each part of that actually buys.
+  ///
+  /// The chain is built **before** encryption and travels inside the
+  /// ciphertext, so decrypting a backup yields a plain ledger that still
+  /// carries its own proof. The two guarantees stay independent: the phrase
+  /// proves who could read it, the chain proves nobody edited it.
   static Future<String> seal({
     required Map<String, dynamic> ledger,
     required String phrase,
@@ -332,10 +348,31 @@ abstract final class BlackBox {
     String? sealHash,
     DateTime? now,
   }) async {
+    final rows = <Map<String, Object?>>[
+      for (final r in (ledger['captures'] as List? ?? const []))
+        if (r is Map) r.cast<String, Object?>(),
+    ];
+    final blocks = await SwipChain.build(
+      captures: rows,
+      seed: SwipChain.seedFromPhrase(phrase),
+      now: now,
+    );
+    final sealedLedger = <String, dynamic>{
+      ...ledger,
+      'chain': {
+        'algorithm': 'sha256-merkle-pow-ed25519',
+        'blockSize': kBlockSize,
+        'difficulty': kDifficulty,
+        'publicKey': blocks.first.publicKey,
+        'head': blocks.last.hash,
+        'blocks': blocks.map((b) => b.toJson()).toList(),
+      },
+    };
+
     final salt = _randomBytes(16);
     final key = await _deriveKey(phrase: phrase, salt: salt);
 
-    final plaintext = utf8.encode(jsonEncode(ledger));
+    final plaintext = utf8.encode(jsonEncode(sealedLedger));
     final algo = AesGcm.with256bits();
     final box = await algo.encrypt(plaintext, secretKey: key);
 
@@ -363,8 +400,17 @@ abstract final class BlackBox {
         'mac': base64Encode(box.mac.bytes),
       },
       'check': base64Encode(await _checkValue(key)),
-      if (sealHash != null)
-        'chain': {'algorithm': 'sha256-hash-chain', 'sealHash': sealHash},
+      // The envelope header advertises the chain's head and public key in the
+      // clear. Neither discloses anything about a merchant, and both let a
+      // holder of two backups tell which is newer, and whether they came from
+      // the same install, without a phrase.
+      'chain': {
+        'algorithm': 'sha256-merkle-pow-ed25519',
+        'blocks': blocks.length,
+        'head': blocks.last.hash,
+        'publicKey': blocks.first.publicKey,
+        if (sealHash != null) 'sealHash': sealHash,
+      },
       'payload': base64Encode(box.cipherText),
     });
   }
@@ -450,7 +496,30 @@ abstract final class BlackBox {
         return const BlackBoxOpening.failed(
             'That backup decrypted, but what came out was not a ledger.');
       }
-      return BlackBoxOpening.opened(_rowsOf(ledger['captures']));
+
+      final rows = _rowsOf(ledger['captures']);
+
+      // ── `F-156`. Verify the chain before handing the rows back ──
+      //
+      // Decrypting proves the file came from somebody holding the phrase.
+      // The chain proves nobody has edited a capture since it was sealed —
+      // a different question, and the one that matters if a backup has been
+      // round-tripped through a cloud, a chat app and somebody's laptop.
+      //
+      // A broken chain does **not** refuse the import. These are the user's
+      // own records and a suspect record is better than no record. It is
+      // reported, with the block named, and `settings_page` asks before
+      // writing anything.
+      final chain = ledger['chain'];
+      if (chain is Map && chain['blocks'] is List) {
+        final verdict = await SwipChain.verify(
+          rawBlocks: chain['blocks'] as List,
+          captures: rows,
+        );
+        return BlackBoxOpening.opened(rows, chain: verdict);
+      }
+
+      return BlackBoxOpening.opened(rows);
     } on SecretBoxAuthenticationError {
       return const BlackBoxOpening.failed(
         'This backup did not survive the trip — its contents do not match the '

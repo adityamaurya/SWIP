@@ -380,6 +380,76 @@ void main() {
       }
     }, timeout: const Timeout(Duration(minutes: 5)));
   });
+
+  // ───────────────────────────────────────────────────────────────────────
+  // `F-156` — the chain, end to end through the envelope.
+  // ───────────────────────────────────────────────────────────────────────
+
+  group('the backup carries a real blockchain', () {
+    test('a sealed backup verifies its own chain on the way back in',
+        () async {
+      final phrase = BlackBox.newRecoveryPhrase();
+      final file = await BlackBox.seal(
+        ledger: ledgerOf(70),
+        phrase: phrase,
+        captures: 70,
+      );
+
+      final opened =
+          await BlackBox.open(reading: BlackBox.inspect(file), phrase: phrase);
+
+      expect(opened.ok, isTrue, reason: opened.problem);
+      expect(opened.chain, isNotNull, reason: 'the chain should have been checked');
+      expect(opened.chain!.valid, isTrue, reason: opened.chain!.summary);
+      expect(opened.chain!.signed, isTrue);
+      expect(opened.chain!.blocks, 3); // 70 captures at 32 a block
+    });
+
+    test('the header advertises the chain head without giving anything away',
+        () async {
+      final file = await BlackBox.seal(
+        ledger: ledgerOf(5),
+        phrase: BlackBox.newRecoveryPhrase(),
+        captures: 5,
+      );
+      final header = jsonDecode(file) as Map<String, dynamic>;
+      final chain = header['chain'] as Map<String, dynamic>;
+
+      // Present: enough to tell two backups apart and see they share an
+      // install, without a phrase.
+      expect(chain['algorithm'], 'sha256-merkle-pow-ed25519');
+      expect(chain['head'], isA<String>());
+      expect(chain['publicKey'], isA<String>());
+      expect(chain['blocks'], 1);
+
+      // Absent: anything about a shop.
+      expect(file, isNot(contains('SHOP')));
+    });
+
+    test('two backups of the same ledger share a chain identity', () async {
+      // The public key comes from the phrase, so a reinstall that restores the
+      // phrase can keep appending to the same chain rather than forking.
+      final phrase = BlackBox.newRecoveryPhrase();
+      final a = jsonDecode(await BlackBox.seal(
+          ledger: ledgerOf(3), phrase: phrase, captures: 3)) as Map;
+      final b = jsonDecode(await BlackBox.seal(
+          ledger: ledgerOf(3), phrase: phrase, captures: 3)) as Map;
+
+      expect((a['chain'] as Map)['publicKey'],
+          (b['chain'] as Map)['publicKey']);
+    });
+
+    test('an older plain export has no chain, and that is not a failure',
+        () async {
+      final opened = await BlackBox.open(
+        reading: BlackBox.inspect(jsonEncode(ledgerOf(4))),
+        phrase: '',
+      );
+      expect(opened.ok, isTrue);
+      expect(opened.chain, isNull,
+          reason: 'a file from before the chain existed is still importable');
+    });
+  });
 }
 
 String _excerpt(String s) =>

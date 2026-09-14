@@ -17,6 +17,7 @@ import '../../core/theme/swip_tokens.dart';
 import '../../data/models/capture_event.dart';
 import '../../data/repositories/capture_repository.dart';
 import '../../data/sources/black_box.dart';
+import '../../data/sources/swip_chain.dart';
 import '../../data/sources/export_narrative.dart';
 import '../../data/sources/ledger_lines.dart';
 import '../../data/sources/ledger_seal.dart';
@@ -563,6 +564,7 @@ class SettingsPage extends ConsumerWidget {
     // thing to happen on this screen, and throwing the user back to the file
     // picker to start again for a typo would be gratuitous.
     var rows = <Map<String, dynamic>>[];
+    ChainVerdict? chainVerdict;
     if (reading.needsPhrase) {
       final store = ref.read(recoveryPhraseStoreProvider);
       final onThisPhone = await store.phrase();
@@ -583,6 +585,7 @@ class SettingsPage extends ConsumerWidget {
             await BlackBox.open(reading: reading, phrase: entered);
         if (opened.ok) {
           rows = opened.rows;
+          chainVerdict = opened.chain;
           break;
         }
 
@@ -602,6 +605,19 @@ class SettingsPage extends ConsumerWidget {
     } else {
       final opened = await BlackBox.open(reading: reading, phrase: '');
       rows = opened.rows;
+      chainVerdict = opened.chain;
+    }
+
+    // ── `F-156`. The blockchain's verdict, before anything is written ──
+    //
+    // Not a refusal. These are the user's own records and a suspect record
+    // beats no record — but the chain names the *block*, so the dialog can say
+    // "block 3 of 12, everything before it is intact" rather than the useless
+    // "this file may have been modified".
+    if (chainVerdict != null && !chainVerdict.valid) {
+      if (!context.mounted) return;
+      final proceed = await _confirmBrokenChain(context, chainVerdict);
+      if (proceed != true) return;
     }
 
     // ── `F-127`. The seal, checked before anything is written ──
@@ -632,11 +648,15 @@ class SettingsPage extends ConsumerWidget {
       ref.read(ledgerRevisionProvider.notifier).state++;
 
       if (!context.mounted) return;
-      final sealNote = check == null
-          ? ''
-          : check.intact
-              ? ' · seal verified'
-              : ' · seal did not match';
+      final sealNote = chainVerdict != null
+          ? (chainVerdict.valid
+              ? ' · ${chainVerdict.blocks} blocks verified'
+              : ' · chain did not verify')
+          : check == null
+              ? ''
+              : check.intact
+                  ? ' · seal verified'
+                  : ' · seal did not match';
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(added == 0
             ? 'Already up to date — nothing new in that file$sealNote'
@@ -652,6 +672,42 @@ class SettingsPage extends ConsumerWidget {
             'ledger. Nothing was changed.'),
       ));
     }
+  }
+
+  /// `F-156`. The blockchain did not verify.
+  ///
+  /// Separate from [_confirmBrokenSeal] because it can say strictly more: the
+  /// chain knows **which block** failed and therefore how much of the ledger
+  /// is still provably untouched. "Everything before block 7 is intact" is a
+  /// materially different message from "this file has changed".
+  static Future<bool?> _confirmBrokenChain(
+      BuildContext context, ChainVerdict verdict) {
+    if (!context.mounted) return Future.value(false);
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: SwipColors.surfaceRaised,
+        title: const Text('This backup has been changed'),
+        content: Text(
+          '${verdict.summary}\n\n'
+          'The blockchain in this file did not check out. Usually that means '
+          'something rewrote the file in transit — a cloud sync, or a chat '
+          'app. The captures can still be imported; SWIP is telling you '
+          'first rather than afterwards.',
+          style: SwipType.bodyM.copyWith(color: SwipColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Import anyway'),
+          ),
+        ],
+      ),
+    );
   }
 
   /// `F-127`. The seal did not verify. Say what that means without making the
