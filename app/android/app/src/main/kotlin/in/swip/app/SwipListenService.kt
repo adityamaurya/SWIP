@@ -57,6 +57,27 @@ class SwipListenService : HostApduService() {
         const val EXTRA_TLV = "tlv"
         const val EXTRA_TRACE = "trace"
 
+        /**
+         * `F-143`. How far the exchange got. Present on every broadcast,
+         * including the ones that carry no TLV at all.
+         *
+         * Before this existed the service broadcast **only** on a successful
+         * GPO, so a terminal that selected us and then walked away produced no
+         * broadcast, no sheet and no ledger row — the app showed nothing and
+         * the user correctly read "nothing" as "broken". Every outcome is now
+         * reported, and the app says which one it was.
+         */
+        const val EXTRA_REASON = "reason"
+
+        /** The full exchange happened and the terminal answered the PDOL. */
+        const val REASON_READ = "read"
+
+        /** We were selected, but the terminal never issued GET PROCESSING OPTIONS. */
+        const val REASON_NO_GPO = "no_gpo"
+
+        /** The field opened and closed without a SELECT we recognised. */
+        const val REASON_NO_SELECT = "no_select"
+
         // ---- status words ----
         private val SW_OK = byteArrayOf(0x90.toByte(), 0x00)
         private val SW_COND_NOT_SATISFIED = byteArrayOf(0x69, 0x85.toByte())
@@ -107,6 +128,12 @@ class SwipListenService : HostApduService() {
     /** Accumulated across the exchange; emitted once the GPO lands. */
     private val trace = StringBuilder()
 
+    /** `F-143`. Whether [emit] has already fired for this tap. */
+    private var emitted = false
+
+    /** `F-143`. Whether the terminal got as far as selecting one of our AIDs. */
+    private var selected = false
+
     override fun processCommandApdu(apdu: ByteArray?, extras: Bundle?): ByteArray {
         if (apdu == null || apdu.size < 4) return SW_INS_NOT_SUPPORTED
         trace.append("<< ").append(apdu.toHex()).append('\n')
@@ -137,6 +164,7 @@ class SwipListenService : HostApduService() {
             ppseResponse() + SW_OK
         } else {
             // Any AID we advertised: reply with the FCI carrying the PDOL.
+            selected = true
             fciWithPdol(name) + SW_OK
         }
     }
@@ -158,7 +186,7 @@ class SwipListenService : HostApduService() {
             } else {
                 body
             }
-            emit(slicePdol(values))
+            emit(slicePdol(values), REASON_READ)
         }
 
         // Decline. Nothing is authorised, no cryptogram is produced, and the
@@ -192,13 +220,15 @@ class SwipListenService : HostApduService() {
         return out
     }
 
-    private fun emit(tlv: Map<String, String>) {
-        Log.i(TAG, "captured: $tlv")
+    private fun emit(tlv: Map<String, String>, reason: String) {
+        emitted = true
+        Log.i(TAG, "captured ($reason): $tlv")
         sendBroadcast(
             Intent(ACTION_CAPTURE)
                 .setPackage(packageName)
                 .putExtra(EXTRA_TLV, HashMap(tlv))
                 .putExtra(EXTRA_TRACE, trace.toString())
+                .putExtra(EXTRA_REASON, reason)
         )
     }
 
@@ -246,17 +276,60 @@ class SwipListenService : HostApduService() {
      * length encoding (0x81 <len>) or terminals will reject the FCI.
      */
     private fun tlv(tag: Int, value: ByteArray): ByteArray {
-        require(value.size < 0x80) { "TLV value too long for short-form length" }
         val tagBytes = when {
             tag <= 0xFF -> byteArrayOf(tag.toByte())
             tag <= 0xFFFF -> byteArrayOf((tag shr 8).toByte(), tag.toByte())
             else -> byteArrayOf((tag shr 16).toByte(), (tag shr 8).toByte(), tag.toByte())
         }
-        return tagBytes + byteArrayOf(value.size.toByte()) + value
+        // `F-140`. Short form below 128 bytes, long form above it.
+        //
+        // This used to `require(value.size < 0x80)` and throw otherwise. The
+        // PPSE directory is currently 107 bytes — twenty-one bytes below the
+        // limit — so adding a **single** further AID would have thrown
+        // `IllegalArgumentException` from inside `processCommandApdu`, killing
+        // the service mid-tap for every card scheme at once. A two-line
+        // encoding change removes a booby trap that was one edit away from
+        // going off.
+        val lengthBytes = if (value.size < 0x80) {
+            byteArrayOf(value.size.toByte())
+        } else {
+            byteArrayOf(0x81.toByte(), value.size.toByte())
+        }
+        return tagBytes + lengthBytes + value
     }
 
+    /**
+     * `F-143` — **the fix for "I tapped and nothing happened at all".**
+     *
+     * The field has gone. Three things can have just happened:
+     *
+     * 1. We read a PDOL response and already broadcast it. Nothing to do.
+     * 2. The terminal selected one of our AIDs, read the PDOL we advertised,
+     *    and then ended the exchange **without** sending GET PROCESSING
+     *    OPTIONS. Real kernels do this: some refuse an application whose FCI
+     *    asks for tags they do not hold, some abort as soon as the amount is
+     *    not yet keyed, and some are simply configured to require a contact
+     *    fallback. There is no MCC in this case and there never will be.
+     * 3. The field opened and closed without a SELECT we answered.
+     *
+     * Cases 2 and 3 used to produce *silence* — no broadcast, no sheet, no
+     * ledger row. Silence is the single worst thing this feature can do,
+     * because it is indistinguishable from the app being broken, and it is
+     * what was reported from the shop floor.
+     *
+     * So both now broadcast, with no TLV and an explicit reason. The app turns
+     * that into a sentence about the terminal rather than a blank screen. A
+     * capture that says "this terminal stopped before it told us anything" is
+     * a real, true, useful thing to record — and it is the only way the ledger
+     * can ever show how often it happens.
+     */
     override fun onDeactivated(reason: Int) {
+        if (!emitted) {
+            emit(emptyMap(), if (selected) REASON_NO_GPO else REASON_NO_SELECT)
+        }
         trace.setLength(0)
+        emitted = false
+        selected = false
     }
 
     private fun ByteArray.toHex() =

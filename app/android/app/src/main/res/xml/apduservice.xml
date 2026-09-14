@@ -2,10 +2,43 @@
 <!--
   SWIP Listen — HCE AID registration (Capture Vector 2).
 
+  ══════════════════════════════════════════════════════════════════════════
+  F-140 — THE PPSE AID. READ THIS BEFORE CHANGING ANYTHING BELOW.
+  ══════════════════════════════════════════════════════════════════════════
+
+  For four months this file registered the six card AIDs and nothing else, and
+  the consequence was that **a tap on a real POS terminal produced no pop-up at
+  all** — not a wrong category, not an empty one: silence.
+
+  The reason is the order of an EMV contactless exchange. A terminal does not
+  begin by asking for Visa or RuPay. It begins, every time, with:
+
+      SELECT 2PAY.SYS.DDF01          (the Proximity Payment System Environment)
+
+  and reads the list of applications that comes back before it selects any of
+  them. Android routes host-APDU traffic **by AID**, against the AIDs declared
+  in this file. `2PAY.SYS.DDF01` was not declared, so the routing table had
+  nowhere to send the terminal's very first command. It went unanswered.
+
+  SwipListenService.ppseResponse() — the function whose entire job is to answer
+  that command — was therefore unreachable code. The service was never woken,
+  the SELECT AID that carries our PDOL was never sent, the GPO that carries the
+  MCC was never sent, and the app had nothing to show. From the user's side of
+  the counter that is indistinguishable from a broken feature, which is exactly
+  how it was reported.
+
+  The AID below is `2PAY.SYS.DDF01` in ASCII hex:
+
+      2    P    A    Y    .    S    Y    S    .    D    D    F    0    1
+      32   50   41   59   2E   53   59   53   2E   44   44   46   30   31
+
+  It goes FIRST, and it is not optional. Every contactless terminal in the
+  world sends it.
+
   category="payment"
   ─────────────────
-  The AIDs below are the real payment AIDs, so Android routes them under the
-  "payment" category, which means:
+  These are real payment AIDs, so Android routes them under the "payment"
+  category, which means:
 
     • SWIP appears in Settings > Tap & pay alongside any wallet app, and
     • when another app (Google Wallet) is the default, SWIP will NOT receive
@@ -23,6 +56,11 @@
   to the user's ledger, and a ledger that can be written to through a locked
   phone in someone else's hand is a privacy problem, not a feature.
 
+  Note the cost, because it is a third way to get silence: with the screen
+  locked, Android will not route to this service at all. That is invisible when
+  SWIP is the foreground app (the phone is unlocked by definition) and visible
+  only if SWIP is ever made the default payment service. Kept, and stated.
+
   NOTE FOR REVIEW: this service holds no PAN, generates no cryptogram, and
   answers no GENERATE AC. It terminates every exchange with SW=6985 after
   reading the terminal's PDOL response. See SwipListenService.kt.
@@ -35,6 +73,10 @@
     <aid-group
         android:category="payment"
         android:description="@string/swip_hce_aid_group">
+
+        <!-- PPSE — "2PAY.SYS.DDF01". The first command of every contactless
+             exchange. Without this line nothing below is ever reached. F-140. -->
+        <aid-filter android:name="325041592E5359532E4444463031" />
 
         <!-- Visa -->
         <aid-filter android:name="A0000000031010" />

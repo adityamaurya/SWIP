@@ -5,6 +5,7 @@
 // be: the build failed on the one line that names it.
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 import '../core/theme/swip_tokens.dart';
@@ -239,7 +240,57 @@ class PullController {
   /// Furthest point reached during the current drag.
   double _peak = 0;
 
-  void dispose() => pull.dispose();
+  void dispose() {
+    _disposed = true;
+    pull.dispose();
+  }
+
+  /// `F-141` — **the red error string on the dashboard, and why it was there.**
+  ///
+  /// Every write this controller makes ends up calling `setState` somewhere:
+  /// [pull] drives a `ValueListenableBuilder`, and [_onOpen] is the page's own
+  /// `setState`. That is fine when the write is caused by a finger, because
+  /// pointer events are delivered between frames.
+  ///
+  /// It is **not** fine when the write is caused by the scroll view's own
+  /// physics. A bouncing scroll position springs back under a ticker, which
+  /// runs inside `SchedulerPhase.transientCallbacks` — i.e. during the frame.
+  /// The `ScrollUpdateNotification` and `ScrollEndNotification` it emits are
+  /// therefore dispatched mid-frame, and calling `setState` from there trips:
+  ///
+  /// ```text
+  /// The following assertion was thrown while dispatching notifications for
+  /// ValueNotifier<double>: Build scheduled during frame.
+  /// ```
+  ///
+  /// In a debug build an assertion thrown while building renders as Flutter's
+  /// `ErrorWidget` — **the full-width red panel of small text that was reported
+  /// on the dashboard.** It is not a layout bug and not a styling bug; it is
+  /// this, and it fires precisely at the end of the pull that is supposed to
+  /// open the panel, which is why the gesture looked like it "broke on
+  /// release".
+  ///
+  /// So: if the scheduler is mid-frame, do the work in a post-frame callback
+  /// instead. The common case — a finger actually dragging — is
+  /// `SchedulerPhase.idle` and runs inline with no added latency, so the fluid
+  /// tracking of the rubber band is untouched.
+  ///
+  /// Reproduced by `pull_controller_test.dart`, which drags a real dashboard
+  /// past the end of its scroll and asserts that nothing is thrown.
+  void _safely(VoidCallback fn) {
+    final phase = SchedulerBinding.instance.schedulerPhase;
+    if (phase == SchedulerPhase.idle ||
+        phase == SchedulerPhase.postFrameCallbacks) {
+      fn();
+      return;
+    }
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (_disposed) return;
+      fn();
+    });
+  }
+
+  bool _disposed = false;
 
   /// Returns false so the notification keeps bubbling: something above may
   /// still want it.
@@ -258,17 +309,23 @@ class PullController {
         m.pixels > m.maxScrollExtent) {
       _bump((m.pixels - m.maxScrollExtent) / PullToReveal.openAt);
     } else if (n is ScrollEndNotification) {
-      if (_peak >= 1 && !revealed) {
-        revealed = true;
-        // One medium impact, at the moment it opens, once. Haptics that repeat
-        // while a finger is moving read as a fault rather than a confirmation.
-        HapticFeedback.mediumImpact();
-        _onOpen();
-      }
-      // Settles fully open or fully closed. A panel left at 60 % because that
-      // is where the finger lifted is not a state, it is an unfinished gesture.
-      _set(revealed ? 1 : 0);
+      final opening = _peak >= 1 && !revealed;
+      if (opening) revealed = true;
+      final target = revealed ? 1.0 : 0.0;
       _peak = 0;
+      _safely(() {
+        if (opening) {
+          // One medium impact, at the moment it opens, once. Haptics that
+          // repeat while a finger is moving read as a fault rather than a
+          // confirmation.
+          HapticFeedback.mediumImpact();
+          _onOpen();
+        }
+        // Settles fully open or fully closed. A panel left at 60 % because
+        // that is where the finger lifted is not a state, it is an unfinished
+        // gesture.
+        _set(target);
+      });
     }
     return false;
   }
@@ -278,17 +335,22 @@ class PullController {
   void openNow() {
     if (revealed) return;
     revealed = true;
-    HapticFeedback.mediumImpact();
-    _onOpen();
-    _set(1);
+    _safely(() {
+      HapticFeedback.mediumImpact();
+      _onOpen();
+      _set(1);
+    });
   }
 
   void _bump(double v) {
-    _set(v);
-    if (pull.value > _peak) _peak = pull.value;
+    _safely(() {
+      _set(v);
+      if (pull.value > _peak) _peak = pull.value;
+    });
   }
 
   void _set(double v) {
+    if (_disposed) return;
     final next = v.clamp(0.0, 1.4);
     if ((next - pull.value).abs() < 0.004) return;
     pull.value = next;

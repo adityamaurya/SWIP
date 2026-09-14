@@ -171,6 +171,14 @@ class _TapPageState extends ConsumerState<TapPage> with WidgetsBindingObserver {
           (raw['tlv'] as Map).map((k, v) => MapEntry('$k', '$v')));
       final trace = raw['trace'] as String?;
 
+      // `F-143`. How far the exchange got, straight from the HCE service.
+      //
+      // This is the field that ends the "I tapped and nothing happened"
+      // class of report. An empty `tlv` used to mean the broadcast never
+      // fired at all; it now means the tap ended early, and [outcome] says
+      // which way. Both are captures and both get a row.
+      final outcome = TapOutcome.parse(raw['reason'] as String?);
+
       // EMV tag 9F15 is the merchant category code, and its source is the
       // terminal. If the terminal's kernel has no value provisioned it returns
       // zeros — which is an absence, not a category.
@@ -223,17 +231,31 @@ class _TapPageState extends ConsumerState<TapPage> with WidgetsBindingObserver {
           // not fill it in" - which is unfalsifiable and reads as a shrug. The
           // export proved at least two distinct causes, and a terminal running
           // on demo values is a checkable fact the cashier can act on.
-          noCategoryTitle: switch (health.health) {
-            TerminalHealth.placeholder => 'This terminal is not set up yet',
-            TerminalHealth.silent => 'This terminal did not identify itself',
-            TerminalHealth.provisioned =>
-              'The terminal did not give a category',
-          },
-          noCategoryBody: health.note ??
-              'SWIP asked and this machine returned nothing in the category '
-                  'field. That is the shop\'s bank not filling it in - it is '
-                  'not something SWIP or the cashier can change. Scanning the '
-                  'shop\'s QR often works when the terminal will not.',
+          // `F-138` + `F-143`. **Four different silences, four different
+          // sentences**, and they are answered in the right order.
+          //
+          // The exchange-level outcome comes first, because if the terminal
+          // never finished talking to SWIP then nothing can be said about its
+          // identity fields — they were never sent. Reading the old
+          // terminal-health copy in that case would have accused a perfectly
+          // good machine of being unprovisioned on the strength of data that
+          // never arrived.
+          //
+          // Only once the exchange completed does the identity of the machine
+          // become the interesting question, and that is `F-138`'s table.
+          noCategoryTitle: outcome != TapOutcome.read
+              ? outcome.title
+              : switch (health.health) {
+                  TerminalHealth.placeholder =>
+                    'This terminal is not set up yet',
+                  TerminalHealth.silent =>
+                    'This terminal did not identify itself',
+                  TerminalHealth.provisioned =>
+                    'The terminal did not give a category',
+                },
+          noCategoryBody: outcome != TapOutcome.read
+              ? outcome.body
+              : (health.note ?? TapOutcome.read.body),
           // The terminal's own field names, exactly as EMV labels them. This
           // audience does not trust a number it cannot check.
           details: {
@@ -250,7 +272,16 @@ class _TapPageState extends ConsumerState<TapPage> with WidgetsBindingObserver {
             if (tlv['5F2A'] != null) 'Currency · 5F2A': tlv['5F2A']!,
             if (tlv['9F02'] != null) 'Amount · 9F02': tlv['9F02']!,
             if (tlv['9F35'] != null) 'Terminal type · 9F35': tlv['9F35']!,
-            'Result': 'Declined by SWIP · SW=6985',
+            // `F-143`. What the exchange actually did, in the technical
+            // block, so the headline stays plain English and the evidence is
+            // still one tap away.
+            'Exchange': switch (outcome) {
+              TapOutcome.read => 'Completed · PDOL answered',
+              TapOutcome.noGpo => 'Selected, then ended before GPO',
+              TapOutcome.noSelect => 'No SELECT reached SWIP',
+            },
+            if (outcome == TapOutcome.read)
+              'Result': 'Declined by SWIP · SW=6985',
           },
         ),
       );

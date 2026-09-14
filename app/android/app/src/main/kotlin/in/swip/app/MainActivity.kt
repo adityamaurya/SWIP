@@ -395,6 +395,15 @@ class MainActivity : FlutterFragmentActivity() {
                     mapOf(
                         "tlv" to tlv,
                         "trace" to intent.getStringExtra(SwipListenService.EXTRA_TRACE),
+                        // `F-143`. How far the exchange got. An empty `tlv` with
+                        // a reason of "no_gpo" or "no_select" is a real result,
+                        // not a dropped one — the Dart side turns it into a
+                        // sentence about the terminal. Forwarding this is what
+                        // stops a tap ending in silence.
+                        "reason" to (
+                            intent.getStringExtra(SwipListenService.EXTRA_REASON)
+                                ?: SwipListenService.REASON_READ
+                            ),
                         "capturedAt" to System.currentTimeMillis()
                     )
                 )

@@ -188,3 +188,91 @@ abstract final class TerminalDoctor {
     );
   }
 }
+
+/// `F-143` — **how far the tap actually got.**
+///
+/// ## The complaint this exists to answer
+///
+/// > *"There were multiple POS fails wherein what happened was I tried to go
+/// > ahead near the POS, but the pop-up did not happen at all."*
+///
+/// [TerminalHealth] above answers *"the terminal talked to us and said
+/// nothing useful"*. This answers the question underneath it, which is
+/// different and was never asked in code: **did the terminal talk to us at
+/// all?**
+///
+/// Until `F-143` the HCE service broadcast only on a successful
+/// `GET PROCESSING OPTIONS`. Every other ending — and there are two of them —
+/// produced no broadcast, so no sheet, no ledger row and no explanation. The
+/// app was not failing to read the category; it was failing to say that a tap
+/// had happened. From the user's side of the counter those look identical, and
+/// only one of them is a bug.
+///
+/// ## The three endings
+///
+/// | Outcome | What happened | Whose problem |
+/// |---|---|---|
+/// | [read] | Selected, PDOL answered. There may or may not be a `9F15` in it | Nobody's — this is the feature working |
+/// | [noGpo] | The terminal selected SWIP, read the PDOL, and stopped | The terminal's kernel |
+/// | [noSelect] | The field opened and closed without a SELECT reaching us | Routing — usually another wallet holds the field |
+///
+/// [noSelect] is the important one, because it is the only ending that is
+/// usually **fixable by the user**, and for four months it was also the one
+/// that produced complete silence. See `docs/34` §2.
+enum TapOutcome {
+  /// The exchange completed. Read [TerminalHealth] for what was in it.
+  read,
+
+  /// SWIP was selected but the terminal never asked for processing options.
+  noGpo,
+
+  /// Nothing ever selected SWIP.
+  noSelect;
+
+  /// Parse the string the platform channel sends. Anything unrecognised is
+  /// treated as [read], because an unknown reason arriving alongside real TLV
+  /// data must not throw away the data.
+  static TapOutcome parse(String? s) => switch (s) {
+        'no_gpo' => TapOutcome.noGpo,
+        'no_select' => TapOutcome.noSelect,
+        _ => TapOutcome.read,
+      };
+
+  /// The headline. Never "error", never "failed" — each of these is a specific,
+  /// true statement about a machine, and two of them are not SWIP's fault in
+  /// any sense the user can act on.
+  String get title => switch (this) {
+        TapOutcome.read => 'The terminal did not give a category',
+        TapOutcome.noGpo => 'This terminal stopped halfway',
+        TapOutcome.noSelect => 'The terminal never reached SWIP',
+      };
+
+  /// The explanation, written to be actionable where action exists and honest
+  /// where it does not.
+  String get body => switch (this) {
+        TapOutcome.read =>
+          'SWIP asked and this machine returned nothing in the category '
+              'field. That is the shop\'s bank not filling it in — not '
+              'something SWIP or the cashier can change. Scanning the shop\'s '
+              'QR often works when the terminal will not.',
+        TapOutcome.noGpo =>
+          'The terminal recognised SWIP and read its request, then ended the '
+              'exchange before answering it. Some payment terminals refuse an '
+              'application until an amount has been keyed in; others are set '
+              'to require a chip-and-PIN fallback. Ask the cashier to enter '
+              'the amount first, then tap again.',
+        TapOutcome.noSelect =>
+          'The terminal opened its field but never asked SWIP for anything, '
+              'which almost always means another app holds the contactless '
+              'slot on this phone. Set SWIP as the default payment app — or '
+              'keep this screen open while you tap, which routes the field '
+              'here for as long as you are looking at it.',
+      };
+
+  /// Whether this ending is worth keeping in the ledger as its own row.
+  ///
+  /// All three are. A ledger that records only successes cannot answer "how
+  /// often does this actually work", which is the single most important
+  /// unknown in the product — see the field-test note on `SwipListenService`.
+  bool get isCapture => true;
+}

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:swip/data/models/capture_event.dart';
+import 'package:swip/data/models/mcc.dart';
+import 'package:swip/features/dashboard/dashboard_page.dart';
 import 'package:swip/widgets/pull_to_reveal.dart';
 
 /// `F-118` — the test that would have caught a gesture that did nothing.
@@ -138,5 +141,76 @@ void main() {
 
     expect(opened, isFalse);
     expect(c.pull.value, 0);
+  });
+
+  // ───────────────────────────────────────────────────────────────────────
+  // `F-141` — the regression test for the red panel on the dashboard.
+  // ───────────────────────────────────────────────────────────────────────
+  //
+  // Everything above drives [PullController] with synthetic notifications,
+  // which is precise but shares one blind spot: a synthetic notification is
+  // dispatched from test code, i.e. between frames, where writing to a
+  // `ValueNotifier` is perfectly legal.
+  //
+  // The bug was only ever reachable from the *real* scroll view, because it
+  // needed the notification to arrive **during** a frame — which is what a
+  // bouncing physics spring-back does. So this one drags an actual
+  // `DashboardPage` past the end of its content and asserts that the frame
+  // produced no exception. Nothing less would have caught it: the widget laid
+  // out fine, analyze was clean, and all five tests above passed on the broken
+  // build.
+  //
+  // What the user saw was Flutter's `ErrorWidget`: a full-width red panel of
+  // small text reading "Build scheduled during frame", rendered at the foot of
+  // the dashboard at the exact moment the pull was released.
+
+  group('the real dashboard, dragged past the end', () {
+    final event = CaptureEvent(
+      id: 'pull-regression-1',
+      mcc: '5499',
+      vector: CaptureVector.qr,
+      confidence: MccConfidence.verified,
+      capturedAt: DateTime.utc(2026, 8, 10, 12),
+      merchantName: 'CULINARY BRANDS INDIA PRIVATE LIMITED',
+      merchantKey: 'upi:paytmqr6dld0y@ptys',
+      placeLabel: 'Kasarvadavali, Thane',
+    );
+
+    // Two sizes, because the at-rest camera overlay (`F-142`) overflowed on
+    // the short one and not the tall one.
+    for (final size in const [Size(360, 800), Size(320, 640)]) {
+      testWidgets('no exception is thrown at ${size.width}x${size.height}',
+          (tester) async {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+
+        await tester.pumpWidget(MaterialApp(
+          home: DashboardPage(
+            recent: [event],
+            mccFor: (_) => null,
+            tapAvailable: true,
+            // Layout only. No platform channel is touched.
+            active: false,
+          ),
+        ));
+        await tester.pump(const Duration(milliseconds: 300));
+
+        final view = find.byType(CustomScrollView);
+        // All the way to the foot of the page…
+        for (var i = 0; i < 12; i++) {
+          await tester.drag(view, const Offset(0, -400));
+          await tester.pump(const Duration(milliseconds: 60));
+        }
+        // …and then keep pulling, which is the gesture under test.
+        await tester.drag(view, const Offset(0, -260));
+        await tester.pump(const Duration(milliseconds: 400));
+        await tester.pump(const Duration(milliseconds: 400));
+
+        expect(tester.takeException(), isNull,
+            reason: 'the pull must not throw: an assertion here renders as '
+                'the red ErrorWidget panel on the dashboard');
+      });
+    }
   });
 }

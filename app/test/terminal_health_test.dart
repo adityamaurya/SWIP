@@ -6,6 +6,7 @@ import 'package:swip/data/sources/terminal_health.dart';
 /// One worked, one did not, and the difference was sitting in the hex the whole
 /// time. These tests are named after the actual bytes.
 void main() {
+  _tapOutcomeTests();
   group('the tap that failed, from the export', () {
     // 9F16 = 313132323333343435353636373738
     // 9F1C = 3132333435363738
@@ -89,5 +90,49 @@ void main() {
       expect(() => TerminalDoctor.examine(merchantIdHex: bad),
           returnsNormally);
     }
+  });
+}
+
+/// `F-143` — the tap outcome, which is the answer to "the pop-up did not
+/// happen at all".
+void _tapOutcomeTests() {
+  group('TapOutcome', () {
+    test('the platform strings map to the three endings', () {
+      expect(TapOutcome.parse('read'), TapOutcome.read);
+      expect(TapOutcome.parse('no_gpo'), TapOutcome.noGpo);
+      expect(TapOutcome.parse('no_select'), TapOutcome.noSelect);
+    });
+
+    test('an unknown reason does not throw away a real reading', () {
+      // If a future platform build sends a reason this Dart does not know,
+      // the safe reading is the one that keeps whatever TLV came with it.
+      expect(TapOutcome.parse('something_new'), TapOutcome.read);
+      expect(TapOutcome.parse(null), TapOutcome.read);
+    });
+
+    test('every ending has a headline and an explanation, and none says '
+        '"error"', () {
+      for (final o in TapOutcome.values) {
+        expect(o.title, isNotEmpty, reason: '$o');
+        expect(o.body, isNotEmpty, reason: '$o');
+        expect(o.title.toLowerCase(), isNot(contains('error')), reason: '$o');
+        expect(o.title.toLowerCase(), isNot(contains('failed')), reason: '$o');
+      }
+    });
+
+    test('the two endings the user can act on say what to do', () {
+      // noSelect is the one that is usually the phone's routing, and it is
+      // the one that used to produce complete silence.
+      expect(TapOutcome.noSelect.body, contains('default payment app'));
+      // noGpo is the terminal waiting for an amount.
+      expect(TapOutcome.noGpo.body, contains('amount'));
+    });
+
+    test('all three are recorded, because a ledger of only successes cannot '
+        'measure the hit rate', () {
+      for (final o in TapOutcome.values) {
+        expect(o.isCapture, isTrue, reason: '$o');
+      }
+    });
   });
 }

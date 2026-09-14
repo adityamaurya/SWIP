@@ -872,6 +872,28 @@ class _AtRest extends StatelessWidget {
 
   final VoidCallback onTap;
 
+  /// `F-142` — **this overlay used to overflow the camera band by 62 px.**
+  ///
+  /// The band is 208 dp tall (`DashboardPage._bandHeight`), and once the
+  /// `xl` padding is taken off both ends there are ~168 dp left for four
+  /// stacked elements plus three gaps. Their natural height is more than that,
+  /// so `RenderFlex` painted the yellow-and-black overflow stripe across the
+  /// viewfinder — on the one screen in the app that is supposed to look like a
+  /// window rather than a widget. At a large text scale it was worse.
+  ///
+  /// Two guards, in order of preference:
+  ///
+  /// 1. **Drop the explanatory sentence when the box is short.** It is the one
+  ///    element here that is commentary rather than instruction, so it is the
+  ///    right thing to lose first. The heading still describes the gesture and
+  ///    the pill still offers the way out.
+  /// 2. **`FittedBox(scaleDown)` underneath it**, which cannot overflow by
+  ///    construction. It only ever engages at extreme text scales, and shrunken
+  ///    type is a far better failure than a striped bar over the camera.
+  ///
+  /// Written as a `LayoutBuilder` rather than a fixed breakpoint because the
+  /// same overlay is used in the square band, the wide band and the full-screen
+  /// scanner, and those are three different heights.
   @override
   Widget build(BuildContext context) => Positioned.fill(
         child: GestureDetector(
@@ -881,41 +903,58 @@ class _AtRest extends StatelessWidget {
             color: SwipColors.onCameraScrim.withValues(alpha: .82),
             alignment: Alignment.center,
             padding: const EdgeInsets.all(SwipSpace.xl),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.screen_rotation_alt_rounded,
-                    size: 26,
-                    color: SwipColors.onCameraInk.withValues(alpha: .75)),
-                const SizedBox(height: SwipSpace.md),
-                Text(
-                  'Hold your phone up to a code',
-                  textAlign: TextAlign.center,
-                  style: SwipType.titleS
-                      .copyWith(color: SwipColors.onCameraInk),
-                ),
-                const SizedBox(height: SwipSpace.xs),
-                Text(
-                  'SWIP stops looking when you put the phone down, so it '
-                  'cannot interrupt you.',
-                  textAlign: TextAlign.center,
-                  style: SwipType.bodyS.copyWith(
-                      color: SwipColors.onCameraInk.withValues(alpha: .62)),
-                ),
-                const SizedBox(height: SwipSpace.lg),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: SwipSpace.lg, vertical: SwipSpace.sm),
-                  decoration: BoxDecoration(
-                    borderRadius: SwipRadius.pillAll,
-                    border: Border.all(
-                        color: SwipColors.onCameraInk.withValues(alpha: .28)),
+            child: LayoutBuilder(
+              builder: (context, c) {
+                final roomy = c.maxHeight >= 210;
+                return FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: c.maxWidth),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.screen_rotation_alt_rounded,
+                            size: 26,
+                            color:
+                                SwipColors.onCameraInk.withValues(alpha: .75)),
+                        const SizedBox(height: SwipSpace.md),
+                        Text(
+                          'Hold your phone up to a code',
+                          textAlign: TextAlign.center,
+                          style: SwipType.titleS
+                              .copyWith(color: SwipColors.onCameraInk),
+                        ),
+                        if (roomy) ...[
+                          const SizedBox(height: SwipSpace.xs),
+                          Text(
+                            'SWIP stops looking when you put the phone down, '
+                            'so it cannot interrupt you.',
+                            textAlign: TextAlign.center,
+                            style: SwipType.bodyS.copyWith(
+                                color: SwipColors.onCameraInk
+                                    .withValues(alpha: .62)),
+                          ),
+                        ],
+                        const SizedBox(height: SwipSpace.lg),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: SwipSpace.lg,
+                              vertical: SwipSpace.sm),
+                          decoration: BoxDecoration(
+                            borderRadius: SwipRadius.pillAll,
+                            border: Border.all(
+                                color: SwipColors.onCameraInk
+                                    .withValues(alpha: .28)),
+                          ),
+                          child: Text('OR TAP TO SCAN ANYWAY',
+                              style: SwipType.labelS.copyWith(
+                                  color: SwipColors.onCameraAccent)),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: Text('OR TAP TO SCAN ANYWAY',
-                      style: SwipType.labelS
-                          .copyWith(color: SwipColors.onCameraAccent)),
-                ),
-              ],
+                );
+              },
             ),
           ),
         ),
