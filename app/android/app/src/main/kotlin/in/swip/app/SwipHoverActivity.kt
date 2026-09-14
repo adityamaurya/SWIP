@@ -1,8 +1,11 @@
 package `in`.swip.app
 
+import android.content.Intent
 import android.os.Bundle
 import io.flutter.embedding.android.FlutterActivityLaunchConfigs.BackgroundMode
 import io.flutter.embedding.android.FlutterFragmentActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
 
 /**
  * `F-163` — the scanner, hovering over whatever app you are in.
@@ -63,6 +66,51 @@ class SwipHoverActivity : FlutterFragmentActivity() {
      */
     override fun getBackgroundMode(): BackgroundMode = BackgroundMode.transparent
 
+    /**
+     * The one platform method the hovering scanner can actually reach for.
+     *
+     * **This engine is not `MainActivity`'s.** Every plugin registers itself
+     * here as usual, but `MainActivity`'s own `in.swip.app/nfc` channel does
+     * not exist in this engine — its handler is a closure over `MainActivity`
+     * state, and `MainActivity` is not on screen.
+     *
+     * `ScanPage` reaches for exactly one method on that channel:
+     * `openAppSettings`, and only when the camera permission has been refused,
+     * to send the user somewhere they can grant it. It wraps the call in
+     * `catchError`, so an unregistered channel here would not crash — it would
+     * do **nothing**, silently, on the one screen whose entire job at that
+     * moment is to unblock the user. That is a worse failure than a crash
+     * because nobody would ever report it.
+     *
+     * So the channel is registered with that single method and no others.
+     * Anything else returns `notImplemented` rather than being quietly
+     * swallowed, which is what makes a missing wire show up.
+     */
+    override fun configureFlutterEngine(engine: FlutterEngine) {
+        super.configureFlutterEngine(engine)
+
+        MethodChannel(engine.dartExecutor.binaryMessenger, CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "openAppSettings" -> {
+                        val ok = runCatching {
+                            startActivity(
+                                Intent(
+                                    android.provider.Settings
+                                        .ACTION_APPLICATION_DETAILS_SETTINGS,
+                                    android.net.Uri.fromParts(
+                                        "package", packageName, null)
+                                )
+                            )
+                        }.isSuccess
+                        result.success(ok)
+                    }
+
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -97,5 +145,8 @@ class SwipHoverActivity : FlutterFragmentActivity() {
          */
         const val EXTRA_ROUTE = "route"
         const val ROUTE_HOVER = "/hover"
+
+        /** Must match `MainActivity.METHOD_CHANNEL`. */
+        private const val CHANNEL = "in.swip.app/nfc"
     }
 }
