@@ -114,6 +114,21 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
     if (state == AppLifecycleState.resumed) _refresh();
   }
 
+  /// One question to Android, with a deadline and no way to throw.
+  ///
+  /// `PlatformException` (the Activity reported a problem),
+  /// `MissingPluginException` (iOS, or an Activity older than these methods)
+  /// and `TimeoutException` (nothing answered) all mean the same thing to this
+  /// screen — assume there is no bubble — so they are caught together rather
+  /// than as three branches that do the same thing.
+  Future<T?> _ask<T>(Future<T?> Function() call) async {
+    try {
+      return await call().timeout(_patience);
+    } on Object {
+      return null;
+    }
+  }
+
   /// `F-158` — **ask Android, do not remember.**
   ///
   /// This method used to read a `SharedPreferences` boolean that this screen
@@ -132,21 +147,6 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
   /// circumstances under which a bubble can be there. `running` is used for
   /// the one sentence underneath, which is the only place in the app that can
   /// tell the user the truth when those two disagree.
-  /// One question to Android, with a deadline and no way to throw.
-  ///
-  /// `PlatformException` (the Activity reported a problem),
-  /// `MissingPluginException` (iOS, or an Activity older than these methods)
-  /// and `TimeoutException` (nothing answered) all mean the same thing to this
-  /// screen — assume there is no bubble — so they are caught together rather
-  /// than as three branches that do the same thing.
-  Future<T?> _ask<T>(Future<T?> Function() call) async {
-    try {
-      return await call().timeout(_patience);
-    } on Object {
-      return null;
-    }
-  }
-
   Future<void> _refresh() async {
     final granted =
         await _ask(() => _channel.invokeMethod<bool>('canDrawOverlays')) ??
