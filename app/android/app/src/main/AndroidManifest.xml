@@ -203,10 +203,7 @@
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="A floating button the user switched on, which
-                    opens SWIP's merchant-category scanner over whatever app
-                    they are in. It draws a 56dp circle and nothing else, reads
-                    no other app's content, and uses no accessibility service." />
+                android:value="A floating button the user switched on, which opens SWIP's merchant-category scanner over whatever app they are in. It draws a 48dp circle and nothing else, reads no other app's content, and uses no accessibility service." />
         </service>
 
         <meta-data

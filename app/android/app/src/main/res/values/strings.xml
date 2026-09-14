@@ -34,7 +34,7 @@
     -->
 
     <!-- The pill's one word, shown for a moment when the bubble is tapped. -->
-    <string name="swip_bubble_peek">Scanning\u2026</string>
+    <string name="swip_bubble_peek">Scanning…</string>
 
     <!--
       TalkBack reads this. The bubble is a 56 dp circle containing a glyph and
