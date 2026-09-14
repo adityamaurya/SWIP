@@ -94,11 +94,102 @@ class _PullToRevealState extends State<PullToReveal>
   int _cyclesRun = 0;
   double _wasAtRest = 0;
 
+  // ───────────────────────────────────────────────────────────────────────
+  // `F-152` — **the red panel the owner actually photographed.**
+  // ───────────────────────────────────────────────────────────────────────
+  //
+  // ```text
+  // Duplicate keys found.
+  // Stack(alignment: Alignment.center, fit: loose) has multiple children
+  // with key [<[<[<'PULL FOR THE BIT NOBODY READS'>]>]>].
+  // ```
+  //
+  // `F-141` fixed a *different* red panel ("Build scheduled during frame")
+  // and I reported that as the one in the screenshots. It was not. This is,
+  // and it is worse: the exception is thrown while building a sliver, which
+  // takes the whole `CustomScrollView` down with it — so the dashboard does
+  // not merely show a red box, it **goes black**. Three pages of the PDF show
+  // exactly that, and the black screen has been on the open list for rounds
+  // as if it were unrelated.
+  //
+  // ## The mechanism
+  //
+  // The prompt label sat in an `AnimatedSwitcher` keyed on its own text:
+  //
+  // ```dart
+  // AnimatedSwitcher(child: Text(_prompt(t), key: ValueKey(_prompt(t))))
+  // ```
+  //
+  // An `AnimatedSwitcher` keeps the outgoing child alive in a `Stack` for the
+  // length of its transition. `t` is the live rubber-band value, and a
+  // bouncing overscroll **oscillates** — 0.35, 0.10, 0.40, 0.05 — crossing the
+  // 0.28 boundary several times inside one 180 ms transition. So the text goes
+  // A → B → A while the first A is still fading out, and the Stack ends up
+  // holding two children with the identical key. Flutter asserts.
+  //
+  // ## The fix, which is two things and both of them are needed
+  //
+  // 1. **Hysteresis on the stage.** A label driven directly off a jittery
+  //    continuous value flickers, and flicker is the actual user-visible
+  //    defect — the crash is just what flicker does when it meets a keyed
+  //    switcher. A stage now has to be *left* by a wider margin than it was
+  //    entered by, so the rubber band settling does not strobe the copy.
+  //
+  // 2. **A key that is never reused.** `_promptSeq` increments on every real
+  //    stage change and never goes back, so two children cannot share a key
+  //    even if the stage somehow changes twice in one frame. Hysteresis alone
+  //    would make this rare rather than impossible, and "rare" is what let it
+  //    ship.
+  //
+  // The stage is computed in a listener rather than in `build`, because
+  // deciding it during build would mean mutating state during build — which is
+  // how `F-141` happened.
+
+  /// How far in you must go to enter each stage, and how far back you must
+  /// come to leave it. The gap between the two is the hysteresis.
+  static const _enter = <double>[0.28, 0.66];
+  static const _leave = <double>[0.18, 0.54];
+
+  int _stage = 0;
+  int _promptSeq = 0;
+
   @override
   void initState() {
     super.initState();
     _bounce.addStatusListener(_countCycles);
+    widget.pull.addListener(_onPull);
     _breathe();
+  }
+
+  @override
+  void didUpdateWidget(PullToReveal old) {
+    super.didUpdateWidget(old);
+    if (old.pull != widget.pull) {
+      old.pull.removeListener(_onPull);
+      widget.pull.addListener(_onPull);
+    }
+  }
+
+  /// Decide the stage, with hysteresis, off the live pull value.
+  void _onPull() {
+    final t = widget.pull.value.clamp(0.0, 1.0);
+
+    var next = _stage;
+    // Climbing: cross the entry threshold of the stage above.
+    while (next < _enter.length && t > _enter[next]) {
+      next++;
+    }
+    // Falling: drop below the *lower* exit threshold of the current stage.
+    while (next > 0 && t < _leave[next - 1]) {
+      next--;
+    }
+
+    if (next == _stage) return;
+    setState(() {
+      _stage = next;
+      // Monotonic. Never returns to a value it has already used.
+      _promptSeq++;
+    });
   }
 
   void _countCycles(AnimationStatus status) {
@@ -114,6 +205,7 @@ class _PullToRevealState extends State<PullToReveal>
 
   @override
   void dispose() {
+    widget.pull.removeListener(_onPull);
     _bounce.removeStatusListener(_countCycles);
     _bounce.dispose();
     super.dispose();
@@ -136,12 +228,26 @@ class _PullToRevealState extends State<PullToReveal>
   /// mind the harder you pull. A static "pull to reveal" tells you what to do;
   /// this tells you that something is *happening*, which is the only thing that
   /// makes a hidden gesture worth finishing.
-  String _prompt(double t) {
+  ///
+  /// `F-152`. Reads the **stage**, not the raw value. The thresholds live in
+  /// [_enter] / [_leave] so that entering and leaving a phrase are different
+  /// distances and the label cannot strobe while the band settles.
+  String get _prompt {
     if (widget.revealed) return 'THERE IT IS';
-    if (t > 0.66) return 'ALMOST WORTH IT';
-    if (t > 0.28) return 'KEEP GOING, IT GETS BETTER';
-    return 'PULL OR TAP FOR THE BIT NOBODY READS';
+    return switch (_stage) {
+      >= 2 => 'ALMOST WORTH IT',
+      1 => 'KEEP GOING, IT GETS BETTER',
+      _ => 'PULL OR TAP FOR THE BIT NOBODY READS',
+    };
   }
+
+  /// `F-152`. The switcher's key. Monotonic, so no two children in its
+  /// `Stack` can ever collide — which is the assertion that was black-screening
+  /// the dashboard.
+  ///
+  /// `revealed` is folded in because it changes the text without going
+  /// through [_onPull].
+  ValueKey<String> get _promptKey => ValueKey('$_promptSeq/${widget.revealed}');
 
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<double>(
@@ -248,8 +354,8 @@ class _PullToRevealState extends State<PullToReveal>
                           AnimatedSwitcher(
                             duration: const Duration(milliseconds: 180),
                             child: Text(
-                              _prompt(t),
-                              key: ValueKey(_prompt(t)),
+                              _prompt,
+                              key: _promptKey,
                               textAlign: TextAlign.center,
                               style: SwipType.labelS.copyWith(
                                 color: Color.lerp(SwipColors.textTertiary,

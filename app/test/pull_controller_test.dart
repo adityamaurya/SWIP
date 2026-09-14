@@ -213,4 +213,113 @@ void main() {
       });
     }
   });
+
+  // ───────────────────────────────────────────────────────────────────────
+  // `F-152` — the red panel the owner actually photographed, and the black
+  // screen it causes.
+  // ───────────────────────────────────────────────────────────────────────
+  //
+  // `F-141` fixed "Build scheduled during frame" and I reported that as the
+  // red string in the screenshots. It was not. Page 11 of the owner's PDF
+  // reads:
+  //
+  //     Duplicate keys found.
+  //     Stack(alignment: Alignment.center, fit: loose) has multiple children
+  //     with key [<[<[<'PULL FOR THE BIT NOBODY READS'>]>]>].
+  //
+  // The prompt label sat in an `AnimatedSwitcher` keyed on its own text. A
+  // switcher keeps the outgoing child in a `Stack` for the length of its
+  // transition, and a bouncing overscroll oscillates across the threshold
+  // several times inside one 180 ms transition — so the text went A → B → A
+  // while the first A was still there, and two children shared a key.
+  //
+  // It matters more than a red box: the assertion is thrown while building a
+  // sliver, which takes the whole `CustomScrollView` with it. Three pages of
+  // the PDF show the dashboard rendered completely black, and that has been
+  // sitting on the open list as a separate unexplained bug.
+
+  group('`F-152` an oscillating pull does not collide switcher keys', () {
+    testWidgets('the rubber band crossing a threshold repeatedly is safe',
+        (tester) async {
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final pull = ValueNotifier<double>(0);
+      addTearDown(pull.dispose);
+
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: PullToReveal(
+              signOff: 'Check.\nPay.\nGet rewarded.',
+              subtitle: 'sub',
+              hidden: const SizedBox(height: 200),
+              pull: pull,
+              revealed: false,
+            ),
+          ),
+        ),
+      ));
+      await tester.pump();
+
+      // These are the values a spring-back actually produces: past the
+      // threshold, back under it, past it again, all inside the switcher's
+      // 180 ms window.
+      for (final v in [0.0, 0.35, 0.1, 0.4, 0.05, 0.3, 0.0, 0.33, 0.2]) {
+        pull.value = v;
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(tester.takeException(), isNull,
+          reason: 'a duplicate key here throws inside a sliver build, which '
+              'black-screens the whole dashboard');
+    });
+
+    testWidgets('hysteresis stops the label strobing on small wobbles',
+        (tester) async {
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final pull = ValueNotifier<double>(0);
+      addTearDown(pull.dispose);
+
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: PullToReveal(
+              signOff: 'x',
+              subtitle: 'y',
+              hidden: const SizedBox(height: 200),
+              pull: pull,
+              revealed: false,
+            ),
+          ),
+        ),
+      ));
+      await tester.pump();
+
+      // Cross into stage 1…
+      pull.value = 0.30;
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(find.text('KEEP GOING, IT GETS BETTER'), findsOneWidget);
+
+      // …and wobble just under the entry threshold. Without hysteresis this
+      // would drop straight back and the copy would flicker on every frame of
+      // a settling spring.
+      pull.value = 0.24;
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(find.text('KEEP GOING, IT GETS BETTER'), findsOneWidget,
+          reason: '0.24 is below the 0.28 entry but above the 0.18 exit');
+
+      // Falling properly clear of it does change the label.
+      pull.value = 0.05;
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('PULL OR TAP FOR THE BIT NOBODY READS'), findsOneWidget);
+
+      expect(tester.takeException(), isNull);
+    });
+  });
 }
