@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/location/capture_location.dart';
 import '../../core/onboarding/primers.dart';
 import '../../core/settings/home_market.dart';
+import '../../core/theme/theme_setting.dart';
 import '../../core/theme/swip_tokens.dart';
 import '../../data/models/capture_event.dart';
 import '../../data/repositories/capture_repository.dart';
@@ -162,6 +163,43 @@ class SettingsPage extends ConsumerWidget {
           ),
 
           const Divider(height: SwipSpace.xxl),
+          _header('Appearance'),
+
+          // `F-155`. Three options, and the default follows the phone.
+          //
+          // Rendered as three rows rather than a switch because there are
+          // three states and a switch can only carry two — and the third,
+          // "match my phone", is the one most people want and the one a
+          // two-state control has to hide.
+          //
+          // Plain `ListTile`s with a check rather than `RadioListTile`:
+          // Material deprecated `groupValue`/`onChanged` in favour of a
+          // `RadioGroup` ancestor after 3.32, and a check mark is the shape
+          // every reference screenshot in the PDF uses for a chosen option
+          // anyway.
+          for (final choice in SwipThemeChoice.values)
+            ListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: SwipSpace.gutter),
+              onTap: () {
+                HapticFeedback.selectionClick();
+                ref.read(themeSettingProvider.notifier).choose(choice);
+              },
+              title: Text(choice.label,
+                  style:
+                      SwipType.bodyL.copyWith(color: SwipColors.textPrimary)),
+              subtitle: Text(
+                choice.note,
+                style:
+                    SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
+              ),
+              trailing: ref.watch(themeSettingProvider) == choice
+                  ? Icon(Icons.check_rounded,
+                      size: 20, color: SwipColors.gold500)
+                  : const SizedBox(width: 20),
+            ),
+
+          const Divider(height: SwipSpace.xxl),
           _header('Scanning'),
 
           // `F-131`. Its own screen rather than a switch here, because the
@@ -205,7 +243,7 @@ class SettingsPage extends ConsumerWidget {
           _header('Danger zone'),
 
           ListTile(
-            leading: const Icon(Icons.delete_outline_rounded,
+            leading: Icon(Icons.delete_outline_rounded,
                 color: SwipColors.dangerOnInk),
             title: Text('Delete everything',
                 style: SwipType.bodyL
@@ -741,7 +779,7 @@ class _Colophon extends StatelessWidget {
                   TextSpan(
                     children: [
                       const TextSpan(text: 'Made with '),
-                      const WidgetSpan(
+                      WidgetSpan(
                         alignment: PlaceholderAlignment.middle,
                         child: Icon(Icons.favorite_rounded,
                             size: 12, color: SwipColors.gold500),

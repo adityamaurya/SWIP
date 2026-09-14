@@ -278,7 +278,7 @@ class _BottomBarState extends State<_BottomBar> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: SwipColors.bg,
         border: Border(top: BorderSide(color: SwipColors.hairline)),
       ),
@@ -311,7 +311,7 @@ class _BottomBarState extends State<_BottomBar> {
                         turns: _open ? 0.5 : 0,
                         duration: const Duration(milliseconds: 220),
                         curve: Curves.easeOutCubic,
-                        child: const Icon(Icons.keyboard_arrow_down_rounded,
+                        child: Icon(Icons.keyboard_arrow_down_rounded,
                             size: 20, color: SwipColors.textTertiary),
                       ),
                     ],
@@ -373,7 +373,7 @@ class _BottomBarState extends State<_BottomBar> {
                         ),
                       ),
               ),
-              const Divider(height: 1, color: SwipColors.hairline),
+              Divider(height: 1, color: SwipColors.hairline),
             ],
 
             // ── the CTA ──

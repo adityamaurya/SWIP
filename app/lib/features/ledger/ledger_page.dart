@@ -54,7 +54,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
           _filters(),
           Expanded(
             child: async.when(
-              loading: () => const Center(
+              loading: () => Center(
                   child: CircularProgressIndicator(
                       color: SwipColors.gold500, strokeWidth: 2)),
               error: (e, _) => _Message(
@@ -262,7 +262,7 @@ class _CollapsedBreak extends StatelessWidget {
                     SwipType.bodyS.copyWith(color: SwipColors.textTertiary),
               ),
               const SizedBox(width: SwipSpace.xs),
-              const Icon(Icons.unfold_more_rounded,
+              Icon(Icons.unfold_more_rounded,
                   size: 14, color: SwipColors.textTertiary),
               const SizedBox(width: SwipSpace.sm),
               const Expanded(child: _DottedRule()),
@@ -357,7 +357,7 @@ class _EmptyLedger extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.qr_code_scanner_rounded,
+                  Icon(Icons.qr_code_scanner_rounded,
                       size: 16, color: SwipColors.gold500),
                   const SizedBox(width: SwipSpace.sm),
                   Text('Point the camera at a shop code',

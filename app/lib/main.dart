@@ -17,6 +17,8 @@ import 'features/capture_nfc/tap_page.dart';
 import 'features/capture_qr/scan_page.dart';
 import 'features/capture_share/share_capture.dart';
 import 'features/dashboard/dashboard_page.dart';
+import 'core/theme/swip_palette.dart';
+import 'core/theme/theme_setting.dart';
 import 'features/ledger/ledger_page.dart';
 import 'features/onboarding/home_market_page.dart';
 import 'features/settings/settings_page.dart';
@@ -28,28 +30,58 @@ void main() {
   runApp(const ProviderScope(child: SwipApp()));
 }
 
-class SwipApp extends StatelessWidget {
+/// `F-155` — the one place [SwipPalette.active] is written.
+///
+/// ## Why the whole app is keyed on the choice
+///
+/// [SwipColors] reads a global, not an `InheritedWidget`, so nothing rebuilds
+/// on its own when the palette changes — see `swip_palette.dart` for why that
+/// trade was taken over 440 context lookups. The `key` on `MaterialApp` is
+/// what closes that gap: changing it discards the entire element tree and
+/// rebuilds from scratch, so every one of those 440 static reads is
+/// re-evaluated exactly once, at the moment the user taps.
+///
+/// It is a heavy hammer, and it is the right one for a preference that changes
+/// perhaps twice in the life of an install.
+///
+/// The palette is assigned **in `build`, before `MaterialApp` is
+/// constructed**, so the first frame after a switch is already on the new
+/// ground. Assigning it in a callback instead would paint one frame of the old
+/// palette — a visible flash on the most visual setting in the app.
+class SwipApp extends ConsumerWidget {
   const SwipApp({super.key});
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-        title: 'SWIP',
-        debugShowCheckedModeBanner: false,
-        theme: SwipTheme.dark(),
-        darkTheme: SwipTheme.dark(),
-        // `F-130`. Paper is the only look, so both slots hold the same theme
-        // and the mode is pinned. Pinning it to `light` rather than following
-        // the system is deliberate: SWIP is read at a counter, in daylight,
-        // over a camera feed, and a palette that changes under the user
-        // depending on a system setting is one more thing that can look broken.
-        themeMode: ThemeMode.light,
-        // Two ways a capture can arrive from outside SWIP: a merchant's
-        // pay-by-app intent (Vector 7) and the share sheet (S-24). Both can
-        // cold-start the app, so both wrap the shell rather than a screen.
-        home: const IntentCaptureListener(
-          child: ShareCaptureListener(child: SwipShell()),
-        ),
-      );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final choice = ref.watch(themeSettingProvider);
+
+    // `platformBrightness` off the view rather than `MediaQuery`, because this
+    // runs above the `MaterialApp` that would provide one.
+    final platformIsDark =
+        View.of(context).platformDispatcher.platformBrightness ==
+            Brightness.dark;
+
+    SwipPalette.active = choice.palette(platformIsDark: platformIsDark);
+
+    return MaterialApp(
+      key: ValueKey('${choice.name}/${SwipPalette.active.name}'),
+      title: 'SWIP',
+      debugShowCheckedModeBanner: false,
+      theme: SwipTheme.dark(),
+      darkTheme: SwipTheme.dark(),
+      // Both slots hold the same `ThemeData` because the palette — not
+      // Material's own light/dark switch — is what actually changed. The
+      // mode is still passed so that Material's own defaults, and anything
+      // asking `Theme.of(context).brightness`, agree with the ground.
+      themeMode: choice.themeMode,
+      // Two ways a capture can arrive from outside SWIP: a merchant's
+      // pay-by-app intent (Vector 7) and the share sheet (S-24). Both can
+      // cold-start the app, so both wrap the shell rather than a screen.
+      home: const IntentCaptureListener(
+        child: ShareCaptureListener(child: SwipShell()),
+      ),
+    );
+  }
 }
 
 /// The app shell.
@@ -306,8 +338,7 @@ class _SwipShellState extends ConsumerState<SwipShell>
         }
       });
     }
-    final unread =
-        _seenCount == null ? 0 : (count - _seenCount!).clamp(0, 999);
+    final unread = _seenCount == null ? 0 : (count - _seenCount!).clamp(0, 999);
     final home = ref.watch(homeMarketProvider).valueOrNull;
     final links = [
       for (final p
@@ -361,8 +392,7 @@ class _SwipShellState extends ConsumerState<SwipShell>
           // question three times gets all three dismissed.
           linkProposal: links.isEmpty ? null : links.first,
           onConfirmLink: _confirmLink,
-          onDismissLink: (p) =>
-              setState(() => _dismissedLinks.add(p.aliasKey)),
+          onDismissLink: (p) => setState(() => _dismissedLinks.add(p.aliasKey)),
         ),
       ),
       const LedgerPage(),
@@ -452,7 +482,7 @@ class _Booting extends StatelessWidget {
   const _Booting();
 
   @override
-  Widget build(BuildContext context) => const Scaffold(
+  Widget build(BuildContext context) => Scaffold(
         body: Center(
           child: CircularProgressIndicator(
               color: SwipColors.gold500, strokeWidth: 2),
@@ -472,7 +502,7 @@ class _Fatal extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.error_outline_rounded,
+                Icon(Icons.error_outline_rounded,
                     size: 36, color: SwipColors.dangerOnInk),
                 const SizedBox(height: SwipSpace.lg),
                 Text('SWIP could not open its local store',

@@ -3,6 +3,8 @@ library;
 
 import 'package:flutter/widgets.dart';
 
+import 'swip_palette.dart';
+
 /// SWIP design tokens.
 ///
 /// The single source of truth for colour, type, space, radius, elevation and
@@ -45,13 +47,13 @@ import 'package:flutter/widgets.dart';
 /// spelling and changed their value.
 abstract final class SwipColors {
   // Brand — gold
-  static const gold50 = Color(0xFFF7F7F8);
-  static const gold100 = Color(0xFFEDEDEF);
-  static const gold300 = Color(0xFF3A3A3E);
-  static const gold500 = Color(0xFF0B0B0D); // THE accent: ink, not gold
-  static const gold700 = Color(0xFFD7D7DB);
-  static const goldInk = Color(0xFF0B0B0D); // accent TEXT on light
-  static const gold900 = Color(0xFFE6E6EA);
+  static Color get gold50 => SwipPalette.active.gold50;
+  static Color get gold100 => SwipPalette.active.gold100;
+  static Color get gold300 => SwipPalette.active.gold300;
+  static Color get gold500 => SwipPalette.active.gold500; // THE accent: ink, not gold
+  static Color get gold700 => SwipPalette.active.gold700;
+  static Color get goldInk => SwipPalette.active.goldInk; // accent TEXT on light
+  static Color get gold900 => SwipPalette.active.gold900;
 
   // Brand — ink
   static const ink900 = Color(0xFF0A0A0A); // SWIP Ink
@@ -73,52 +75,52 @@ abstract final class SwipColors {
 
   /// The ground. Pure white — the Ramp reference is paper, and an off-white
   /// ground makes every white card on top of it look like a mistake.
-  static const bg = Color(0xFFFFFFFF);
+  static Color get bg => SwipPalette.active.bg;
 
   /// Default screen surface.
-  static const surface = Color(0xFFFFFFFF);
+  static Color get surface => SwipPalette.active.surface;
 
   /// Cards, sheets, rows.
-  static const surfaceRaised = Color(0xFFF6F6F7);
+  static Color get surfaceRaised => SwipPalette.active.surfaceRaised;
 
   /// Input wells, code blocks, pressed states.
-  static const surfaceRaised2 = Color(0xFFEFEFF1);
+  static Color get surfaceRaised2 => SwipPalette.active.surfaceRaised2;
 
   /// 1px separators.
-  static const hairline = Color(0xFFE3E3E7);
+  static Color get hairline => SwipPalette.active.hairline;
 
   // ── Text on the dark ground ──────────────────────────────────────────
   /// Primary text. Near-black, not #000 — pure black on pure white vibrates and
   /// is tiring to read a ledger in. 18.4:1.
-  static const textPrimary = Color(0xFF0B0B0D);
+  static Color get textPrimary => SwipPalette.active.textPrimary;
 
   /// Secondary text. 7.1:1 on [bg].
-  static const textSecondary = Color(0xFF5B5B63);
+  static Color get textSecondary => SwipPalette.active.textSecondary;
 
   /// Tertiary. 3.2:1 — large or non-essential text only, never body copy.
-  static const textTertiary = Color(0xFF8C8C95);
+  static Color get textTertiary => SwipPalette.active.textTertiary;
 
   // Legacy aliases, repointed so existing widgets keep compiling.
-  static const surfaceSubdued = surfaceRaised;
-  static const surfaceSunken = surfaceRaised2;
-  static const surfaceInverse = bg;
-  static const border = hairline;
-  static const borderStrong = Color(0xFFC7C7CE);
+  static Color get surfaceSubdued => surfaceRaised;
+  static Color get surfaceSunken => surfaceRaised2;
+  static Color get surfaceInverse => bg;
+  static Color get border => hairline;
+  static Color get borderStrong => SwipPalette.active.borderStrong;
 
   // ── Semantic, on the dark ground ─────────────────────────────────────
   // The light-surface semantics below are 2–3:1 on [bg] and unusable as text.
   // These are the ones to reach for; all clear AAA on #060507.
-  static const successOnInk = Color(0xFF0E7A4A);
-  static const warningOnInk = Color(0xFF8A5A00);
-  static const dangerOnInk = Color(0xFFB3261E);
-  static const infoOnInk = Color(0xFF1A5FB4);
+  static Color get successOnInk => SwipPalette.active.successOnInk;
+  static Color get warningOnInk => SwipPalette.active.warningOnInk;
+  static Color get dangerOnInk => SwipPalette.active.dangerOnInk;
+  static Color get infoOnInk => SwipPalette.active.infoOnInk;
 
   /// Tinted backfills for banners. Kept very low-alpha: a saturated block on
   /// near-black reads as an error even when it is only information.
-  static const successFill = Color(0x140E7A4A);
-  static const warningFill = Color(0x148A5A00);
-  static const dangerFill = Color(0x14B3261E);
-  static const infoFill = Color(0x141A5FB4);
+  static Color get successFill => SwipPalette.active.successFill;
+  static Color get warningFill => SwipPalette.active.warningFill;
+  static Color get dangerFill => SwipPalette.active.dangerFill;
+  static Color get infoFill => SwipPalette.active.infoFill;
 
   // Semantic — the originals, now identical in intent to the `…OnInk` set
   // above. Kept so existing call sites compile; prefer the `…OnInk` names.

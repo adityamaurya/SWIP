@@ -206,7 +206,7 @@ class _PrimerSheetState extends State<_PrimerSheet> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.info_outline_rounded,
+                  Icon(Icons.info_outline_rounded,
                       size: 18, color: SwipColors.infoOnInk),
                   const SizedBox(width: SwipSpace.sm),
                   Expanded(

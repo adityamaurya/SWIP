@@ -67,7 +67,7 @@ class SupportStory extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.auto_awesome_rounded,
+                        Icon(Icons.auto_awesome_rounded,
                             size: 15, color: SwipColors.gold500),
                         const SizedBox(width: SwipSpace.sm),
                         Expanded(
@@ -123,7 +123,7 @@ class SupportStory extends StatelessWidget {
                     ],
 
                     const SizedBox(height: SwipSpace.xxl),
-                    const Divider(height: 1, color: SwipColors.hairline),
+                    Divider(height: 1, color: SwipColors.hairline),
                     const SizedBox(height: SwipSpace.xxl),
 
                     // ── the numbers ──
@@ -134,7 +134,7 @@ class SupportStory extends StatelessWidget {
                     const GoalBar(),
 
                     const SizedBox(height: SwipSpace.xxl),
-                    const Divider(height: 1, color: SwipColors.hairline),
+                    Divider(height: 1, color: SwipColors.hairline),
                     const SizedBox(height: SwipSpace.xxl),
 
                     // ── the useful bit ──
@@ -179,7 +179,7 @@ class SupportStory extends StatelessWidget {
                     const SizedBox(height: SwipSpace.lg),
                     Row(
                       children: [
-                        const Icon(Icons.favorite_rounded,
+                        Icon(Icons.favorite_rounded,
                             size: 13, color: SwipColors.gold500),
                         const SizedBox(width: SwipSpace.sm),
                         Text('a.r.my.',
@@ -423,7 +423,7 @@ class _Way extends StatelessWidget {
                           style: SwipType.titleS
                               .copyWith(color: SwipColors.textPrimary)),
                     ),
-                    const Icon(Icons.arrow_forward_rounded,
+                    Icon(Icons.arrow_forward_rounded,
                         size: 16, color: SwipColors.textTertiary),
                   ],
                 ),

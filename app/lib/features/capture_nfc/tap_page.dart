@@ -297,7 +297,7 @@ class _TapPageState extends ConsumerState<TapPage> with WidgetsBindingObserver {
         body: Padding(
           padding: const EdgeInsets.all(SwipSpace.xl),
           child: switch (_state) {
-            _NfcState.checking => const Center(
+            _NfcState.checking => Center(
                 child: CircularProgressIndicator(
                     color: SwipColors.gold500, strokeWidth: 2)),
             _NfcState.listening => _listening(),
@@ -356,7 +356,7 @@ class _TapPageState extends ConsumerState<TapPage> with WidgetsBindingObserver {
               shape: BoxShape.circle,
               border: Border.all(color: SwipColors.gold700),
             ),
-            child: const Center(
+            child: Center(
               child: Icon(Icons.contactless_rounded,
                   size: 64, color: SwipColors.gold500),
             ),

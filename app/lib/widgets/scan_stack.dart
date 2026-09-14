@@ -97,7 +97,7 @@ class ScanStack extends StatelessWidget {
                     style:
                         SwipType.labelS.copyWith(color: SwipColors.gold500),
                   ),
-                  const Icon(Icons.chevron_right_rounded,
+                  Icon(Icons.chevron_right_rounded,
                       size: 14, color: SwipColors.gold500),
                 ],
               ),

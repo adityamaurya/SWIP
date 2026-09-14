@@ -123,7 +123,7 @@ class ScanFlashCard extends StatelessWidget {
 
           // ── how it was read, then the way in ──
           VectorTag(event.vector),
-          const Icon(Icons.keyboard_arrow_up_rounded,
+          Icon(Icons.keyboard_arrow_up_rounded,
               size: 22, color: SwipColors.textSecondary),
         ],
       ),

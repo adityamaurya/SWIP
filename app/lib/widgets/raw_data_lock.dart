@@ -126,7 +126,7 @@ class _Locked extends ConsumerWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.lock_outline_rounded,
+              Icon(Icons.lock_outline_rounded,
                   size: 15, color: SwipColors.textTertiary),
               const SizedBox(width: SwipSpace.sm),
               Expanded(
@@ -163,7 +163,7 @@ class _Locked extends ConsumerWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.check_circle_outline_rounded,
+              Icon(Icons.check_circle_outline_rounded,
                   size: 14, color: SwipColors.textTertiary),
               const SizedBox(width: SwipSpace.sm),
               Expanded(
@@ -233,7 +233,7 @@ class _Unlocked extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.lock_open_rounded,
+              Icon(Icons.lock_open_rounded,
                   size: 15, color: SwipColors.textTertiary),
               const SizedBox(width: SwipSpace.sm),
               Expanded(

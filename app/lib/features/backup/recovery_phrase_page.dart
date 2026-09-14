@@ -162,7 +162,7 @@ class _RecoveryPhrasePageState extends State<RecoveryPhrasePage> {
 
           // ── the way out ──
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: SwipColors.bg,
               border: Border(top: BorderSide(color: SwipColors.hairline)),
             ),

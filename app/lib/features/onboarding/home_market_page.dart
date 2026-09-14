@@ -169,7 +169,7 @@ class _HomeMarketPageState extends ConsumerState<HomeMarketPage> {
         ),
         child: Row(
           children: [
-            const Icon(Icons.payments_outlined,
+            Icon(Icons.payments_outlined,
                 size: 18, color: SwipColors.gold500),
             const SizedBox(width: SwipSpace.sm),
             Expanded(
@@ -253,7 +253,7 @@ class _CountryTile extends StatelessWidget {
                 ),
                 if (selected) ...[
                   const SizedBox(width: SwipSpace.sm),
-                  const Icon(Icons.check_circle_rounded,
+                  Icon(Icons.check_circle_rounded,
                       size: 18, color: SwipColors.gold500),
                 ],
               ],

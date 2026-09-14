@@ -43,7 +43,7 @@ class MerchantLinkCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            const Icon(Icons.hub_outlined, size: 18, color: SwipColors.gold500),
+            Icon(Icons.hub_outlined, size: 18, color: SwipColors.gold500),
             const SizedBox(width: SwipSpace.sm),
             Text('SAME SHOP?',
                 style:

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'swip_palette.dart';
 import 'swip_tokens.dart';
 
 /// The SWIP theme — "Paper".
@@ -18,7 +19,13 @@ abstract final class SwipTheme {
   /// The only theme. Both entry points return it — SWIP has one look, and a
   /// half-built second one is worse than none.
   static ThemeData dark() {
-    const scheme = ColorScheme.light(
+    // `F-155`. Follows the active palette's brightness rather than being
+    // hard-coded light. Material derives a great deal from this one flag —
+    // default icon colours, scrollbar thumbs, the system overlay style — and
+    // a light scheme over a #060507 ground produces dark-on-dark icons in
+    // every widget SWIP has not explicitly coloured.
+    final palette = SwipPalette.active;
+    final scheme = (palette.isDark ? ColorScheme.dark : ColorScheme.light)(
       primary: SwipColors.gold500,
       // Filled buttons are black with white text — the Ramp and CRED shape.
       onPrimary: SwipColors.white,
@@ -48,7 +55,7 @@ abstract final class SwipTheme {
     return base.copyWith(
       textTheme: _text(base.textTheme),
 
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: SwipColors.bg,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
@@ -83,17 +90,17 @@ abstract final class SwipTheme {
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: SwipRadius.cardAll,
-          side: const BorderSide(color: SwipColors.hairline, width: 1),
+          side: BorderSide(color: SwipColors.hairline, width: 1),
         ),
       ),
 
-      dividerTheme: const DividerThemeData(
+      dividerTheme: DividerThemeData(
         color: SwipColors.hairline,
         thickness: 1,
         space: 1,
       ),
 
-      bottomSheetTheme: const BottomSheetThemeData(
+      bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: SwipColors.surfaceRaised,
         surfaceTintColor: Colors.transparent,
         showDragHandle: true,
@@ -115,7 +122,7 @@ abstract final class SwipTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: SwipColors.textPrimary,
           minimumSize: const Size(0, 52),
-          side: const BorderSide(color: SwipColors.borderStrong),
+          side: BorderSide(color: SwipColors.borderStrong),
           shape: const RoundedRectangleBorder(borderRadius: SwipRadius.inputAll),
           textStyle: SwipType.label.copyWith(fontSize: 15),
         ),
@@ -129,7 +136,7 @@ abstract final class SwipTheme {
         ),
       ),
 
-      iconTheme: const IconThemeData(color: SwipColors.textSecondary, size: 24),
+      iconTheme: IconThemeData(color: SwipColors.textSecondary, size: 24),
 
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -139,15 +146,15 @@ abstract final class SwipTheme {
             horizontal: SwipSpace.lg, vertical: SwipSpace.lg),
         border: OutlineInputBorder(
           borderRadius: SwipRadius.inputAll,
-          borderSide: const BorderSide(color: SwipColors.hairline),
+          borderSide: BorderSide(color: SwipColors.hairline),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: SwipRadius.inputAll,
-          borderSide: const BorderSide(color: SwipColors.hairline),
+          borderSide: BorderSide(color: SwipColors.hairline),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: SwipRadius.inputAll,
-          borderSide: const BorderSide(color: SwipColors.gold500, width: 2),
+          borderSide: BorderSide(color: SwipColors.gold500, width: 2),
         ),
       ),
 
@@ -180,7 +187,7 @@ abstract final class SwipTheme {
         shape: const RoundedRectangleBorder(borderRadius: SwipRadius.inputAll),
       ),
 
-      listTileTheme: const ListTileThemeData(
+      listTileTheme: ListTileThemeData(
         iconColor: SwipColors.textSecondary,
         textColor: SwipColors.textPrimary,
         minVerticalPadding: SwipSpace.md,

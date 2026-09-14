@@ -51,7 +51,7 @@ class _SupportSectionState extends State<SupportSection> {
                   horizontal: SwipSpace.gutter, vertical: SwipSpace.md),
               child: Row(
                 children: [
-                  const Icon(Icons.volunteer_activism_outlined,
+                  Icon(Icons.volunteer_activism_outlined,
                       size: 18, color: SwipColors.textSecondary),
                   const SizedBox(width: SwipSpace.md),
                   Expanded(
@@ -62,7 +62,7 @@ class _SupportSectionState extends State<SupportSection> {
                   AnimatedRotation(
                     turns: _open ? .5 : 0,
                     duration: SwipMotion.standard,
-                    child: const Icon(Icons.expand_more_rounded,
+                    child: Icon(Icons.expand_more_rounded,
                         size: 20, color: SwipColors.textTertiary),
                   ),
                 ],

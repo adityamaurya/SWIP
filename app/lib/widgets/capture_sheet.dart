@@ -352,7 +352,7 @@ class CaptureSheet extends StatelessWidget {
               const SizedBox(height: SwipSpace.xs),
               Row(
                 children: [
-                  const Icon(Icons.place_outlined,
+                  Icon(Icons.place_outlined,
                       size: 14, color: SwipColors.textTertiary),
                   const SizedBox(width: SwipSpace.sm),
                   Expanded(

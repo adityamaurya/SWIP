@@ -242,7 +242,7 @@ class _ShareCaptureListenerState extends ConsumerState<ShareCaptureListener>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.receipt_long_rounded,
+                Icon(Icons.receipt_long_rounded,
                     size: 32, color: SwipColors.gold500),
                 const SizedBox(height: SwipSpace.lg),
                 Text(
@@ -289,7 +289,7 @@ class _ShareCaptureListenerState extends ConsumerState<ShareCaptureListener>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.link_off_rounded,
+                Icon(Icons.link_off_rounded,
                     size: 32, color: SwipColors.textTertiary),
                 const SizedBox(height: SwipSpace.lg),
                 Text('A payment link carries no category',
@@ -331,7 +331,7 @@ class _ShareCaptureListenerState extends ConsumerState<ShareCaptureListener>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.image_not_supported_outlined,
+                Icon(Icons.image_not_supported_outlined,
                     size: 32, color: SwipColors.textTertiary),
                 const SizedBox(height: SwipSpace.lg),
                 Text('No payment code in that picture',

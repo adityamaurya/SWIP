@@ -248,7 +248,7 @@ class _CopyRow extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: SwipSpace.sm),
-                  const Icon(Icons.copy_rounded,
+                  Icon(Icons.copy_rounded,
                       size: 16, color: SwipColors.textTertiary),
                 ],
               ),
@@ -300,7 +300,7 @@ This is a receipt, not a tax invoice.
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.receipt_long_rounded,
+            Icon(Icons.receipt_long_rounded,
                 size: 30, color: SwipColors.gold500),
             const SizedBox(height: SwipSpace.lg),
             Text('Thank you',

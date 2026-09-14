@@ -367,7 +367,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   Text('See all',
                       style: SwipType.label
                           .copyWith(color: SwipColors.textPrimary)),
-                  const Icon(Icons.chevron_right_rounded,
+                  Icon(Icons.chevron_right_rounded,
                       size: 18, color: SwipColors.textPrimary),
                 ]),
               ),
@@ -472,7 +472,7 @@ class _LastCaptureHero extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.place_outlined,
+                          Icon(Icons.place_outlined,
                               size: 13, color: SwipColors.textTertiary),
                           const SizedBox(width: 3),
                           Flexible(
@@ -612,7 +612,7 @@ class _FirstRunCard extends StatelessWidget {
             ),
             const SizedBox(height: SwipSpace.lg),
             Row(children: [
-              const Icon(Icons.swipe_left_rounded,
+              Icon(Icons.swipe_left_rounded,
                   size: 18, color: SwipColors.gold500),
               const SizedBox(width: SwipSpace.sm),
               Flexible(

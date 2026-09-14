@@ -215,7 +215,7 @@ class LedgerRow extends StatelessWidget {
           const SizedBox(height: SwipSpace.xs),
           Row(
             children: [
-              const Icon(Icons.place_outlined,
+              Icon(Icons.place_outlined,
                   size: 12, color: SwipColors.textTertiary),
               const SizedBox(width: 3),
               Flexible(
