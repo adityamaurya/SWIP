@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  `F-158` — the bubble's ground.
+
+  ## Why a rounded rectangle and not an oval
+
+  Because the bubble is **not always a circle.** The shape from the assistant
+  overlay on pages 22-24 of the owner's PDF is a circle that stretches into a
+  pill to say something and settles back, and `SwipBubbleService.buildBubble`
+  builds exactly that: a `WRAP_CONTENT` window whose width is driven by
+  whether the label is visible.
+
+  An `<shape android:shape="oval">` would track that by turning into an
+  ellipse - a lozenge with curved sides, which is not the shape in the
+  reference and reads as a stretched circle rather than a pill. A rectangle
+  with a corner radius of exactly half the bubble's height is a true circle
+  while it is square and a true pill the moment it is not, with no code
+  deciding which.
+
+  **So the 24 dp here is load-bearing and is half of the 48 dp in
+  `buildBubble`.** Change one and the other has to move, or the circle stops
+  being round.
+
+  ## Why the colours are hard-coded rather than taken from the theme
+
+  Same rule as the camera overlays in `swip_tokens.dart`: this is drawn over an
+  arbitrary screen that SWIP does not control and cannot measure. It has to
+  carry its own contrast, so it is SWIP's ink ground with a gold hairline
+  regardless of the app underneath, the wallpaper, or whether the user is in
+  Paper or Foil. A bubble that followed the app theme would be a white circle
+  on a white screen exactly when somebody needed to find it.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <solid android:color="@color/swip_bubble_ground" />
+    <corners android:radius="24dp" />
+    <stroke
+        android:width="1dp"
+        android:color="@color/swip_bubble_edge" />
+</shape>

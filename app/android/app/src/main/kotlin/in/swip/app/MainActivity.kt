@@ -79,6 +79,7 @@ class MainActivity : FlutterFragmentActivity() {
         capturePaymentIntent(intent)
         captureSharedPayload(intent)
         captureTileLaunch(intent)
+
     }
 
     /** `launchMode="singleTop"`, so a second checkout arrives here. */
@@ -241,6 +242,40 @@ class MainActivity : FlutterFragmentActivity() {
                     // explain first, send second. Firing the Settings intent
                     // without the explanation is how an app gets denied and
                     // never asked again.
+                    // ── `F-158`: the floating bubble ─────────────────────
+                    //
+                    // The old screen wrote a `SharedPreferences` boolean and
+                    // stopped. These three are what make the switch mean
+                    // something: the service owns the state, so Dart sets and
+                    // asks rather than keeping a second copy that can drift.
+
+                    "startBubble" -> {
+                        // Returns false when the overlay permission is not
+                        // granted. Dart must not paint the switch as ON in
+                        // that case - that is exactly the lie `F-131` told.
+                        result.success(SwipBubbleService.start(this))
+                    }
+
+                    "stopBubble" -> {
+                        SwipBubbleService.stop(this)
+                        result.success(true)
+                    }
+
+                    // Two different questions, and the Settings screen needs
+                    // both: `wanted` is what the user asked for and drives the
+                    // switch; `running` is whether a window actually exists
+                    // right now, which is false while the service is being
+                    // restarted or the permission has been revoked in
+                    // Settings since.
+                    "bubbleStatus" -> {
+                        result.success(
+                            mapOf(
+                                "wanted" to SwipBubbleService.isWanted(this),
+                                "running" to SwipBubbleService.running,
+                            )
+                        )
+                    }
+
                     "canDrawOverlays" -> {
                         result.success(
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -288,6 +323,24 @@ class MainActivity : FlutterFragmentActivity() {
                                     Intent(Intent.ACTION_VIEW, android.net.Uri.parse(uri))
                                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                 )
+                                // `F-158`. This route opens the OWNER's
+                                // Razorpay page and the `upi://` deep link
+                                // behind the support section, so it is a
+                                // payment about to be on screen just as much
+                                // as `forwardUpiIntent` is. The scheme test
+                                // keeps the 90-second silence off the
+                                // `https://` links that are only
+                                // documentation - the privacy policy, the
+                                // repository - because going quiet there
+                                // would be silencing the bubble for reading.
+                                val scheme = android.net.Uri.parse(uri)
+                                    .scheme?.lowercase()
+                                if (scheme == "upi" || uri.contains("razorpay")) {
+                                    SwipBubbleService.signal(
+                                        this@MainActivity,
+                                        SwipBubbleService.ACTION_PAYMENT_STARTED,
+                                    )
+                                }
                             }.fold(
                                 onSuccess = { result.success(true) },
                                 // No app to take it — a phone with no UPI app
@@ -356,6 +409,18 @@ class MainActivity : FlutterFragmentActivity() {
                                     )
                                 }
                                 startActivity(chooser)
+                                // `F-158`. The bubble goes quiet for 90
+                                // seconds from here. This line is the
+                                // enforcement of the first promise on the
+                                // bubble Settings screen - "it never appears
+                                // over a payment" - and handing a `upi://` to
+                                // a wallet is the only moment SWIP knows for
+                                // certain that a payment is about to be on
+                                // screen.
+                                SwipBubbleService.signal(
+                                    this@MainActivity,
+                                    SwipBubbleService.ACTION_PAYMENT_STARTED,
+                                )
                             }.fold(
                                 onSuccess = { result.success(true) },
                                 onFailure = { result.success(false) }
@@ -443,10 +508,30 @@ class MainActivity : FlutterFragmentActivity() {
     override fun onResume() {
         super.onResume()
         if (listening) applyPreferredService(true)
+
+        // `F-158`. The bubble is a foreground service, so Android kills it
+        // with the process, and there is no BOOT_COMPLETED receiver to bring
+        // it back - that is a deliberate refusal, see
+        // `SwipBubbleService.restoreIfWanted`. The app opening is the moment
+        // it returns.
+        //
+        // In `onResume` rather than `onCreate` because Android 12+ throws
+        // ForegroundServiceStartNotAllowedException for a start from the
+        // background, and `onCreate` is the edge of that window while
+        // `onResume` is provably inside it. It is guarded on the service not
+        // already running, so calling it on every resume costs nothing.
+        SwipBubbleService.restoreIfWanted(this)
+
+        // `docs/32` §2. A bubble over SWIP's own scanner is a smudge on the
+        // viewfinder. This is also how the rule "never over a payment" is kept
+        // WITHOUT usage-access or an accessibility service: SWIP can only ever
+        // observe its own lifecycle, so it reports that and infers nothing.
+        SwipBubbleService.signal(this, SwipBubbleService.ACTION_APP_FOREGROUND)
     }
 
     override fun onPause() {
         applyPreferredService(false)
+        SwipBubbleService.signal(this, SwipBubbleService.ACTION_APP_BACKGROUND)
         super.onPause()
     }
 

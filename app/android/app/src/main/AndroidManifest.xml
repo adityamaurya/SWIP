@@ -180,6 +180,35 @@
                 android:resource="@xml/apduservice" />
         </service>
 
+        <!--
+          `F-158` — the floating bubble.
+
+          **This element is the reason the feature was dead.** `F-131` shipped
+          the permission screen and the toggle; there was no service to
+          register, so the switch wrote a boolean and nothing drew anything.
+
+          `exported="false"` is not boilerplate here: nothing outside SWIP has
+          any business starting a window that draws over other apps, and an
+          exported overlay service is a tapjacking primitive handed to every
+          other app on the device.
+
+          `foregroundServiceType="specialUse"` is required from Android 14.
+          The nested property is the justification a Play reviewer reads, and
+          it is the honest one — this is not media playback, location or a
+          data sync wearing a costume. It is a button that floats.
+        -->
+        <service
+            android:name=".SwipBubbleService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="A floating button the user switched on, which
+                    opens SWIP's merchant-category scanner over whatever app
+                    they are in. It draws a 56dp circle and nothing else, reads
+                    no other app's content, and uses no accessibility service." />
+        </service>
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

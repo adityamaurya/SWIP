@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  `F-158` — the mark inside the floating bubble, and the notification's small
+  icon.
+
+  ## Why it is the slash and nothing else
+
+  Same reasoning as `ic_launcher_foreground.xml`: at 26 dp floating over
+  somebody else's screen, any detail beyond one stroke collapses into a smudge.
+  The slash is the whole brand at this size.
+
+  ## Why one drawable serves two very different jobs
+
+  This file is used twice — as the bubble's glyph, where the `fillColor` below
+  is honoured, and as the ongoing notification's `setSmallIcon`, where it is
+  **not**: Android throws away the colour of a notification small icon and
+  renders the alpha channel alone, tinted by the system. That is fine here and
+  it is the reason this is a solid path rather than a stroked one. A stroked
+  or multi-tone mark would work in the bubble and come out as a grey blob in
+  the shade.
+
+  ## Why the fill is ink and not gold
+
+  Because it is drawn on `swip_bubble_disc`, which is gold. In the shade
+  this colour is discarded entirely - Android renders a notification small
+  icon from its alpha channel alone and tints it - so the one file can be
+  ink in the bubble and correct in the status bar at the same time.
+
+  Geometry is notification geometry, not launcher geometry: a 24 unit viewport
+  with the mark inside the middle 20, because the status bar crops to a circle
+  and a shape that runs to the edge loses its ends.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <path
+        android:fillColor="#060507"
+        android:pathData="M13,3 L18.4,3 L11,21 L5.6,21 Z" />
+</vector>

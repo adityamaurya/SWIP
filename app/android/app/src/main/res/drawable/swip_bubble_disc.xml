@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  `F-158` — the gold disc the slash sits in.
+
+  Straight from page 23 of the owner's PDF. The assistant bubble there is a
+  green pill whose glyph is not painted onto the pill: it sits in its own
+  **dark circle** at the leading end. That one detail is what keeps the mark
+  readable while the pill is expanding, because the glyph never has to share a
+  background with the text beside it.
+
+  It is also what makes the collapsed state work. When the label is hidden the
+  disc IS the bubble's visible content, so a 48 dp circle does not read as a
+  32 dp glyph floating in too much space - it reads as a mark on a ground, at
+  both widths, with nothing switching between them.
+
+  SWIP inverts the reference's polarity: gold disc on an ink pill rather than
+  dark on bright, because gold on ink is SWIP's pairing and `swip_bubble_bg`
+  is already the ink.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="@color/swip_icon_background" />
+</shape>

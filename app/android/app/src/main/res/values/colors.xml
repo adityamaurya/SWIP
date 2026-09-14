@@ -3,4 +3,16 @@
     <!-- `F-112`. THE brand gold, as the icon's whole field. The mark now
          carries its own contrast instead of borrowing it from the wallpaper. -->
     <color name="swip_icon_background">#C9A227</color>
+
+    <!--
+      `F-158`. The floating bubble's own palette.
+
+      Deliberately NOT the theme tokens. The bubble is drawn over an arbitrary
+      app, so it has no ground to borrow contrast from and must bring its own —
+      the same rule `swip_tokens.dart` states for the camera overlays. These
+      two values are SWIP's ink and SWIP's gold, and they stay put whether the
+      user is in Paper or Foil.
+    -->
+    <color name="swip_bubble_ground">#060507</color>
+    <color name="swip_bubble_edge">#33C9A227</color>
 </resources>

@@ -24,4 +24,28 @@
       than just naming the app.
     -->
     <string name="swip_share_label">SWIP · check the category</string>
+
+    <!--
+      `F-158` — the floating bubble.
+
+      Every string here is read either off a lock-screen-adjacent notification
+      or by a screen reader describing a circle with no text in it, so each one
+      says what SWIP will DO rather than naming a feature.
+    -->
+
+    <!-- The pill's one word, shown for a moment when the bubble is tapped. -->
+    <string name="swip_bubble_peek">Scanning\u2026</string>
+
+    <!--
+      TalkBack reads this. The bubble is a 56 dp circle containing a glyph and
+      no text, so without it a blind user is told "button" and nothing more.
+    -->
+    <string name="swip_bubble_description">SWIP scan button. Double tap to read a shop code. Drag to move it.</string>
+
+    <string name="swip_bubble_channel">Floating scan button</string>
+    <string name="swip_bubble_channel_note">Android requires an ongoing notification while an app draws over other apps. This is it. It never makes a sound.</string>
+
+    <string name="swip_bubble_running">SWIP is one tap away</string>
+    <string name="swip_bubble_running_note">Tap the floating button to read a shop\'s code.</string>
+    <string name="swip_bubble_turn_off">Turn off</string>
 </resources>
