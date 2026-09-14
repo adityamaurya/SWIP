@@ -17,12 +17,16 @@ void main() {
   const realSticker = 'paytm.s1jii6k@pty';
   const realName = 'Jagannathrao Hospitality Private Limited';
 
+  // The fixture key is `key-id` rather than an `rzp_test_…` lookalike on
+  // purpose. `docs/30` §1 step 2 greps the tree for Razorpay key prefixes
+  // before every build, and a fixture that trips it on every run is how a real
+  // key eventually gets scrolled past.
   RazorpayDirectory dir(
     DirectoryResponse Function(DirectoryRequest r) handler, {
     void Function(DirectoryRequest r)? spy,
   }) =>
       RazorpayDirectory(
-        keyId: 'rzp_test_key',
+        keyId: 'key-id',
         keySecret: 'secret',
         send: (r) async {
           spy?.call(r);
@@ -109,8 +113,7 @@ void main() {
 
       final auth = sent!.headers['Authorization']!;
       expect(auth, startsWith('Basic '));
-      expect(utf8.decode(base64Decode(auth.substring(6))),
-          'rzp_test_key:secret');
+      expect(utf8.decode(base64Decode(auth.substring(6))), 'key-id:secret');
     });
   });
 

@@ -211,8 +211,17 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
     // `startBubble` returns false if Android refuses, and the state is read
     // back afterwards rather than assumed. A switch is allowed to stay off; a
     // switch that lies is what brought us here.
-    await _ask(() => _channel
-        .invokeMethod<bool>(on ? 'startBubble' : 'stopBubble'));
+    //
+    // Two branches rather than one ternary on purpose: `tool/check_wiring.py`
+    // pairs every channel name in Dart against a handler in `MainActivity.kt`,
+    // and it can only do that for names that are literals at the call site.
+    // A method name buried in an expression is one a grep cannot find — and
+    // so is one a person cannot find either.
+    if (on) {
+      await _ask(() => _channel.invokeMethod<bool>('startBubble'));
+    } else {
+      await _ask(() => _channel.invokeMethod<bool>('stopBubble'));
+    }
     await _refresh();
   }
 

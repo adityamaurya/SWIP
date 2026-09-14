@@ -1058,6 +1058,33 @@ does not reply**, and `_loading` was cleared at the end of that chain — a
 settings screen that could spin forever. Every platform read now has a
 three-second deadline.
 
+### Two new gates, both from what the sanity check found
+
+| Tool | Catches |
+|---|---|
+| `tool/check_wiring.py` | Code that is finished, correct, tested and **unreachable**. Unimported files, channel names against `MainActivity.kt` in both directions, preference keys written but never read |
+| `tool/check_secrets.sh` | `docs/30` §1 step 2, lifted out of the markdown and into CI |
+
+`check_wiring` found `merchant_directory.dart` (`F-157`) is imported by its
+test and by nothing in `lib/`. **The same shape as the bubble**: a finished,
+tested component with no route from the running app to it. It is left
+disconnected deliberately and recorded in
+[`35` §3.2](35-MASTER-CHECKLIST.md) — wiring it needs the one HTTP client
+`docs/30` §1 greps for and fails the build on, and three constants still
+marked `VERIFY`. Both are the owner's call.
+
+It also caught a ternary in code written this round — `invokeMethod(on ?
+'startBubble' : 'stopBubble')` — which hid a channel name from grep. Rewritten
+as two branches: a method name a grep cannot find is one a person cannot find
+either.
+
+`check_secrets` needed the pattern tightened before it was worth having. The
+old one matched the *prefix* alone, so it reported a hit on every run from
+four files that merely describe the format — and a gate that always cries wolf
+is one nobody reads. It now requires a plausible key body, catches a real
+`rzp_live_` + 12 characters anywhere including docs, and the two lookalike
+fixtures were renamed rather than the detector weakened.
+
 Serves `C-12`, `D-11`. `F-158`.
 
 ---

@@ -65,6 +65,24 @@ jobs:
       - name: Bootstrap the project
         run: bash tool/bootstrap.sh
 
+      # `F-158`. "No secrets in the repo, ever" was a standing rule enforced
+      # by a snippet in a markdown file, which means it ran whenever somebody
+      # remembered to paste it. Now it runs on every push. NOT
+      # continue-on-error: a leaked key is not something to collect alongside
+      # other findings and decide about later.
+      - name: Check for secrets
+        run: bash tool/check_secrets.sh
+
+      # `F-158`. Catches the class of bug that analyze and test both miss by
+      # construction: code that is finished, correct and unreachable. The
+      # floating bubble's switch wrote a preference nothing read for four
+      # months, and every test passed the whole time — because every piece
+      # worked, and what was missing was the wire between them.
+      - name: Check the wiring
+        id: wiring
+        continue-on-error: true
+        run: python3 tool/check_wiring.py
+
       - name: Analyze
         id: analyze
         continue-on-error: true
@@ -79,14 +97,16 @@ jobs:
       # captured; this makes the job's overall status honest.
       - name: Report
         run: |
+          echo "wiring:  ${{ steps.wiring.outcome }}"
           echo "analyze: ${{ steps.analyze.outcome }}"
           echo "test:    ${{ steps.test.outcome }}"
-          if [ "${{ steps.analyze.outcome }}" != "success" ] \
+          if [ "${{ steps.wiring.outcome }}" != "success" ] \
+          || [ "${{ steps.analyze.outcome }}" != "success" ] \
           || [ "${{ steps.test.outcome }}" != "success" ]; then
-            echo "::error::analyze or test failed — see the logs above."
+            echo "::error::wiring, analyze or test failed — see the logs above."
             exit 1
           fi
-          echo "✓ analyze clean, tests green"
+          echo "✓ wiring connected, analyze clean, tests green"
 
   # Proves the app actually assembles into an installable artifact, which
   # `analyze` alone does not. The APK is downloadable from the run page.

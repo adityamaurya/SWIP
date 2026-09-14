@@ -152,6 +152,33 @@ to any business with KYC:
 [`merchant_directory.dart`](../app/lib/data/sources/merchant_directory.dart),
 16 tests, transport injected so the suite never touches a network.
 
+#### ⚠️ It is built and it is **not connected to the app**
+
+Found by the sanity check in prompt 36: that file is imported by its test and
+by **nothing in `lib/`**. Which is the same shape as the floating bubble — a
+finished, tested component with no route from the running app to it.
+
+It is called out here rather than quietly wired, because connecting it is
+**two decisions that are yours**, not an implementation detail:
+
+1. **It needs the one HTTP client SWIP does not have.** The transport is
+   injected precisely so nothing constructs one, and
+   [`30` §1](30-PRE-LAUNCH-PARAMETERS.md) actively greps for
+   `package:http/`, `package:dio/` and `HttpClient(` and fails the build if
+   one appears. Wiring this means deliberately writing the thing that check
+   exists to catch. That is the moment SWIP stops being an app with no network
+   surface, and it should be a decision rather than a side effect.
+2. **Three constants are still marked `VERIFY`** — the endpoint path, the
+   request field and the response field. `razorpay.com` and every mirror of
+   its docs are blocked from the environment this was written in. Shipping a
+   client against three guessed constants would fail at the worst moment, in
+   front of a shop counter.
+
+There is also a third thing that is not a decision so much as a consequence:
+the key cannot be compiled in, so for anyone other than you the feature is off
+unless they bring their own Razorpay key. That is written up in
+[`36` D-01](36-DEVIATIONS.md).
+
 ### 3.3 What no API gives you
 
 **The MCC.** Every one of those returns a *name*, not a category. The MCC is
@@ -279,6 +306,7 @@ money, or is deliberately held.
 | `INTERNET` permission | Fix must be verified on a device | **Yours** — a device |
 | 02:00 auto-backup | Now unblocked by `F-147` | Mine, next round |
 | Exhaustive MCC list | A data task | Mine, next round |
+| **Connect the merchant-name lookup** | Built and tested, but nothing in `lib/` imports it. Needs the one HTTP client [`30` §1](30-PRE-LAUNCH-PARAMETERS.md) is written to forbid, and the three `VERIFY` constants confirmed | **Yours** — §3.2 |
 | Keystore, privacy URL, log audit | Blocking a store release | **Yours** — decisions |
 | Intent filter: keep or drop | The one untrusted input | **Yours** |
 | ₹5,000 product in Play Console | Needs a signed build and a Console entry | **Yours** |

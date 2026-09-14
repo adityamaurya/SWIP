@@ -58,10 +58,29 @@ python3 tool/check_balance.py
 #     `const Icon(...)`, which analyze caught and I had not.
 python3 tool/check_const.py
 
-#  2  No secrets in the tree, ever
-grep -rIn --exclude-dir=.git \
-  -E 'rzp_(live|test)_|sk_live_|sk_test_|AIza[0-9A-Za-z_-]{35}|-----BEGIN [A-Z ]*PRIVATE KEY' . \
-  && echo "SECRET FOUND - STOP" && exit 1
+#  1c Code that is finished, correct, tested and UNREACHABLE.
+#     The one thing neither analyze nor the suite can see, because every
+#     piece works and what is missing is the wire between them. It has
+#     happened twice: the bubble's switch wrote a preference nothing read
+#     (F-131, dead for four months), and merchant_directory.dart is imported
+#     by its test and by nothing else (F-157). Checks unimported files,
+#     channel names against MainActivity.kt both ways, and preference keys
+#     written but never read.
+python3 tool/check_wiring.py
+
+#  2  No secrets in the tree, ever. Now a script, and now in CI, because a
+#     standing rule enforced by a snippet in a markdown file is enforced
+#     whenever somebody remembers.
+#
+#     The pattern requires a plausible key BODY after the prefix, not just
+#     the prefix. The old one matched every line that merely *described* the
+#     format — two doc files, a test fixture and its own definition in this
+#     file — so it reported a hit on every single run. A gate that always
+#     cries wolf is a gate nobody reads, and the next real key would have
+#     landed in exactly that noise. The lookalike fixtures were renamed
+#     rather than the detector weakened: it still catches a genuine
+#     `rzp_live_` + 12 characters anywhere in the tree, docs included.
+bash tool/check_secrets.sh
 
 #  3  No network client has appeared by accident
 grep -rn "package:http/\|package:dio/\|HttpClient(" app/lib/ \

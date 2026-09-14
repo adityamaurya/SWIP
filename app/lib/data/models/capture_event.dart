@@ -108,7 +108,12 @@ class CaptureEvent {
   /// graph. Composed per vector:
   ///   qr    → `upi:<vpa>` or `emv:<country>:<acct-template-hash>`
   ///   nfc   → `emv:<9F1A>:<9F16>`
-  ///   link  → `<psp>:<merchant-key>`   e.g. `razorpay:rzp_live_Lq7…`
+  ///   link  → `<psp>:<merchant-key>`   e.g. `razorpay:acct_Lq7…`
+  ///
+  /// The example deliberately does NOT use a real Razorpay key prefix:
+  /// `docs/30` §1 step 2 greps the whole tree for `rzp_live_`/`rzp_test_`
+  /// before every build, and an illustration that trips it on every run
+  /// teaches everyone to scroll past the one that matters.
   final String? merchantKey;
 
   final double? amount;

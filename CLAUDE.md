@@ -37,7 +37,16 @@ not add a network dependency without saying so out loud.
 cd app
 python3 tool/check_balance.py   # unbalanced brackets — a stray `Text(` once broke the parse
 python3 tool/check_const.py     # `const X(… .withValues(…))` is not constant
+python3 tool/check_wiring.py    # code that is finished, correct and unreachable
 ```
+
+`check_wiring.py` exists because **twice** a feature was built, tested and
+never connected — the floating bubble's switch wrote a preference nothing read
+(`F-131`), and `merchant_directory.dart` is imported by its test and nothing
+else (`F-157`). Neither is catchable by a test: every piece works, and what is
+missing is the wire. It checks unimported files, method-channel names against
+`MainActivity.kt` in both directions, and preference keys written but never
+read. Exceptions live in the file and each needs a written reason.
 
 ---
 
