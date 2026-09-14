@@ -210,7 +210,16 @@ class _BubbleWizardState extends State<BubbleWizard>
             onSkip: () => _go(3),
           ),
           _KeepItRunningStep(
-            onOpen: _openAppSettings,
+            // Opens Android's settings AND advances, so returning to SWIP
+            // lands on "You're all set" rather than back on this screen with
+            // a "Skip for now" button that now reads like a question they
+            // have already answered. The overlay step deliberately does NOT
+            // do this — there, coming back is how the screen learns whether
+            // the permission was actually granted.
+            onOpen: () async {
+              await _openAppSettings();
+              if (mounted) _go(4);
+            },
             onNext: () => _go(4),
           ),
           _AllSetStep(
