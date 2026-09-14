@@ -262,13 +262,19 @@ class _Progress extends StatelessWidget {
 class _Screen extends StatelessWidget {
   const _Screen({
     required this.title,
-    required this.children,
+    required this.body,
     required this.action,
     this.secondary,
   });
 
   final String title;
-  final List<Widget> children;
+
+  /// Named `body` rather than `children` deliberately. `children` is a widget
+  /// slot name, and the analyzer's `sort_child_properties_last` insists it be
+  /// the final argument — which would put the page's content *after* the
+  /// button that ends the page, in every one of these five constructors.
+  /// Renaming is the honest fix; suppressing the lint would not be.
+  final List<Widget> body;
   final Widget action;
   final Widget? secondary;
 
@@ -287,7 +293,7 @@ class _Screen extends StatelessWidget {
                     style: SwipType.display
                         .copyWith(color: SwipColors.textPrimary)),
                 const SizedBox(height: SwipSpace.xl),
-                ...children,
+                ...body,
                 const SizedBox(height: SwipSpace.xxxl),
               ],
             ),
@@ -524,7 +530,7 @@ class _WhatItIs extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _Screen(
         title: 'SWIP, on top of\nevery app',
-        children: [
+        body: [
           Text(
             'A small button floats over whatever you are doing. Tap it at a '
             'counter and SWIP opens straight into the scanner — no hunting '
@@ -616,7 +622,7 @@ class _OverlayStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _Screen(
         title: 'Allow SWIP to draw\nover other apps',
-        children: [
+        body: [
           const _NumberedStep(
             n: 1,
             text: 'Find SWIP in the list of apps',
@@ -671,7 +677,7 @@ class _NotificationStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _Screen(
         title: 'The notice in\nyour shade',
-        children: [
+        body: [
           Text(
             'While the button is floating, Android requires SWIP to show an '
             'ongoing notice. That is not SWIP\'s choice and it is not '
@@ -726,7 +732,7 @@ class _KeepItRunningStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _Screen(
         title: 'Keeping it there,\nall day',
-        children: [
+        body: [
           Text(
             'SWIP brings the button back by itself after a restart and after '
             'an app update. Three things can still take it away, and it is '
@@ -744,12 +750,29 @@ class _KeepItRunningStep extends StatelessWidget {
             mock: _SettingsRowMock(
                 label: 'Battery', value: 'Unrestricted'),
           ),
+          // The one place SWIP has the same thing page 12 of the owner's PDF
+          // warns about — a control on an Android settings screen that
+          // silently kills the feature. Wispr Flow's is the accessibility
+          // shortcut; SWIP's is Force stop. Same red X, same reason: a person
+          // scanning this page will see the crossed-out row before they read
+          // a word of it.
           const _NumberedStep(
             n: 2,
-            text: 'Force stop. If you ever force-stop SWIP from this screen, '
-                'Android blocks it from starting again — including after a '
-                'restart — until you open SWIP once by hand. No app can '
-                'change that, and any that claims otherwise is wrong.',
+            warn: true,
+            text: 'Do not use Force stop.',
+            mock: _SettingsRowMock(label: 'Force stop', crossedOut: true),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 22, bottom: SwipSpace.xl),
+            child: Text(
+              'Force-stopping SWIP puts it in a state where Android delivers '
+              'it nothing at all — not even the signal that your phone has '
+              'restarted. The button stays gone until you open SWIP once by '
+              'hand. No permission changes this, and any app claiming '
+              'otherwise on a stock phone is mistaken.',
+              style: SwipType.bodyS
+                  .copyWith(color: SwipColors.textSecondary),
+            ),
           ),
           const _NumberedStep(
             n: 3,
@@ -803,7 +826,7 @@ class _AllSetStep extends StatelessWidget {
     if (!overlayGranted) {
       return _Screen(
         title: 'Not turned on yet',
-        children: [
+        body: [
           Text(
             'SWIP still does not have permission to draw over other apps, so '
             'there is no floating button. Everything else in SWIP works '
@@ -823,7 +846,7 @@ class _AllSetStep extends StatelessWidget {
 
     return _Screen(
       title: 'You\'re all set',
-      children: [
+      body: [
         Text('Here is what to expect.',
             style: SwipType.bodyL.copyWith(color: SwipColors.textSecondary)),
         const SizedBox(height: SwipSpace.xl),
