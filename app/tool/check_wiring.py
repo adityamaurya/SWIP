@@ -22,6 +22,7 @@ does not exist has nothing to assert on.
 
 So this checks the wires themselves, in the three shapes the project uses:
 
+  0. a widget callback declared, called, and never passed by any caller;
   1. a Dart file in `lib/` that nothing in `lib/` imports;
   2. a method-channel name called from Dart with no handler in
      `MainActivity.kt`, or a handler nothing calls;
@@ -58,6 +59,8 @@ UNIMPORTED_OK: dict[str, str] = {
 }
 
 PREFS_WRITE_ONLY_OK: dict[str, str] = {}
+
+CALLBACKS_OK: dict[str, str] = {}
 
 PREFS_READ_ONLY_OK = {
     "swip.bubble.enabled":
@@ -172,8 +175,106 @@ def check_prefs() -> list[str]:
     return problems
 
 
+def check_callbacks() -> list[str]:
+    """A widget callback that is declared, called, and never passed.
+
+    `F-169`. `DashboardPage` declared an `onOpenEvent`, and both the hero
+    capture and every recent row called it on tap. **Nothing ever passed one.**
+    So the callback was null and tapping an MCC on the dashboard did nothing,
+    while the identical row in the Ledger tab worked because that file wires
+    it. Third time this shape has turned up, and the first three checks in this
+    file all miss it: the file IS imported, no channel is involved, and no
+    preference is written.
+
+    The test is deliberately narrow, because the alternative is false alarms
+    and a gate that cries wolf stops being read (see `check_secrets.sh`):
+
+      * only nullable callback fields whose names begin `on`;
+      * only classes that are constructed **somewhere** in `lib/` — a class
+        nobody builds is a different problem and this cannot tell which;
+      * a callback passed at *any* one construction site counts as wired. Some
+        screens legitimately supply a handler and others legitimately do not;
+      * and — the sharp part — **only callbacks the widget invokes as
+        `name?.call(`**.
+
+    That last rule is what makes this worth having rather than noisy. The
+    first version of this check flagged two more, and both were fine:
+    `CaptureSheet.onPrimary` falls back to `?? maybePop()`, and
+    `LedgerRow.onLongPress` is handed to an `InkWell`, where null means "no
+    long press" and nothing is lost. A null there is a working default.
+
+    `name?.call(` is different. It is a widget acting on a user's tap by
+    invoking a callback that is not there, so the tap does nothing at all and
+    nothing anywhere says so. That is exactly what `DashboardPage.onOpenEvent`
+    did, and it is always a bug.
+    """
+    declared: dict[str, list[tuple[str, str]]] = {}  # class -> [(field, file)]
+
+    for f in dart_files():
+        text = f.read_text()
+        rel = f.relative_to(ROOT).as_posix()
+        current: str | None = None
+        for line in text.split("\n"):
+            cls = re.match(r"^(?:abstract\s+)?class\s+(\w+)", line)
+            if cls:
+                current = cls.group(1)
+                continue
+            if current is None:
+                continue
+            # `final VoidCallback? onX;` / `final void Function(T)? onX;`
+            m = re.match(r"^\s+final\s+.*\?\s+(on[A-Z]\w*)\s*;\s*$", line)
+            if m and ("Function" in line or "Callback" in line):
+                declared.setdefault(current, []).append((m.group(1), rel))
+
+    # Collect the argument text of every construction site, per class.
+    passed: dict[str, set[str]] = {}
+    built: set[str] = set()
+
+    for f in dart_files():
+        text = f.read_text()
+        for cls in declared:
+            for m in re.finditer(rf"\b{cls}\(", text):
+                # Skip the constructor's own declaration, `const Foo({`.
+                start = m.end()
+                if text[start:start + 1] == "{":
+                    continue
+                depth, i = 1, start
+                while i < len(text) and depth:
+                    if text[i] == "(":
+                        depth += 1
+                    elif text[i] == ")":
+                        depth -= 1
+                    i += 1
+                args = text[start:i]
+                built.add(cls)
+                for name in re.findall(r"(\bon[A-Z]\w*)\s*:", args):
+                    passed.setdefault(cls, set()).add(name)
+
+    problems = []
+    for cls, fields in sorted(declared.items()):
+        if cls not in built:
+            continue
+        for field, rel in fields:
+            if field in passed.get(cls, set()):
+                continue
+            if f"{cls}.{field}" in CALLBACKS_OK:
+                continue
+            # Only the harmful shape: the widget invokes it on a user action
+            # and there is no fallback, so the action silently does nothing.
+            if f"{field}?.call(" not in (ROOT / rel).read_text():
+                continue
+            problems.append(
+                f"{rel}: {cls}.{field} is declared and never passed by any "
+                f"caller in lib/. If something calls it, it calls null. "
+                f"**This is how tapping an MCC on the dashboard did nothing "
+                f"for months.** Wire it, remove it, or add "
+                f"'{cls}.{field}' to CALLBACKS_OK with a reason.")
+    return problems
+
+
 def main() -> int:
-    problems = check_unimported() + check_channel() + check_prefs()
+    problems = (check_unimported() + check_channel() + check_prefs()
+                + check_callbacks())
     if problems:
         print("WIRING PROBLEMS\n")
         for p in problems:

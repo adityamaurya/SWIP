@@ -42,13 +42,21 @@ python3 tool/check_links.py     # doc links that point at nothing
 bash    tool/check_secrets.sh   # a key that must never reach the repository
 ```
 
-`check_wiring.py` exists because **twice** a feature was built, tested and
+`check_wiring.py` exists because **three times** a feature was built, tested and
 never connected — the floating bubble's switch wrote a preference nothing read
 (`F-131`), and `merchant_directory.dart` is imported by its test and nothing
-else (`F-157`). Neither is catchable by a test: every piece works, and what is
-missing is the wire. It checks unimported files, method-channel names against
-`MainActivity.kt` in both directions, and preference keys written but never
-read. Exceptions live in the file and each needs a written reason.
+else (`F-157`), and `DashboardPage.onOpenEvent` was declared and called by
+every recent row while **nothing ever passed one**, so tapping an MCC on the
+dashboard did nothing (`F-169`). None is catchable by a test: every piece
+works, and what is missing is the wire.
+
+It checks four shapes — unimported files, method-channel names against
+`MainActivity.kt` in both directions, preference keys written but never read,
+and widget callbacks that a widget invokes as `name?.call(` while no caller
+supplies one. That last rule is narrow on purpose: a never-passed callback
+with a `??` fallback, or one handed to an `InkWell`, is a working default and
+is **not** flagged. Exceptions live in the file and each needs a written
+reason.
 
 ---
 
