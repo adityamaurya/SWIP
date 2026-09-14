@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/swip_tokens.dart';
+import 'bubble_wizard.dart';
 
 /// `F-131` — the floating scan bubble, and the permission it needs.
 ///
@@ -368,6 +369,33 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
                       ),
                     ),
                   ),
+
+                // `F-159`. The way back into the wizard.
+                //
+                // Without this the five screens are a one-shot: a user who
+                // skipped the permission on first run, or whose phone ate the
+                // service, has the explanation and the Settings deep-links
+                // nowhere to hand. This is also the row to point somebody at
+                // when they say the button has stopped appearing.
+                ListTile(
+                  leading: const Icon(Icons.auto_awesome_outlined),
+                  title: const Text('Set it up step by step'),
+                  subtitle: Text(
+                    _granted
+                        ? 'The five-screen walkthrough, including what can '
+                            'take the button away'
+                        : 'Walks you through the Android settings this needs',
+                    style: SwipType.bodyS
+                        .copyWith(color: SwipColors.textSecondary),
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () async {
+                    await Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const BubbleWizard(),
+                    ));
+                    await _refresh();
+                  },
+                ),
 
                 const Divider(height: SwipSpace.xxl),
                 Padding(

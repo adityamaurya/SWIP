@@ -24,6 +24,7 @@ import '../../data/sources/ledger_seal.dart';
 import '../backup/recovery_phrase.dart';
 import '../backup/recovery_phrase_page.dart';
 import '../bubble/bubble_settings.dart';
+import '../bubble/bubble_wizard.dart';
 import '../onboarding/home_market_page.dart';
 import '../support/support_section.dart';
 
@@ -215,9 +216,14 @@ class SettingsPage extends ConsumerWidget {
               style: SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
             ),
             trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => const BubbleSettingsPage(),
-            )),
+            // `F-159`. The wizard the first time, the settings screen after.
+            //
+            // A switch was tried twice and reported broken twice — once
+            // because it did nothing, once because it worked and the bubble
+            // was invisible for a reason nothing on screen explained. Four
+            // prerequisites and one counter-intuitive behaviour do not fit in
+            // a subtitle, so the first run gets five screens.
+            onTap: () => _openBubble(context),
           ),
 
           const Divider(height: SwipSpace.xxl),
@@ -276,6 +282,35 @@ class SettingsPage extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  /// `F-159` — the wizard on first run, the settings screen afterwards.
+  ///
+  /// "Afterwards" is deliberately keyed on **having been through it**, not on
+  /// the permission being granted. Somebody who ran the wizard and chose "Not
+  /// now" has seen the explanation; dropping them back into five screens
+  /// every time they open Settings would be nagging. The settings screen they
+  /// land on instead has its own route back here.
+  Future<void> _openBubble(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final seen = prefs.getBool(BubbleWizard.seenKey) ?? false;
+    if (!context.mounted) return;
+
+    if (seen) {
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => const BubbleSettingsPage(),
+      ));
+      return;
+    }
+
+    // Marked before the push rather than after. If it were written on the way
+    // out, a user who backed out of the wizard with the system gesture would
+    // meet it again on their next visit to Settings, forever.
+    await prefs.setBool(BubbleWizard.seenKey, true);
+    if (!context.mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => const BubbleWizard(),
+    ));
   }
 
   Widget _header(String s) => Padding(

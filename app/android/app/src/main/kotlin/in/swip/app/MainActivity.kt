@@ -34,6 +34,9 @@ class MainActivity : FlutterFragmentActivity() {
     private companion object {
         const val METHOD_CHANNEL = "in.swip.app/nfc"
         const val EVENT_CHANNEL = "in.swip.app/nfc/captures"
+
+        /** `F-159`. Request code for the POST_NOTIFICATIONS dialog. */
+        const val NOTIFICATION_REQUEST = 0x5117
     }
 
     private var cardEmulation: CardEmulation? = null
@@ -73,6 +76,16 @@ class MainActivity : FlutterFragmentActivity() {
      * scanner, not the dashboard.
      */
     private var pendingOpenScanner = false
+
+    /**
+     * `F-159`. The Dart side of an in-flight `POST_NOTIFICATIONS` request.
+     *
+     * A `MethodChannel.Result` may be completed **exactly once** — a second
+     * call throws — and the system can deliver a permission result more than
+     * once across a configuration change. So it is nulled the instant it is
+     * used, and every path checks for null first.
+     */
+    private var pendingNotificationResult: MethodChannel.Result? = null
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
@@ -249,6 +262,80 @@ class MainActivity : FlutterFragmentActivity() {
                     // something: the service owns the state, so Dart sets and
                     // asks rather than keeping a second copy that can drift.
 
+                    // ── `F-159`: the notification permission ─────────────
+                    //
+                    // Android 13+. A foreground service is *required* to post
+                    // an ongoing notice, and without this permission the
+                    // system silently suppresses it. The service still runs
+                    // and the bubble still appears, so this is not a
+                    // prerequisite — but the user loses the "Turn off" action
+                    // and any visible reason SWIP is running, which is exactly
+                    // the transparency an overlay app owes them.
+                    //
+                    // Below Android 13 the permission does not exist and is
+                    // granted at install, so the honest answer is `true`.
+                    "notificationsAllowed" -> {
+                        result.success(
+                            if (Build.VERSION.SDK_INT >=
+                                Build.VERSION_CODES.TIRAMISU
+                            ) {
+                                checkSelfPermission(
+                                    android.Manifest.permission.POST_NOTIFICATIONS
+                                ) == android.content.pm.PackageManager
+                                    .PERMISSION_GRANTED
+                            } else {
+                                true
+                            }
+                        )
+                    }
+
+                    "requestNotifications" -> {
+                        if (Build.VERSION.SDK_INT <
+                            Build.VERSION_CODES.TIRAMISU
+                        ) {
+                            result.success(true)
+                        } else if (checkSelfPermission(
+                                android.Manifest.permission.POST_NOTIFICATIONS
+                            ) == android.content.pm.PackageManager
+                                .PERMISSION_GRANTED
+                        ) {
+                            result.success(true)
+                        } else {
+                            // Held rather than answered now: the system dialog
+                            // is asynchronous and the answer arrives in
+                            // `onRequestPermissionsResult`. Dart is awaiting
+                            // this, so it must be completed exactly once —
+                            // see the guard there.
+                            pendingNotificationResult = result
+                            requestPermissions(
+                                arrayOf(
+                                    android.Manifest.permission
+                                        .POST_NOTIFICATIONS
+                                ),
+                                NOTIFICATION_REQUEST,
+                            )
+                        }
+                    }
+
+                    // `F-159`. Android's own per-app settings page. Used by
+                    // the wizard's battery step, because SWIP must NOT ask for
+                    // a Doze exemption directly — Play prohibits it for an app
+                    // whose core function is not messaging, VOIP, safety, task
+                    // automation or a peripheral companion. Walking the user
+                    // there to do it themselves is allowed and honest.
+                    "openThisAppSettings" -> {
+                        val ok = runCatching {
+                            startActivity(
+                                Intent(
+                                    android.provider.Settings
+                                        .ACTION_APPLICATION_DETAILS_SETTINGS,
+                                    android.net.Uri.parse("package:$packageName")
+                                ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        }.isSuccess
+                        result.success(ok)
+                    }
+
                     "startBubble" -> {
                         // Returns false when the overlay permission is not
                         // granted. Dart must not paint the switch as ON in
@@ -336,10 +423,8 @@ class MainActivity : FlutterFragmentActivity() {
                                 val scheme = android.net.Uri.parse(uri)
                                     .scheme?.lowercase()
                                 if (scheme == "upi" || uri.contains("razorpay")) {
-                                    SwipBubbleService.signal(
-                                        this@MainActivity,
-                                        SwipBubbleService.ACTION_PAYMENT_STARTED,
-                                    )
+                                    SwipBubbleService.notePaymentStarted(
+                                        this@MainActivity)
                                 }
                             }.fold(
                                 onSuccess = { result.success(true) },
@@ -417,10 +502,8 @@ class MainActivity : FlutterFragmentActivity() {
                                 // a wallet is the only moment SWIP knows for
                                 // certain that a payment is about to be on
                                 // screen.
-                                SwipBubbleService.signal(
-                                    this@MainActivity,
-                                    SwipBubbleService.ACTION_PAYMENT_STARTED,
-                                )
+                                SwipBubbleService.notePaymentStarted(
+                                    this@MainActivity)
                             }.fold(
                                 onSuccess = { result.success(true) },
                                 onFailure = { result.success(false) }
@@ -509,11 +592,17 @@ class MainActivity : FlutterFragmentActivity() {
         super.onResume()
         if (listening) applyPreferredService(true)
 
+        // Claimed BEFORE `restoreIfWanted` below, not after. Starting the
+        // service first would let it come up believing SWIP is in the
+        // background and flash a bubble over this very screen before the next
+        // line corrected it.
+        SwipBubbleService.noteForeground(this, true)
+
         // `F-158`. The bubble is a foreground service, so Android kills it
-        // with the process, and there is no BOOT_COMPLETED receiver to bring
-        // it back - that is a deliberate refusal, see
-        // `SwipBubbleService.restoreIfWanted`. The app opening is the moment
-        // it returns.
+        // with the process. `SwipBootReceiver` brings it back after a reboot
+        // or an app update; this covers everything else — a process death
+        // under memory pressure, or a force-stop the user has since recovered
+        // from by opening SWIP.
         //
         // In `onResume` rather than `onCreate` because Android 12+ throws
         // ForegroundServiceStartNotAllowedException for a start from the
@@ -526,16 +615,44 @@ class MainActivity : FlutterFragmentActivity() {
         // viewfinder. This is also how the rule "never over a payment" is kept
         // WITHOUT usage-access or an accessibility service: SWIP can only ever
         // observe its own lifecycle, so it reports that and infers nothing.
-        SwipBubbleService.signal(this, SwipBubbleService.ACTION_APP_FOREGROUND)
+        //
+        // Recorded whether or not the service is running. It used to be sent
+        // as a broadcast that a not-yet-started service could not receive,
+        // which is precisely how the bubble ended up permanently hidden.
     }
 
     override fun onPause() {
         applyPreferredService(false)
-        SwipBubbleService.signal(this, SwipBubbleService.ACTION_APP_BACKGROUND)
+        SwipBubbleService.noteForeground(this, false)
         super.onPause()
     }
 
+    /**
+     * `F-159`. The answer to the `POST_NOTIFICATIONS` dialog.
+     *
+     * `take`-then-null, because a `MethodChannel.Result` can only be completed
+     * once and this callback is not guaranteed to arrive only once.
+     */
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != NOTIFICATION_REQUEST) return
+        val pending = pendingNotificationResult ?: return
+        pendingNotificationResult = null
+        pending.success(
+            grantResults.isNotEmpty() &&
+                grantResults[0] ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+        )
+    }
+
     override fun onDestroy() {
+        // An unanswered Dart Future would hang the wizard's button forever.
+        pendingNotificationResult?.success(false)
+        pendingNotificationResult = null
         unregisterCaptureReceiver()
         super.onDestroy()
     }

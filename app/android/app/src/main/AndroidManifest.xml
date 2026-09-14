@@ -25,6 +25,35 @@
       not media playback, location or a data sync pretending otherwise.
     -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!--
+      `F-159` — the bubble survives a reboot and an app update.
+
+      Allowed for this service specifically: Android 15 blocks a
+      BOOT_COMPLETED receiver from starting dataSync, camera, mediaPlayback,
+      phoneCall, mediaProjection and microphone foreground services, and
+      **specialUse is not on that list**. See SwipBootReceiver for the citation.
+
+      NOT accompanied by REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, and that is
+      deliberate. Google Play prohibits asking for a direct Doze exemption
+      "unless the core function of the app is adversely affected", and the
+      acceptable-use list is messaging, enterprise VOIP, safety, task
+      automation and peripheral-companion apps. A floating shortcut button is
+      none of those. The foreground service is already Doze-exempt while it
+      runs, which is the sanctioned mechanism; anything beyond that is the
+      user's own trip to their OEM's battery settings, and the wizard walks
+      them there rather than SWIP asking for a permission it cannot defend.
+    -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!--
+      Android 13+. Without it the ongoing notice the foreground service is
+      required to post is silently suppressed. The service still runs and the
+      bubble still appears — but the user loses the "Turn off" action and any
+      sign of why SWIP is in their shade, which is the opposite of the
+      transparency an overlay app owes them.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission
         android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
@@ -179,6 +208,26 @@
                 android:name="android.nfc.cardemulation.host_apdu_service"
                 android:resource="@xml/apduservice" />
         </service>
+
+        <!--
+          `F-159` — brings the bubble back after a reboot or an app update.
+
+          `exported="true"` is required for BOOT_COMPLETED, which is a system
+          broadcast: the OS is the sender, and a receiver the OS cannot reach
+          never fires. The intent filter is the whole attack surface and it
+          carries only protected system actions, which no other app is
+          permitted to send.
+        -->
+        <receiver
+            android:name=".SwipBootReceiver"
+            android:exported="true"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <!--
           `F-158` — the floating bubble.

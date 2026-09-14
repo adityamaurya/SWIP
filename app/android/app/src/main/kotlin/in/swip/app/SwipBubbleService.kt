@@ -96,14 +96,11 @@ class SwipBubbleService : Service() {
         const val ACTION_STOP = "in.swip.app.BUBBLE_STOP"
 
         /**
-         * Hide for [PAYMENT_QUIET_MS]. Sent by [MainActivity] the moment it
-         * forwards a `upi://` intent to a payment app.
+         * "Something changed, look again." Carries no information itself —
+         * everything it might have carried is in the shared state below,
+         * which is the whole point.
          */
-        const val ACTION_PAYMENT_STARTED = "in.swip.app.BUBBLE_QUIET"
-
-        /** SWIP came to the front / went to the back. */
-        const val ACTION_APP_FOREGROUND = "in.swip.app.BUBBLE_APP_FG"
-        const val ACTION_APP_BACKGROUND = "in.swip.app.BUBBLE_APP_BG"
+        const val ACTION_RE_EVALUATE = "in.swip.app.BUBBLE_LOOK_AGAIN"
 
         /** `docs/32` §2. Long enough to cover a checkout, short enough to come back. */
         private const val PAYMENT_QUIET_MS = 90_000L
@@ -200,19 +197,87 @@ class SwipBubbleService : Service() {
             if (!running && isWanted(context)) start(context)
         }
 
+        // ── why the next two are shared state and not events ─────────────
+        //
+        // **This is the bug that made the bubble look dead after it was
+        // built.** Foreground state used to travel only as a broadcast, and
+        // `signal` dropped it when the service was not yet `running`. Starting
+        // a service is asynchronous: `startForegroundService` returns long
+        // before `onStartCommand` runs. So the ordinary first-use sequence —
+        //
+        //   1. flip the switch, which starts the service
+        //   2. press Home, which fires ACTION_APP_BACKGROUND
+        //   3. the service reaches `onStartCommand` some time after that
+        //
+        // lost step 2 entirely. The service came up believing SWIP was still
+        // in front, and **the bubble stayed hidden until the user happened to
+        // open SWIP and leave it again.** Which reads exactly like a floating
+        // button that does not work.
+        //
+        // An event you can miss is the wrong shape for a fact that is always
+        // true or false right now. These are written by `MainActivity` and
+        // **read** by `applyVisibility`, so a lost broadcast costs a moment of
+        // staleness rather than a permanently wrong answer. The broadcasts
+        // still exist, but only to nudge a running service to look again.
+
         /**
-         * Tell a running bubble something happened.
+         * Whether SWIP itself is on screen.
          *
-         * `setPackage` keeps it inside SWIP: the receiver is registered
-         * `RECEIVER_NOT_EXPORTED`, and an un-packaged broadcast of an action
-         * string this specific would still be a needless thing to put on the
-         * system bus.
+         * **Starts `false`, and the default is the interesting part.**
+         *
+         * The obvious default is `true`: the usual way this service starts is
+         * a foregrounded `MainActivity`, since Android 12+ forbids starting a
+         * foreground service from the background. But that is not the *only*
+         * way. `START_STICKY` restarts it after a process death, and a
+         * `BOOT_COMPLETED` receiver starts it after a reboot — and in both of
+         * those there is no Activity at all, so nobody would ever correct a
+         * `true` and the bubble would hide itself forever.
+         *
+         * `false` is wrong for at most the few milliseconds between
+         * `MainActivity.onResume` and the service starting, and `onResume`
+         * claims the foreground **before** it calls `restoreIfWanted`, so even
+         * that window is closed.
          */
-        fun signal(context: Context, action: String) {
+        @Volatile
+        var appInForeground: Boolean = false
+            private set
+
+        /** Epoch millis until which the bubble stays out of a payment's way. */
+        @Volatile
+        var quietUntil: Long = 0L
+            private set
+
+        /** Called from `MainActivity.onResume` / `onPause`. */
+        fun noteForeground(context: Context, inFront: Boolean) {
+            appInForeground = inFront
+            nudge(context)
+        }
+
+        /**
+         * `docs/32` §2 — the bubble never appears over a payment.
+         *
+         * A timestamp rather than a flag plus a timer, so a signal that
+         * arrives before the service exists is still honoured when it starts:
+         * the deadline is already in the future and `applyVisibility` reads it.
+         */
+        fun notePaymentStarted(context: Context) {
+            quietUntil = System.currentTimeMillis() + PAYMENT_QUIET_MS
+            nudge(context)
+        }
+
+        /**
+         * Ask a running service to re-read the state above.
+         *
+         * Safe to lose. `setPackage` keeps it inside SWIP: the receiver is
+         * registered `RECEIVER_NOT_EXPORTED`, and an un-packaged broadcast of
+         * an action string this specific would still be a needless thing to
+         * put on the system bus.
+         */
+        private fun nudge(context: Context) {
             if (!running) return
             runCatching {
                 context.sendBroadcast(
-                    Intent(action).setPackage(context.packageName)
+                    Intent(ACTION_RE_EVALUATE).setPackage(context.packageName)
                 )
             }
         }
@@ -227,34 +292,20 @@ class SwipBubbleService : Service() {
 
     private val main = Handler(Looper.getMainLooper())
 
-    /** Every reason the bubble is currently not on screen. */
-    private var screenOff = false
-    private var paymentQuiet = false
-
     /**
-     * **Starts `true`, and that is not a typo.**
+     * The one piece of state the service genuinely owns.
      *
-     * Android 12+ forbids starting a foreground service from the background,
-     * so the only thing that can ever start this service is a `MainActivity`
-     * that is on screen at that moment. Which means at the instant
-     * `onCreate` runs, SWIP *is* the foreground app - and defaulting this to
-     * `false` would put a bubble over the very Settings screen the user just
-     * used to switch it on.
-     *
-     * `MainActivity.onPause` clears it, so the bubble appears the moment they
-     * leave SWIP. Which is also when it first becomes useful.
-     *
-     * The alternative - have `onResume` broadcast the truth - loses a race it
-     * cannot win: the broadcast is sent before this service's receiver is
-     * registered, so it goes nowhere and the bubble sits over the app until
-     * the next time the user switches away and back.
+     * Screen on/off arrives as a system broadcast that only a live service can
+     * receive, and it is seeded from `PowerManager` at start rather than
+     * assumed — a service started while the screen is off must not put a
+     * bubble on a display nobody is looking at.
      */
-    private var appInFront = true
+    private var screenOff = false
 
-    private val unquiet = Runnable {
-        paymentQuiet = false
-        applyVisibility()
-    }
+    private val main = Handler(Looper.getMainLooper())
+
+    /** Re-show the bubble the moment a payment's quiet window expires. */
+    private val unquiet = Runnable { applyVisibility() }
 
     private val systemEvents = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -262,14 +313,10 @@ class SwipBubbleService : Service() {
                 Intent.ACTION_SCREEN_OFF -> screenOff = true
                 Intent.ACTION_SCREEN_ON, Intent.ACTION_USER_PRESENT ->
                     screenOff = false
-                ACTION_PAYMENT_STARTED -> {
-                    paymentQuiet = true
-                    main.removeCallbacks(unquiet)
-                    main.postDelayed(unquiet, PAYMENT_QUIET_MS)
-                }
-                ACTION_APP_FOREGROUND -> appInFront = true
-                ACTION_APP_BACKGROUND -> appInFront = false
             }
+            // Everything else — foreground, payment quiet — is read from the
+            // companion rather than carried on the intent, so this handler has
+            // nothing to get wrong and a lost broadcast costs nothing.
             applyVisibility()
         }
     }
@@ -279,15 +326,22 @@ class SwipBubbleService : Service() {
     override fun onCreate() {
         super.onCreate()
         windows = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+
+        // Seeded, not assumed. A service started while the screen is off (a
+        // boot that finishes in a pocket, for instance) must not put a bubble
+        // on a display nobody is looking at.
+        screenOff = runCatching {
+            !(getSystemService(Context.POWER_SERVICE) as android.os.PowerManager)
+                .isInteractive
+        }.getOrDefault(false)
+
         startInForeground()
 
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_OFF)
             addAction(Intent.ACTION_SCREEN_ON)
             addAction(Intent.ACTION_USER_PRESENT)
-            addAction(ACTION_PAYMENT_STARTED)
-            addAction(ACTION_APP_FOREGROUND)
-            addAction(ACTION_APP_BACKGROUND)
+            addAction(ACTION_RE_EVALUATE)
         }
         // The three SWIP actions are strictly in-process; the screen ones are
         // system broadcasts. `RECEIVER_NOT_EXPORTED` is correct for both here
@@ -383,10 +437,24 @@ class SwipBubbleService : Service() {
         params = null
     }
 
-    /** Any reason to be hidden wins. */
+    /**
+     * Any reason to be hidden wins, and every reason is **read here** rather
+     * than remembered from an event that may never have arrived.
+     *
+     * That is the whole fix for the bubble that would not appear: this method
+     * is called on every start, every system broadcast and every nudge, and
+     * each time it asks what is true now.
+     */
     private fun applyVisibility() {
-        val hidden = screenOff || paymentQuiet || appInFront
+        val quiet = System.currentTimeMillis() < quietUntil
+        val hidden = screenOff || quiet || appInForeground
         bubble?.visibility = if (hidden) View.GONE else View.VISIBLE
+
+        // Re-check when the payment window expires; nothing else will wake us.
+        main.removeCallbacks(unquiet)
+        if (quiet) {
+            main.postDelayed(unquiet, quietUntil - System.currentTimeMillis())
+        }
     }
 
     // ── the bubble itself ───────────────────────────────────────────────────
