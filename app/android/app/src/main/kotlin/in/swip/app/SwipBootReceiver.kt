@@ -50,6 +50,12 @@ class SwipBootReceiver : BroadcastReceiver() {
         val ctx = context ?: return
         when (intent?.action) {
             Intent.ACTION_BOOT_COMPLETED,
+            // Listed for completeness and, honestly, never delivered: SWIP is
+            // not `directBootAware`, so none of its components exist until the
+            // user unlocks the phone for the first time after a restart. It
+            // could not act on it even if it arrived — the preference saying
+            // whether the bubble is wanted lives in credential-encrypted
+            // storage, which is unreadable before that unlock.
             Intent.ACTION_LOCKED_BOOT_COMPLETED,
             Intent.ACTION_MY_PACKAGE_REPLACED,
             -> {
