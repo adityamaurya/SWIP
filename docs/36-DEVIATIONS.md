@@ -31,7 +31,8 @@ original · 🟡 a promise narrowed or qualified · ⚪ a default reversed
 | **Why** | Prompt 35: *"about cred bring a psp, just get it done don't give me excuses"*. There is no way to resolve a name that is not in the QR without asking somebody who knows |
 | **Cost** | The absolute version of the claim is gone. It becomes *"nothing leaves your phone unless you switch this on, and then only a payment address"* |
 | **Contained by** | Off by default · explained before it is enabled · the request body is asserted to contain exactly one key · cached so a shop is looked up once, ever, rather than on every visit |
-| **To reverse** | Delete `merchant_directory.dart` and its test. Nothing else depends on it |
+| **To reverse** | Delete `merchant_directory.dart`, `directory_transport.dart`, `features/lookup/`, their tests, and the Settings row. Restore `docs/30` §1 step 3 to have no exception |
+| **Status** | **Live as of `F-160`.** It was built but unconnected for a round; it is wired now, off by default, and needs the user's own Razorpay key |
 
 This is the largest deviation in the project's life and it should be the one
 you re-examine first. **`F-157`**
@@ -87,6 +88,9 @@ you re-examine first. **`F-157`**
 | 🔵 D-10 | Statement import | 20 | The highest-value path in the app, and it arrived from one line on a Federal Bank statement |
 | 🔵 D-11 | Location on captures | 18 | An app that reads a number now also records where you were. Opt-in, coarse, reduced to a ~1.2 km geohash on device |
 | 🔵 D-12 | A floating overlay | 32 | `SYSTEM_ALERT_WINDOW` is the most invasive permission Android grants. **I declined this once** and reversed on evidence that Wispr Flow ships it — [`32` §1](32-FLOATING-BUBBLE.md) |
+| 🔵 D-39 | **Start on boot** | 37 | `RECEIVE_BOOT_COMPLETED`. `F-158` refused this — "a category reader restarting itself at boot is a worse trade than one app launch" — and the owner reversed it by asking for omnipresence explicitly. Legal for `specialUse`; Android 15's blocked-from-boot list does not include it |
+| 🔵 D-40 | **`POST_NOTIFICATIONS`** | 37 | A permission prompt on an app that had none. The foreground service's notice is suppressed without it, taking the "Turn off" action with it |
+| 🔵 D-41 | **A five-screen wizard** | 37 | The bubble was a switch with a subtitle. Two rounds of "it is not working" later, it is an onboarding flow |
 | 🔵 D-13 | The support section | 28 | The app asks for money. Placed behind a pull at the foot of the home page, which is the least prominent position available |
 
 ---
@@ -128,10 +132,23 @@ Recorded because in three of five you overruled me and were right to.
 | 🟣 D-28 | *"CRED needs a PSP licence, SWIP cannot have that"* | **You overruled me, and I was plainly wrong.** A VPA lookup is a commercial API sold to any business with KYC. I should have looked before concluding |
 | 🚫 D-29 | The cashback-arbitrage donation mechanism | **Declined and staying declined.** The cashback is paid by an issuer who believes it funded a retail purchase. [`27` §3](27-DONATIONS.md) records it and what replaces it |
 | 🚫 D-30 | A plan to avoid GST | **Declined.** The accurate position was given instead: a genuine donation with no quid pro quo is not a supply at all under CBIC Circular 116/35/2019 |
+| 🟣 D-42 | *"Wiring the lookup needs an HTTP client our own gate forbids — your call"* | **Wrong, and mine.** The gate was written to catch an accident. It now has one named exception and still fails everywhere else. `F-160` |
+| 🟣 D-43 | *"Three Razorpay constants can't be verified from here"* | **Wrong.** razorpay.com is blocked; search was not. All three confirmed, all three already correct. `F-160` |
+| 🟣 D-44 | *"`bootstrap.sh` regenerates `build.gradle`, so CameraX can't stick — your call"* | **Wrong, and mine.** That script is ours and had been re-injecting a `compileSdk` override for the same reason since the file_picker collision. `F-161` |
+| 🚫 D-45 | `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` | **Declined, on policy rather than taste.** Play prohibits a direct Doze exemption "unless the core function of the app is adversely affected"; the acceptable list is messaging, enterprise VOIP, safety, task automation and peripheral companions. A floating button is none of those |
+| ⏸ D-46 | An Accessibility Service, as Wispr Flow uses | **Offered, not taken.** It would buy precise foreground detection and cost the claim that SWIP *cannot* read another app's screen. Put to the owner in [`37` §3](37-OMNIPRESENCE-AND-THE-TWO-BLOCKERS.md) rather than decided alone |
 
 The pattern in D-26, D-27 and D-28 is worth naming: **I was reasoning from
 what I already believed instead of going and checking.** The correction in each
 case came from you telling me to look. That is the useful thing on this page.
+
+**D-42, D-43 and D-44 are the same pattern again, in a worse form.** Those
+three were not positions I argued for — they were things I labelled "your
+decision" and handed over, which is how a wrong conclusion avoids being
+argued with at all. All three were mine to solve and none needed a decision
+from anybody. If a line in this project ever says *"that is the owner's
+call"*, the question to ask first is whether it is a genuine trade-off or
+just something I have not tried yet.
 
 ---
 

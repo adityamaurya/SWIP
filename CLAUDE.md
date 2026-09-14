@@ -122,6 +122,9 @@ Each of these cost a broken build or a broken screen. Do not re-derive them.
 | `CaptureResolver.hasMcc` excluded `'0000'`; `CaptureEvent.hasMcc` did not | The screens use the **event** one, so an unclassified merchant rendered `0000` as the hero number. Two getters of the same name disagreeing is the shape to look for. `F-154` |
 | **`mc=0000` is not proof of a merchant** | PhonePe mints `mc=0000&mode=02` on *personal* QRs. The discriminator is the `sign=` block. `F-154` |
 | A `MethodChannel` future completes when the platform replies, and **never completes if it does not** | There is no built-in timeout. A screen that clears its spinner at the end of an `await` chain therefore spins forever, and in a widget test there is **no engine at all**, so every un-mocked call hangs — `pumpAndSettle timed out` is the symptom, not a slow test. `.timeout()` every platform read. `F-158` |
+| A broadcast is the wrong shape for a **fact that is either true or false right now** | `F-158` sent foreground state as a broadcast and dropped it when the service was not yet `running` — and `startForegroundService` returns long before `onStartCommand`. Flip switch → press Home → the message arrived with nothing listening, and the bubble hid itself permanently. Shared state the service **reads** on every decision. `F-159` |
+| A `ListView` only builds what is near the viewport | Copy below the fold does not merely fail to be *visible* — it is not in the tree, so `find.textContaining` cannot see it. Widget tests asserting on wording need a tall test surface. `F-159` |
+| A screen with **no spinner** lets `pumpAndSettle` return while timers are pending | "A Timer is still pending even after the widget tree was disposed." The bubble settings test passes the same case only because its spinner keeps scheduling frames. Advance the clock explicitly, repeatedly if the timeouts are sequential. `F-159` |
 | A switch that stores its own state instead of asking the platform **cannot be wrong on screen** | Which is why nothing caught the dead floating bubble for four months: the screen set a boolean and displayed the boolean it had set. Assert on what reaches the channel, never on what the widget remembers. `F-158` |
 | **CRED does not need a PSP licence to show a merchant name** | Resolving a VPA is a commercial API (Razorpay, Cashfree, Decentro, Juspay) sold to any business with KYC. No API returns the **MCC** — that lives in the acquirer's switch, which is why CRED writes *"may not"*. `F-157` |
 
@@ -133,6 +136,14 @@ the floating bubble, the blockchain, and CRED's PSP licence — I reasoned from
 what I already believed, said it could not be done, and was overruled by the
 owner telling me to go and check. Each time the checking changed the answer.
 Before writing "that is not possible", go and look. `docs/36` §5.
+
+**And its worse form: labelling something "the owner's call".** Three more —
+the HTTP client our own gate forbids, three Razorpay constants, and CameraX
+surviving `bootstrap.sh` — were not positions I argued, they were things I
+handed over, which is how a wrong conclusion avoids being argued with at all.
+All three were mine to solve and none needed a decision from anybody.
+**Before writing "that is your call", check whether it is a genuine trade-off
+or just something not yet tried.** `docs/36` D-42..D-44.
 
 ---
 
@@ -168,6 +179,7 @@ Before writing "that is not possible", go and look. `docs/36` §5.
 | Visual direction | [`docs/33-VISUAL-DIRECTION-PAPER.md`](docs/33-VISUAL-DIRECTION-PAPER.md) |
 | Account recovery | [`docs/25-CONTINUITY.md`](docs/25-CONTINUITY.md) |
 | The round-34 checklist, PPSE forensics, CRED vs SWIP | [`docs/34-ROUND-34-CHECKLIST.md`](docs/34-ROUND-34-CHECKLIST.md) |
+| **Omnipresence, the shortcut-clash answer, and the two blockers** | [`docs/37-OMNIPRESENCE-AND-THE-TWO-BLOCKERS.md`](docs/37-OMNIPRESENCE-AND-THE-TWO-BLOCKERS.md) |
 | **Every ask from every prompt, with status** | [`docs/35-MASTER-CHECKLIST.md`](docs/35-MASTER-CHECKLIST.md) |
 | **Every deviation from the original idea** | [`docs/36-DEVIATIONS.md`](docs/36-DEVIATIONS.md) |
 
