@@ -781,6 +781,75 @@ rather than a toggle that does nothing.
 
 ---
 
+## Prompt 37 — 14 Sep 2026 · Omnipresence
+
+**You asked:** why the shortcut still does not work, for it to be everywhere
+all the time, for Wispr Flow's wizard, whether two shortcuts can clash — and
+for me to find a way to do the two things I had handed back to you.
+
+**I answered:** the shortcut did not work because of a bug I put there last
+round. `F-158` told the service about SWIP's foreground state by sending it a
+message, and threw that message away if the service had not finished starting.
+Starting a service is not instant. So: flip the switch, press home, and the
+message saying "I have left the app" arrived before anything was listening.
+The service came up thinking you were still inside SWIP — which is the one
+situation where it deliberately hides. It stayed hidden until you happened to
+open SWIP and leave again.
+
+It is not a message any more. It is a fact the service looks up every time it
+decides whether to show itself, so losing one costs a moment rather than
+everything.
+
+**On omnipresence:** it now comes back after a restart and after an app
+update. I checked that this is allowed rather than assuming — Android 15 bans
+six kinds of background service from starting at boot and SWIP's is not one of
+them. I did **not** ask for a battery exemption: Google Play forbids that
+unless the app is messaging, VOIP, safety, automation or a device companion,
+and a floating button is none of those. The wizard walks you to the switch
+instead.
+
+**On the clash:** floating buttons do not fight — Android stacks them, newest
+on top. The thing that really is one-app-only is the accessibility shortcut,
+the both-volume-keys chord. That is exactly what page 12 of your screenshots
+is warning about. SWIP does not use it, so nothing can take its place and it
+can never take anyone else's.
+
+**One thing genuinely cannot be worked around:** Force stop. Android then
+delivers SWIP nothing, not even the restart signal, until you open it by hand.
+That is on the wizard's fourth screen with a red cross through it.
+
+**On the two things I handed you — all of it was mine, and I was wrong to
+hand them over.** The HTTP client our own gate forbids: that gate was written
+to catch one arriving by accident, and it now has one named exception. The
+three unverified constants: I could verify them, they are confirmed, and all
+three were already right. The Gradle dependencies that `bootstrap.sh` wipes:
+that script is ours and has been re-injecting a compileSdk override for
+exactly this reason since the file_picker collision.
+
+That is three times in this project I have reasoned instead of looking. It is
+written at the top of `CLAUDE.md` now.
+
+**What I did not build, and why:** the in-overlay camera. The blocker is gone
+and it is next. It is several hundred lines of camera code I cannot run —
+there is no phone here and CI only compiles — and shipping that untested on
+top of the commit that fixes the thing you reported twice is how you get two
+broken things instead of one.
+
+**And one I will not take on my own:** an Accessibility Service, like Wispr
+Flow's. It would buy SWIP one thing — knowing which app is in front, so the
+bubble could dodge payment screens precisely instead of by a 90-second rule.
+It would cost the strongest privacy claim the product has: SWIP cannot see
+another app's screen, not because it promises not to but because it never
+asks for the mechanism. If you want that trade, say so and I will build it.
+
+**Shipped:** `F-159`, `F-160`, `F-161`.
+
+**Still open:** the in-overlay camera ([`37` §5](37-OMNIPRESENCE-AND-THE-TWO-BLOCKERS.md)),
+and whether the merchant lookup should use a server instead of a key on your
+phone — which is a real decision, unlike the two I handed you last round.
+
+---
+
 <!--
 Template:
 

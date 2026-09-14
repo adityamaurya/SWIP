@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/swip_tokens.dart';
-import '../../data/sources/merchant_directory.dart';
 import 'merchant_lookup.dart';
 
 /// `F-160` — the screen that turns the merchant-name lookup on.

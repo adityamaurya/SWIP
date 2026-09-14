@@ -992,6 +992,81 @@ put the ₹5,000 unlock on sale. All with reasons in
 
 ---
 
+## Prompt 37 — 14 Sep 2026 · Omnipresent, and both blockers cleared
+
+> *"the shortcut is still not working… I want it to be present, omnipresent,
+> throughout the background, no matter what, everywhere."*
+> *"find a way to do the last two things you are asking for me"*
+
+Full write-up: [`37`](37-OMNIPRESENCE-AND-THE-TWO-BLOCKERS.md).
+
+### The bug, and it was mine
+
+`F-158` passed foreground state to the service as a **broadcast**, and
+`signal()` dropped it when the service was not yet `running`. Starting a
+service is asynchronous, so flip-switch → press-Home → service-starts lost the
+"I'm in the background" message entirely. The service came up believing SWIP
+was still on screen, and the bubble hides itself while SWIP is on screen.
+
+**An event you can miss is the wrong shape for a fact that is either true or
+false right now.** Foreground state and the payment-quiet deadline are now
+values the service *reads* every time it decides visibility.
+
+### Android — new
+
+| File | Note |
+|---|---|
+| `SwipBootReceiver.kt` | **New.** `BOOT_COMPLETED` and `MY_PACKAGE_REPLACED`. Legal because Android 15's blocked-from-boot list is dataSync, camera, mediaPlayback, phoneCall, mediaProjection and microphone — **not `specialUse`** |
+
+### Flutter — new
+
+| File | Note |
+|---|---|
+| `bubble_wizard.dart` | **New.** Five screens, structured like the 23 Wispr Flow screenshots: progress bar, one idea per screen, numbered steps showing a *picture* of the Android control, one button |
+| `lookup/merchant_lookup.dart` | **New.** `F-160`. Storage, and the factory that returns `DisabledDirectory` unless deliberately configured |
+| `lookup/lookup_settings_page.dart` | **New.** Collects the key, with the risk stated above the switch |
+| `data/sources/directory_transport.dart` | **New.** The one place in SWIP an HTTP request is made |
+
+### Screens
+
+| ID | Screen | State |
+|---|---|---|
+| `S-30` | Bubble wizard | **New.** First run; reachable afterwards from the bubble settings screen |
+| `S-31` | Merchant names | **New.** The lookup's key and its disclosure |
+
+### The two blockers, both of which were mine
+
+**"It needs the HTTP client `docs/30` forbids."** That check was written to
+catch a client arriving *by accident*. It now has exactly one exception, by
+exact path, and still fails on a client anywhere else.
+
+**"Three constants are unverified."** Confirmed from the published `curl`
+example; all three were already right. Also found: NPCI deprecated UPI Collect
+on 28 Feb 2026, so `404`/`410` on that endpoint are now handled as findings.
+
+**"CameraX is a Gradle dependency and `bootstrap.sh` regenerates the file."**
+True — and the script doing the regenerating is the one in this repo, which has
+been re-injecting a `compileSdk` override since the file_picker collision.
+`SWIP_GRADLE_DEPS` now does the same for app dependencies. Both Gradle dialects
+handled, both dry-run before commit. The list is empty on purpose: CameraX and
+ML Kit are ~10 MB and go in with the code that uses them.
+
+### Deliberately not built
+
+`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`. Google Play prohibits asking for a Doze
+exemption "unless the core function of the app is adversely affected", and the
+acceptable list is messaging, enterprise VOIP, safety, task automation and
+peripheral companions. A floating button is none of those.
+
+An **Accessibility Service**. It would buy one thing — knowing which app is in
+front — and cost the strongest privacy claim the product has. Offered as a
+decision in [`37` §3](37-OMNIPRESENCE-AND-THE-TWO-BLOCKERS.md), not taken
+unilaterally.
+
+Serves `C-12`, `D-11`, `D-19`. `F-159`, `F-160`, `F-161`.
+
+---
+
 ## Prompt 36 — 14 Sep 2026 · The floating bubble, built
 
 > *"the floater launcher icon is not working  also make use of the UI  from

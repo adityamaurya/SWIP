@@ -1453,7 +1453,7 @@ merchant (putting a RuPay verdict on a personal QR); and `Verified Merchant`,
 
 ---
 
-## Prompt 36 — 14 Sep 2026 · The floater was never built *(current)*
+## Prompt 36 — 14 Sep 2026 · The floater was never built
 
 **Original prompt, verbatim:**
 
@@ -1544,6 +1544,65 @@ and one flick sends it away for the rest of the day."* There are no such
 controls and there never were. It is removed. An unkept promise on a privacy
 disclosure is worse than no promise, and that screen's whole job is to be
 believed.
+
+---
+
+## Prompt 37 — 14 Sep 2026 · Omnipresent, and both blockers were mine *(current)*
+
+Attached: `ce8453f2-1000117807.pdf` — 23 pages, Wispr Flow's full onboarding.
+
+**Original prompt, verbatim:**
+
+> @"/root/.claude/uploads/afe199af-8f37-59f8-b4bb-28fececcb91e/ce8453f2-1000117807.pdf" find a way to do the last two things you are asking for me first of all, i am notsuper technical about the app development, i am product designer by profession so, find the possible way to make it happen step by step plan it first and then research deepdive the solution and then make the solution
+>
+> also the shortcut is still not working. I'm sharing a list of uh, solutions. I'm sharing a list of uh, screenshots of Whisper Flow, how it is taking the permissions to run it. Also, is there any uh, clash where if where two shortcuts cannot run? Uh, make sure you have all these enabled for this specific shortcut to be available 24 by 7 and a warning that if there is another app who is asking to create a shortcut or has a, or will enable this will disable the shortcut in the this thing. So have a shortcut uh, fully proper wizard flow once to enable the shortcut for this app uh, floater, floater, floater type shortcut.
+>
+> Refer to the above flow in the PDF attached. I need exactly how it is doing to be implemented, and I want it to be present, omnipresent, throughout the background, no matter what, everywhere. Just do it, make it happen. Also, there would be more images in the earlier PDF about this, so make sure that you refer to those as well.
+
+| # | ID | To-do | Status |
+|---|---|---|---|
+| 1 | `F-159` | Find out why the shortcut still does not work | **Done** — a dropped broadcast, mine |
+| 2 | `F-159` | Available 24/7, omnipresent | **Done** — boot receiver, update receiver, read-not-receive state |
+| 3 | `F-159` | A proper one-time wizard, like the PDF | **Done** — five screens |
+| 4 | `F-159` | Answer the "two shortcuts clash" question | **Done** — [`37` §3](37-OMNIPRESENCE-AND-THE-TWO-BLOCKERS.md) |
+| 5 | `F-160` | The merchant-name lookup blocker | **Done** — both halves were mine |
+| 6 | `F-161` | The CameraX Gradle blocker | **Done** — `SWIP_GRADLE_DEPS` |
+| 7 | — | The in-overlay camera itself | **Open, unblocked.** [`37` §5](37-OMNIPRESENCE-AND-THE-TWO-BLOCKERS.md) says why not in this round |
+
+### Why it still did not work
+
+Not the permission. `F-158` sent foreground state as a broadcast and dropped it
+when the service was not yet running — and `startForegroundService` returns
+long before the service starts. Flip the switch, press Home, and the "I'm in
+the background" message arrived with nothing listening. The service came up
+believing SWIP was on screen, which is the one state in which it hides itself.
+
+### The answer to the clash question
+
+**Floating buttons do not clash.** Several apps can hold `SYSTEM_ALERT_WINDOW`
+at once; Android stacks them by Z-order. Nothing disables anything.
+
+**The accessibility shortcut is the one-at-a-time thing** — both volume keys
+held. That is exactly what page 12 of the Wispr Flow PDF warns about. SWIP
+does not use it, so nothing can take SWIP's place there and SWIP can never
+take anyone else's.
+
+### The thing that genuinely cannot be worked around
+
+**Force stop.** Android then delivers SWIP nothing at all — not even the
+restart signal — until the app is opened by hand. No permission changes this.
+It is the red-crossed row on the wizard's fourth screen.
+
+### Three positions I had to reverse
+
+1. *"The HTTP client is forbidden by our own gate."* The gate was for accidents.
+2. *"Three constants can't be verified."* They could, and were, and were right.
+3. *"`bootstrap.sh` regenerates `build.gradle`, so Gradle deps can't stick."*
+   The script doing the regenerating is ours and already re-injects a
+   `compileSdk` override for exactly this reason.
+
+All three were me reasoning instead of checking, which is now the second
+standing note in `CLAUDE.md`.
 
 ---
 

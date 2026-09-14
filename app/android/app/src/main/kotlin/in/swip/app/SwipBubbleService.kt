@@ -302,8 +302,6 @@ class SwipBubbleService : Service() {
      */
     private var screenOff = false
 
-    private val main = Handler(Looper.getMainLooper())
-
     /** Re-show the bubble the moment a payment's quiet window expires. */
     private val unquiet = Runnable { applyVisibility() }
 
