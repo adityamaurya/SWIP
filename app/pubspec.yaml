@@ -28,6 +28,8 @@ dependencies:
   # Capture
   mobile_scanner: ^5.1.1   # QR — Vector 1
   crypto: ^3.0.3           # `F-127` ledger seal (SHA-256 hash chain)
+  cryptography: ^2.7.0     # `F-147` AES-GCM + PBKDF2 for the sealed backup
+  bip39: ^1.0.6            # `F-148` the recovery phrase
   sensors_plus: ^6.0.1     # `F-134` accelerometer — only scan when aimed
 
   # F-40 — where a capture happened. Opt-in, coarse only, and the raw fix never
