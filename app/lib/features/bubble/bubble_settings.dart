@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/swip_tokens.dart';
+import 'bubble_trace_page.dart';
 import 'bubble_wizard.dart';
 
 /// `F-131` — the floating scan bubble, and the permission it needs.
@@ -115,6 +116,14 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
   /// it. One tap meant one thing; this is what carries it across.
   bool _askedFor = false;
 
+  /// `F-176`. Whether this APK records a bubble trace at all.
+  ///
+  /// **Starts false, and the default is the point.** The platform is asked
+  /// once on open; until it answers, and forever on a release build, the debug
+  /// row is simply not in the tree. A debug entry point that flashes on for a
+  /// frame in a shipped app would be worse than one that never existed.
+  bool _traceAvailable = false;
+
   @override
   void initState() {
     super.initState();
@@ -210,12 +219,19 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
         ? DateTime.fromMillisecondsSinceEpoch(snoozeMs)
         : null;
 
+    // `F-176`. Asked here rather than in `initState` so it is re-checked on
+    // every resume along with everything else on this screen — one place that
+    // reads the world, which is the same rule `applyVisibility` follows on the
+    // Kotlin side.
+    final trace = await BubbleTracePage.traceEnabled();
+
     if (!mounted) return;
     setState(() {
       _granted = granted;
       _wanted = wanted;
       _running = running;
       _asleepUntil = asleepUntil;
+      _traceAvailable = trace;
       _loading = false;
     });
   }
@@ -505,6 +521,38 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
                       'phone. That needs a start-on-boot permission, which '
                       'SWIP asks for and uses for nothing else.',
                 ),
+
+                // `F-176`. **The temporary trace, and it draws only on a
+                // debug build.**
+                //
+                // `_traceAvailable` is answered by the platform asking whether
+                // this APK is debuggable — not a preference, not a constant
+                // anyone has to remember to flip. On a Play Store build the
+                // future resolves false and this row does not exist.
+                //
+                // Delete this block, `bubble_trace_page.dart`, `BubbleTrace.kt`
+                // and the three channel cases in `MainActivity` and the feature
+                // is gone. `docs/38` has the list.
+                if (_traceAvailable) ...[
+                  const SizedBox(height: SwipSpace.xxl),
+                  ListTile(
+                    leading: Icon(Icons.bug_report_outlined,
+                        color: SwipColors.warning),
+                    title: const Text('Bubble trace'),
+                    subtitle: Text(
+                      'Debug build only. Records why the button appeared or '
+                      'disappeared, so a report can be read rather than '
+                      'guessed at.',
+                      style: SwipType.bodyS
+                          .copyWith(color: SwipColors.textSecondary),
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                          builder: (_) => const BubbleTracePage()),
+                    ),
+                  ),
+                ],
 
                 const SizedBox(height: SwipSpace.xxl),
                 Padding(

@@ -43,9 +43,16 @@ bash    tool/check_secrets.sh   # a key that must never reach the repository
 ```
 
 There is a **Kotlin unit suite** as of `F-173`, run by CI and locally with
-`cd app/android && ./gradlew :app:testDebugUnitTest`. It covers
-`ShakeDetector` and nothing else yet; anything touching `WindowManager` still
-cannot be tested without a device.
+`cd app/android && ./gradlew :app:testDebugUnitTest`. It covers `ShakeDetector`
+and `BubbleTrace`'s line format; anything touching `WindowManager` still cannot
+be tested without a device.
+
+**There is temporary debugging apparatus in the tree.** `BubbleTrace` records
+the floating button's lifecycle so a disappearance can be read rather than
+guessed at. It is gated on `FLAG_DEBUGGABLE`, so it cannot reach a Play Store
+build, and `check_wiring.py` fails if that gate is ever weakened.
+[`docs/38`](docs/38-BUBBLE-TRACE.md) has the ten-step removal list — **delete it
+once the cause is confirmed**, including its own gate check.
 
 `check_wiring.py` exists because **four times** a feature was built, tested and
 never connected — the floating bubble's switch wrote a preference nothing read
@@ -167,6 +174,10 @@ Each of these cost a broken build or a broken screen. Do not re-derive them.
 | **A `Column` in a `showModalBottomSheet` has nowhere to put overflow** | `isScrollControlled: true` lets the sheet reach the screen height and stop. `BOTTOM OVERFLOWED BY N PIXELS` is **debug-only** — release clips silently and the content is simply gone. Wrap in a scroll view, and use `Flexible` not `Expanded` or every sheet fills its cap. `F-174` |
 | **Repairing a dead wire exposes everything behind it for the first time** | `F-169` connected the dashboard's MCC tap; the 28 px overflow on the screen it opened had been there for months, unreachable. Connecting something is not only delivering the feature. `F-174` |
 | A capture **with** a category renders `_FoilCode`, whose sweep is `repeat(count: 4)` | So a single `pump` leaves a timer running and the test dies on *"A Timer is still pending"* rather than on its assertion. `pumpAndSettle` is safe here **because the repeat is bounded**; an unbounded one hangs instead. `F-173` |
+| **Two Activities reporting the same fact through different lifecycle hooks will disagree** | `MainActivity` used `onResume`/`onPause`, `SwipHoverActivity` used `onCreate`/`onDestroy`. Press Home with the hovering card open and it is *stopped*, not destroyed — so `appInForeground` stayed true and the bubble was hidden indefinitely, by a window `excludeFromRecents` makes unreachable. Pair a claim with its release in the **same** pair of hooks. `F-178` |
+| **A window that cannot be navigated back to must not survive backgrounding** | `singleInstance` + `excludeFromRecents` means once it is off screen the user has no route to it, so keeping it alive holds a camera and a second Flutter engine for a window nobody will ever see again. `finish()` in `onStop` — not `onPause`, which a permission dialog also triggers. `F-178` |
+| **`windowAnimationStyle: @null` is advisory, not an instruction** | OEM skins substitute their own and it is honoured inconsistently across versions, so the system's bottom-up activity slide still played over a window meant to feel like it was already there. `overrideActivityTransition(…, 0, 0)` on 34+, `overridePendingTransition(0, 0)` below. `F-177` |
+| **Entering from the bottom edge is Android's grammar for "a new activity"** | However small the distance. A 6% `slideY` on the hover card was enough to read as an app opening. Motion with no direction — a 2% scale — resolves in place instead. `F-177` |
 | **The GitHub jobs API reports `conclusion: success` for every `continue-on-error` step** | Whatever actually happened. Reading step conclusions says a run is green when it is not — the same trap as the APK job, in a new disguise. The workflow's own Report step reads `outcome`, and it is the only thing in that job worth believing. `F-175` |
 | **CRED does not need a PSP licence to show a merchant name** | Resolving a VPA is a commercial API (Razorpay, Cashfree, Decentro, Juspay) sold to any business with KYC. No API returns the **MCC** — that lives in the acquirer's switch, which is why CRED writes *"may not"*. `F-157` |
 
@@ -233,6 +244,7 @@ padding.** `docs/36` D-51.
 | The build gate | [`docs/30-PRE-LAUNCH-PARAMETERS.md`](docs/30-PRE-LAUNCH-PARAMETERS.md) |
 | iOS and `.ipa` | [`docs/31-IOS-AND-IPA.md`](docs/31-IOS-AND-IPA.md) |
 | The floating bubble — physics, the goodbye nobody saw, and the snooze target | [`docs/32-FLOATING-BUBBLE.md`](docs/32-FLOATING-BUBBLE.md) |
+| **The temporary bubble trace, and the checklist for deleting it** | [`docs/38-BUBBLE-TRACE.md`](docs/38-BUBBLE-TRACE.md) |
 | Visual direction | [`docs/33-VISUAL-DIRECTION-PAPER.md`](docs/33-VISUAL-DIRECTION-PAPER.md) |
 | Account recovery | [`docs/25-CONTINUITY.md`](docs/25-CONTINUITY.md) |
 | The round-34 checklist, PPSE forensics, CRED vs SWIP | [`docs/34-ROUND-34-CHECKLIST.md`](docs/34-ROUND-34-CHECKLIST.md) |

@@ -40,6 +40,14 @@ void main() {
   /// permission is missing, and the page must survive being told no.
   late bool startSucceeds;
 
+  /// `F-176`. Whether the fake platform claims this build is debuggable.
+  ///
+  /// Defaults to **false** in `setUp`, so every other test in this file runs
+  /// against a release-shaped build. That is deliberate: the debug row must be
+  /// invisible by default, and a test suite whose default had it on would
+  /// never notice if that inverted.
+  late bool traceEnabled;
+
   void install() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
@@ -65,6 +73,8 @@ void main() {
           wanted = false;
           running = false;
           return true;
+        case 'traceEnabled':
+          return traceEnabled;
         case 'requestOverlayPermission':
           // The real one opens Android Settings and returns; the permission
           // does NOT become granted synchronously, which is the whole reason
@@ -94,6 +104,7 @@ void main() {
     running = false;
     snoozedUntil = 0;
     startSucceeds = true;
+    traceEnabled = false;
     SharedPreferences.setMockInitialValues(<String, Object>{});
     install();
   });
@@ -391,6 +402,54 @@ void main() {
       expect(find.textContaining('shake your phone'), findsOneWidget);
       // And the one that is still not built stays gone.
       expect(find.textContaining('see-through'), findsNothing);
+    });
+  });
+
+  group('the temporary bubble trace', () {
+    // `F-176`. The owner asked for a tracker that is *"strictly temporary for
+    // debugging"* and *"completely removed from the production/public Play
+    // Store build"*.
+    //
+    // The design answer is stronger than a promise to delete it: the entry
+    // point asks the platform whether this APK is debuggable, and a Play Store
+    // build is not. These two tests are that claim, checked — the second one
+    // is the one that matters, because a debug affordance shipped to users is
+    // a thing nobody notices until somebody else does.
+
+    testWidgets('the row is there on a debug build', (t) async {
+      granted = true;
+      traceEnabled = true;
+      await t.pumpWidget(harness());
+      await t.pumpAndSettle();
+
+      expect(find.text('Bubble trace'), findsOneWidget);
+    });
+
+    testWidgets('and is absent on a build that is not debuggable', (t) async {
+      granted = true;
+      traceEnabled = false;
+      await t.pumpWidget(harness());
+      await t.pumpAndSettle();
+
+      expect(find.text('Bubble trace'), findsNothing);
+    });
+
+    testWidgets('a platform that never answers leaves it absent', (t) async {
+      // The safe direction. `_traceAvailable` starts false and the read is
+      // timed out, so a channel that hangs — an older build of the Kotlin
+      // side, or iOS — produces no debug row rather than one that appears
+      // late or throws.
+      granted = true;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+
+      await t.pumpWidget(harness());
+      for (var i = 0; i < 4; i++) {
+        await t.pump(const Duration(seconds: 3));
+      }
+      await t.pumpAndSettle();
+
+      expect(find.text('Bubble trace'), findsNothing);
     });
   });
 

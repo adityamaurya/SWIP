@@ -28,7 +28,8 @@ So this checks the wires themselves, in the three shapes the project uses:
      `MainActivity.kt` or `SwipHoverActivity.kt`, or a handler nothing calls;
   3. a `SharedPreferences` key written but never read, or read but never
      written;
-  4. the bubble's diameter and its background's corner radius drifting apart.
+  4. the bubble's diameter and its background's corner radius drifting apart;
+  5. the temporary bubble trace losing its "debug builds only" gate.
 
 The fourth is a different animal from the first three and belongs here for the
 same reason they do. `swip_bubble_bg.xml` is a rounded rectangle whose radius
@@ -72,6 +73,7 @@ KOTLIN = ROOT / "android/app/src/main/kotlin/in/swip/app/MainActivity.kt"
 KOTLIN_HOVER = ROOT / "android/app/src/main/kotlin/in/swip/app/SwipHoverActivity.kt"
 BUBBLE_KT = ROOT / "android/app/src/main/kotlin/in/swip/app/SwipBubbleService.kt"
 BUBBLE_BG = ROOT / "android/app/src/main/res/drawable/swip_bubble_bg.xml"
+TRACE_KT = ROOT / "android/app/src/main/kotlin/in/swip/app/BubbleTrace.kt"
 
 # ── declared exceptions ─────────────────────────────────────────────────
 #
@@ -354,9 +356,50 @@ def check_bubble_radius() -> list[str]:
     return []
 
 
+def check_trace_gate() -> list[str]:
+    """`F-176`. The temporary bubble trace must stay impossible to ship.
+
+    `BubbleTrace` records the floating button's whole lifecycle so a
+    disappearance can be read rather than guessed at. It is **debugging
+    apparatus**, it is meant to be deleted once the cause is found, and in the
+    meantime the one thing that must stay true is that a Play Store build
+    records nothing.
+
+    That is not enforced by a note in a checklist. `enabled()` is written in
+    terms of `FLAG_DEBUGGABLE`, which the build system sets on a debug APK and
+    never on a release one — so the guarantee is a property of the artifact
+    rather than of anybody's memory.
+
+    This check exists because the obvious "temporary" shortcut is to swap that
+    for `true` while chasing something on a release build, and then to ship it.
+    Nothing would fail. The log would simply start following users around.
+
+    When the trace is deleted, delete this check with it — a rule guarding a
+    file that no longer exists is the next thing to quietly stop meaning
+    anything. `docs/38-BUBBLE-TRACE.md` lists both.
+    """
+    if not TRACE_KT.exists():
+        # Already removed. Nothing to guard, and that is the expected end
+        # state rather than a problem.
+        return []
+
+    text = TRACE_KT.read_text(encoding="utf-8")
+    gate = re.search(r"fun enabled\([^)]*\)[^\n]*=\s*\n?([^\n]*\n[^\n]*)",
+                     text)
+    if gate is None:
+        return ["BubbleTrace.enabled() is not where it was — the check that "
+                "keeps the temporary trace out of a release build can no "
+                "longer see it. Fix this check, or delete both (docs/38)."]
+    if "FLAG_DEBUGGABLE" not in gate.group(1):
+        return ["BubbleTrace.enabled() no longer tests FLAG_DEBUGGABLE. The "
+                "temporary bubble trace would ship to Play Store users and "
+                "nothing else would fail. See docs/38-BUBBLE-TRACE.md."]
+    return []
+
+
 def main() -> int:
     problems = (check_unimported() + check_channel() + check_prefs()
-                + check_callbacks() + check_bubble_radius())
+                + check_callbacks() + check_bubble_radius() + check_trace_gate())
     if problems:
         print("WIRING PROBLEMS\n")
         for p in problems:

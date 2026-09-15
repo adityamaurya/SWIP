@@ -48,6 +48,11 @@ class SwipBootReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context?, intent: Intent?) {
         val ctx = context ?: return
+        // `F-176`. A reboot or an update is one of the few things that can
+        // take the bubble away without anybody touching it, and afterwards
+        // there is nothing on the phone to say it happened.
+        BubbleTrace.log(ctx, "boot.received",
+            "action" to (intent?.action?.substringAfterLast('.') ?: "null"))
         when (intent?.action) {
             Intent.ACTION_BOOT_COMPLETED,
             // Listed for completeness and, honestly, never delivered: SWIP is

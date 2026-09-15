@@ -131,16 +131,25 @@ class _HoverWindow extends StatelessWidget {
           // would be a tap the user did not intend to send to someone else's
           // checkout.
           Positioned.fill(
-            // `F-170`. Fades in rather than cutting.
+            // `F-177`. The dim arrives, it does not slam.
             //
-            // `SwipHoverTheme` sets `windowAnimationStyle` to `@null`
-            // deliberately — Android's activity slide would make a hovering
-            // panel look like a screen transition, which is the one thing this
-            // window must not look like. But "no transition" left a hard cut
-            // from the user's app to a dimmed one, and a hard cut is what the
-            // bubble's own pop-in was removed for. This is the replacement:
-            // SWIP's animation, not the window manager's, and short enough
-            // that it cannot be mistaken for a page change.
+            // > *"no obvious bottom-to-top shadow animation… no feeling that a
+            // > separate app/window is opening"*
+            //
+            // Two separate things were producing that. The **system's**
+            // activity-open transition — a bottom-up slide with a dim, which
+            // is what an app opening looks like because it is literally what
+            // an app opening is — is killed in `SwipHoverActivity`;
+            // `windowAnimationStyle: @null` in the theme had not been enough.
+            // And SWIP's own entrance, which used to lift the card up from
+            // below, is gone: see the card's own note.
+            //
+            // What is left is a scrim easing in over a quarter of a second.
+            // Longer than the 140 ms it was, and `easeOutSine` rather than
+            // linear, because a dim that reaches full strength quickly reads
+            // as a shutter coming down. Slower and softer reads as a light
+            // being turned down, which is the difference the owner is
+            // describing.
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: _close,
@@ -149,7 +158,7 @@ class _HoverWindow extends StatelessWidget {
               // floats over an arbitrary screen, but it does not float over an
               // arbitrary *colour*, because this is painted first.
               child: ColoredBox(color: HoverChrome.scrim),
-            ).animate().fadeIn(duration: 140.ms),
+            ).animate().fadeIn(duration: 260.ms, curve: Curves.easeOutSine),
           ),
           Align(
             alignment: Alignment.bottomCenter,
@@ -210,20 +219,27 @@ class _HoverWindow extends StatelessWidget {
                   _CloseButton(onTap: _close),
                 ],
               )
-                  // Rising a little as it arrives, because the thing that
-                  // summoned it — the bubble — is on screen behind this, and
-                  // motion from the bottom edge reads as the card being sent
-                  // up rather than dropped on.
+                  // `F-177`. **No slide. It resolves where it already is.**
                   //
-                  // `easeOutCubic` over the whole 260 ms, so it decelerates
-                  // into place; the camera preview inside takes a moment to
-                  // hand over its first frame and an entrance that finishes
-                  // early would leave a still card waiting on it.
+                  // This used to rise from below — `slideY(begin: 0.06)` — on
+                  // the reasoning that motion from the bottom edge reads as
+                  // the card being sent up by the bubble that summoned it.
+                  // That was wrong in a way worth keeping written down: a
+                  // panel entering from the bottom of the screen is the exact
+                  // gesture Android uses for *a new activity*, so however
+                  // small the distance, the grammar said "an app is opening".
+                  // The owner read it as one.
+                  //
+                  // A scale from 0.98 has no direction. Nothing travels, so
+                  // nothing arrives from anywhere — the card resolves into
+                  // focus at the size and place it will stay. Two per cent is
+                  // deliberately almost nothing: enough that the frame is not
+                  // a hard cut, too little to read as a zoom.
                   .animate()
-                  .fadeIn(duration: 180.ms)
-                  .slideY(
-                      begin: 0.06,
-                      end: 0,
+                  .fadeIn(duration: 220.ms, curve: Curves.easeOutSine)
+                  .scaleXY(
+                      begin: 0.98,
+                      end: 1,
                       duration: 260.ms,
                       curve: Curves.easeOutCubic),
             ),
@@ -336,12 +352,20 @@ class _CloseButton extends StatelessWidget {
         style: FilledButton.styleFrom(
           foregroundColor: HoverChrome.closeInk,
           backgroundColor: HoverChrome.closeFill,
-          // Material 3 draws no shadow on a filled button, and normally that
-          // is right — a button on a page is not floating. This one is, above
-          // a scrim above somebody else's app, so a little lift is honest
-          // about where it sits rather than decorative.
-          elevation: 6,
-          shadowColor: Colors.black.withValues(alpha: 0.5),
+          // `F-177`. **No elevation, reversing `F-172`.**
+          //
+          // That round gave this a shadow on the argument that the button
+          // genuinely is floating, so a little lift is honest rather than
+          // decorative. The argument was fine and the result was not: a
+          // shadow under a pill arriving over another app is one more thing
+          // that says *a window has been placed on top of yours*, which is
+          // the whole feeling being removed here.
+          //
+          // It costs nothing, and that is checkable rather than hopeful:
+          // `hover_chrome_test.dart` asserts this button's contrast against
+          // its scrim over both a white app and a black one, and the shadow
+          // was never what was carrying it.
+          elevation: 0,
           minimumSize: const Size(0, 56),
           padding: const EdgeInsets.symmetric(horizontal: SwipSpace.xxl),
           shape: const RoundedRectangleBorder(

@@ -53,6 +53,7 @@ class SwipTile : TileService() {
 
     override fun onClick() {
         super.onClick()
+        BubbleTrace.log(this, "tile.pressed")
 
         val launch = Intent(this, MainActivity::class.java).apply {
             // The tile is pressed from outside the app, so the activity needs

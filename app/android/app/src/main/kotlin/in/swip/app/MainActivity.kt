@@ -404,7 +404,7 @@ class MainActivity : FlutterFragmentActivity() {
 
                     // `F-167`. End a snooze early.
                     "wakeBubble" -> {
-                        SwipBubbleService.wake(this)
+                        SwipBubbleService.wake(this, from = "settings")
                         result.success(true)
                     }
 
@@ -523,7 +523,32 @@ class MainActivity : FlutterFragmentActivity() {
                     // `F-115`. Read once and cleared, same contract as the
                     // UPI intent and the share payload: a rotation must not
                     // re-open the scanner.
+                    // ── `F-176`, the temporary bubble trace ──────────
+                    //
+                    // Three methods, and they are the entire Dart-facing
+                    // surface of the recorder. When the cause of the
+                    // disappearing bubble is found, deleting `BubbleTrace.kt`,
+                    // these three cases and `bubble_trace_page.dart` removes
+                    // the feature completely — `docs/38` has the list.
+                    //
+                    // `traceEnabled` is what the Settings screen asks before
+                    // showing the row at all, so on a Play Store build the
+                    // entry point does not exist rather than existing and
+                    // being empty.
+                    "traceEnabled" -> result.success(BubbleTrace.enabled(this))
+
+                    "traceDump" -> result.success(BubbleTrace.dump(this))
+
+                    "traceClear" -> {
+                        BubbleTrace.clear(this)
+                        result.success(true)
+                    }
+
                     "consumeTileLaunch" -> {
+                        if (pendingOpenCapture != null) {
+                            BubbleTrace.log(this, "launch.consumed",
+                                "vector" to pendingOpenCapture)
+                        }
                         // `F-175`. Answers with "qr", "nfc" or null. It was a
                         // boolean; the name is kept because renaming a channel
                         // method means the Dart and Kotlin halves can disagree
@@ -675,7 +700,7 @@ class MainActivity : FlutterFragmentActivity() {
         // service first would let it come up believing SWIP is in the
         // background and flash a bubble over this very screen before the next
         // line corrected it.
-        SwipBubbleService.noteForeground(this, true)
+        SwipBubbleService.noteForeground(this, true, from = "app.onResume")
 
         // `F-158`. The bubble is a foreground service, so Android kills it
         // with the process. `SwipBootReceiver` brings it back after a reboot
@@ -702,7 +727,7 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun onPause() {
         applyPreferredService(false)
-        SwipBubbleService.noteForeground(this, false)
+        SwipBubbleService.noteForeground(this, false, from = "app.onPause")
         super.onPause()
     }
 

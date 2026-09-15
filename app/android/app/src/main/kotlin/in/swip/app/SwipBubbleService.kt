@@ -231,7 +231,9 @@ class SwipBubbleService : Service() {
          * says "not at all", and collapsing them would mean a flick to get the
          * button out of the way silently undid the setup that put it there.
          */
-        fun snooze(context: Context, until: Long) {
+        fun snooze(context: Context, until: Long, from: String = "?") {
+            BubbleTrace.log(context, "snooze.set",
+                "forMs" to (until - System.currentTimeMillis()), "from" to from)
             prefs(context).edit().putLong(KEY_SNOOZE_UNTIL, until).apply()
             nudge(context)
         }
@@ -245,11 +247,13 @@ class SwipBubbleService : Service() {
          * except opening the app — see [SNOOZE_DEFAULT_MS].
          */
         fun snoozeBriefly(context: Context) {
-            snooze(context, System.currentTimeMillis() + SNOOZE_DEFAULT_MS)
+            snooze(context, System.currentTimeMillis() + SNOOZE_DEFAULT_MS,
+                from = "dragTarget")
         }
 
         /** Bring it back now. */
-        fun wake(context: Context) {
+        fun wake(context: Context, from: String = "?") {
+            BubbleTrace.log(context, "snooze.end", "from" to from)
             prefs(context).edit().remove(KEY_SNOOZE_UNTIL).apply()
             nudge(context)
         }
@@ -260,7 +264,11 @@ class SwipBubbleService : Service() {
          * cannot be honoured is how the old toggle lied.
          */
         fun start(context: Context): Boolean {
-            if (!canOverlay(context)) return false
+            if (!canOverlay(context)) {
+                BubbleTrace.log(context, "start.refused", "reason" to "noOverlayPermission")
+                return false
+            }
+            BubbleTrace.log(context, "start.wanted")
             prefs(context).edit().putBoolean(KEY_WANTED, true).apply()
             val intent = Intent(context, SwipBubbleService::class.java)
                 .setAction(ACTION_START)
@@ -280,6 +288,7 @@ class SwipBubbleService : Service() {
 
         /** Turn it off, and remember that. */
         fun stop(context: Context) {
+            BubbleTrace.log(context, "stop.requested")
             prefs(context).edit().putBoolean(KEY_WANTED, false).apply()
             runCatching {
                 context.stopService(Intent(context, SwipBubbleService::class.java))
@@ -297,7 +306,10 @@ class SwipBubbleService : Service() {
          * Settings screen rather than left as a surprise.
          */
         fun restoreIfWanted(context: Context) {
-            if (!running && isWanted(context)) start(context)
+            val wanted = isWanted(context)
+            BubbleTrace.log(context, "restore.check",
+                "running" to running, "wanted" to wanted)
+            if (!running && wanted) start(context)
         }
 
         // ── why the next two are shared state and not events ─────────────
@@ -351,7 +363,14 @@ class SwipBubbleService : Service() {
             private set
 
         /** Called from `MainActivity.onResume` / `onPause`. */
-        fun noteForeground(context: Context, inFront: Boolean) {
+        fun noteForeground(context: Context, inFront: Boolean, from: String = "?") {
+            // `F-176`. `from` is the whole reason this event is worth
+            // recording: two Activities report foreground state, they have had
+            // different lifecycle hooks, and "which one said SWIP was in
+            // front, and did anything ever say it had left" is exactly the
+            // question a disappearing bubble raises.
+            BubbleTrace.log(context, "foreground",
+                "inFront" to inFront, "from" to from, "was" to appInForeground)
             appInForeground = inFront
             nudge(context)
         }
@@ -365,6 +384,7 @@ class SwipBubbleService : Service() {
          */
         fun notePaymentStarted(context: Context) {
             quietUntil = System.currentTimeMillis() + PAYMENT_QUIET_MS
+            BubbleTrace.log(context, "payment.quiet", "forMs" to PAYMENT_QUIET_MS)
             nudge(context)
         }
 
@@ -879,7 +899,7 @@ class SwipBubbleService : Service() {
             // would park the detector's window in the future.
             if (!shake.onSample(v[0], v[1], v[2], SystemClock.elapsedRealtime())) return
             if (snoozedUntil(this@SwipBubbleService) <= 0L) return
-            wake(this@SwipBubbleService)
+            wake(this@SwipBubbleService, from = "shake")
             applyVisibility()
         }
     }
@@ -971,6 +991,8 @@ class SwipBubbleService : Service() {
                 Intent.ACTION_SCREEN_ON, Intent.ACTION_USER_PRESENT ->
                     screenOff = false
             }
+            BubbleTrace.log(this@SwipBubbleService, "broadcast",
+                "action" to (intent?.action?.substringAfterLast('.') ?: "null"))
             // Everything else — foreground, payment quiet — is read from the
             // companion rather than carried on the intent, so this handler has
             // nothing to get wrong and a lost broadcast costs nothing.
@@ -982,6 +1004,7 @@ class SwipBubbleService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        BubbleTrace.log(this, "service.create")
         windows = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
         // Seeded, not assumed. A service started while the screen is off (a
@@ -1012,6 +1035,14 @@ class SwipBubbleService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        BubbleTrace.log(this, "service.start",
+            "action" to (intent?.action ?: "null"),
+            // A redelivered start with a null intent is Android restarting the
+            // service after killing it. That is a different story from the
+            // user turning something on, and telling the two apart is most of
+            // the point of this trace.
+            "restarted" to (intent == null))
+
         if (intent?.action == ACTION_STOP) {
             // The notification's "Turn off". It has to write the preference
             // too, not just stop the service - otherwise `restoreIfWanted`
@@ -1026,7 +1057,8 @@ class SwipBubbleService : Service() {
             // Snooze, not stop: the service stays up so it can come back on
             // its own. Stopping would need something to restart it, and the
             // only thing that does is opening SWIP.
-            snooze(this, System.currentTimeMillis() + ONE_HOUR_MS)
+            snooze(this, System.currentTimeMillis() + ONE_HOUR_MS,
+                from = "shadeAction")
             applyVisibility()
             return START_STICKY
         }
@@ -1049,6 +1081,9 @@ class SwipBubbleService : Service() {
     }
 
     override fun onDestroy() {
+        // Before `running` is cleared, so the line records the state it died
+        // in rather than the state it was being put into.
+        BubbleTrace.log(this, "service.destroy", "wanted" to isWanted(this))
         running = false
         // Before anything else: an accelerometer listener that outlives its
         // service is a leak the system logs and nobody reads.
@@ -1099,7 +1134,12 @@ class SwipBubbleService : Service() {
         }
 
         runCatching { windows.addView(view, lp) }
+            .onFailure {
+                BubbleTrace.log(this, "bubble.addFailed",
+                    "error" to it.javaClass.simpleName)
+            }
             .onSuccess {
+                BubbleTrace.log(this, "bubble.added", "x" to lp.x, "y" to lp.y)
                 bubble = view
                 params = lp
                 // Ordered after the assignment: `windowX`/`windowY` read
@@ -1110,6 +1150,7 @@ class SwipBubbleService : Service() {
     }
 
     private fun removeBubble() {
+        BubbleTrace.log(this, "bubble.removed")
         cancelMotion()
         // Reset, or a service that is stopped and started again builds a fresh
         // view while `show` still believes the old one was on screen — and the
@@ -1142,6 +1183,7 @@ class SwipBubbleService : Service() {
         // two things most likely to happen during one.
         val asleep = snoozedUntil(this)
         val hidden = screenOff || quiet || appInForeground || asleep > 0L
+        traceVisibility(hidden, screenOff, quiet, appInForeground, asleep)
         show(!hidden)
 
         // `F-173`. The accelerometer is registered here and nowhere else, so
@@ -1162,6 +1204,57 @@ class SwipBubbleService : Service() {
         ).minOrNull()
         if (next != null) main.postDelayed(unquiet, next - now + 250L)
     }
+
+    /**
+     * `F-176`. The line that answers *"why did the button go?"*.
+     *
+     * Four independent facts decide it, and from outside all four look the
+     * same — the bubble is simply not there. So the four are written down
+     * together with the verdict, and `why` names the **first** one that was
+     * true, in the order the decision itself evaluates them.
+     *
+     * ## Why consecutive identical evaluations are dropped
+     *
+     * `applyVisibility` runs on every system broadcast and every nudge, and
+     * most of those change nothing. Recording all of them would bury the two
+     * lines that matter under several hundred identical ones, and a log nobody
+     * can scan is a log nobody reads. A **change** is the unit of interest,
+     * which is also what the owner asked for.
+     */
+    private fun traceVisibility(
+        hidden: Boolean,
+        screenOff: Boolean,
+        quiet: Boolean,
+        inForeground: Boolean,
+        asleep: Long,
+    ) {
+        val why = when {
+            !hidden -> "visible"
+            screenOff -> "screenOff"
+            quiet -> "paymentQuiet"
+            inForeground -> "swipInForeground"
+            else -> "snoozed"
+        }
+        val key = "$hidden/$why"
+        if (key == lastTrace) return
+        lastTrace = key
+
+        BubbleTrace.log(
+            this, "visibility",
+            "visible" to !hidden,
+            "why" to why,
+            "screenOff" to screenOff,
+            "paymentQuiet" to quiet,
+            "swipInForeground" to inForeground,
+            "snoozedForMs" to
+                (if (asleep > 0L) asleep - System.currentTimeMillis() else 0L),
+            "running" to running,
+            "attached" to (bubble != null),
+        )
+    }
+
+    /** Last `hidden/why` pair written, so an unchanged decision is not repeated. */
+    private var lastTrace: String? = null
 
     /**
      * `F-170`. Appear by **popping in**, disappear instantly.
@@ -1445,6 +1538,7 @@ class SwipBubbleService : Service() {
                     val dy = event.rawY - downY
                     if (!dragging && (abs(dx) > slop || abs(dy) > slop)) {
                         dragging = true
+                        BubbleTrace.log(this@SwipBubbleService, "drag.start")
                         // `F-173`. The target appears the moment the gesture
                         // becomes a drag — not on touch-down, or a tap would
                         // flash a snooze target for one frame every time
@@ -1487,6 +1581,7 @@ class SwipBubbleService : Service() {
                     speed = null
 
                     if (snoozing) {
+                        BubbleTrace.log(this@SwipBubbleService, "drag.snoozed")
                         swallow(view, centre)
                     } else if (dragging) {
                         snapToEdge(view, lp, vx, vy)
@@ -1638,6 +1733,8 @@ class SwipBubbleService : Service() {
      * press happens from the shade with nothing behind it to hover over.
      */
     private fun openScanner() {
+        BubbleTrace.log(this, "tap.openScanner")
+
         // A brief expansion so the tap is acknowledged before the window
         // appears. `docs/32` §4: the delay before the scanner opens is the
         // thing to hide, and a press animation is how you hide it. It matters
