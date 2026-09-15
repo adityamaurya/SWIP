@@ -469,3 +469,67 @@ the phone on a table.
 **Still not tested:** the drag, the swallow, the target's window lifecycle.
 `ShakeDetector` was extractable because it is arithmetic; a `WindowManager`
 overlay is not, without instrumentation and a device.
+
+---
+
+## 13. Why it disappeared — `F-178`, and the recorder that found it
+
+> *"sometimes, the launcher icon disappears. This seems to happen either when
+> you open the SWIP app or randomly while using certain other apps."*
+
+**Two different things, and only one of them was a bug.**
+
+### The half that is by design
+
+§2. The bubble is never over SWIP's own scanner — a disc on the app's own
+viewfinder is a smudge on it. Opening SWIP hides the button; leaving brings it
+back. That is `appInForeground`, working.
+
+### The half that was a bug
+
+`MainActivity` has always claimed and released the foreground flag in
+`onResume` / `onPause`. `SwipHoverActivity` claimed it in **`onCreate`** and
+released it in **`onDestroy`**.
+
+Those are not a pair. Press Home with the hovering card open and Android
+*stops* the Activity rather than destroying it, so:
+
+1. `onDestroy` never runs;
+2. `appInForeground` stays `true`;
+3. `applyVisibility` hides the bubble on every later evaluation;
+4. and the card is `excludeFromRecents`, **so the user cannot get back to it to
+   close it.**
+
+Alive, invisible, unreachable, holding the button down. The only escape was
+opening SWIP and leaving again, because `MainActivity.onPause` clears the same
+flag — which is exactly the workaround somebody would stumble into and then be
+unable to explain.
+
+### The fix, in two parts
+
+| | |
+|---|---|
+| `onResume` / `onPause` | The claim and its release in the **same** pair of hooks |
+| `finish()` in `onStop` | A window nobody can navigate back to should not survive backgrounding while holding a camera and a second Flutter engine |
+
+`onStop`, not `onPause`: a permission dialog pauses this Activity without
+stopping it, and finishing the card out from under the camera prompt would be a
+new bug in place of the old one.
+
+### The general shape, which is the part worth keeping
+
+**Two components reporting the same fact through different lifecycle hooks will
+disagree, and the disagreement will be silent.** Nothing throws when a flag is
+set and never cleared — the only symptom is a feature that stops working for
+reasons nobody can reproduce on demand.
+
+### And the recorder stays on
+
+[`docs/38`](38-BUBBLE-TRACE.md). `BubbleTrace` writes every visibility decision
+with its reason and all four inputs, so the next report comes with a file
+instead of a description. **One plausible cause found by reading is not the same
+as the cause confirmed by watching**, and the honest way to close this is an
+export showing the bubble surviving the sequence that used to kill it.
+
+It is gated on `FLAG_DEBUGGABLE` and cannot reach a Play Store build, and it
+gets deleted once the cause is confirmed.

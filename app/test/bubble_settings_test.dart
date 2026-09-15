@@ -406,6 +406,32 @@ void main() {
   });
 
   group('the temporary bubble trace', () {
+    /// Drag the settings list to the end.
+    ///
+    /// **Without this both directions of the assertion below are worthless**,
+    /// and one of them passed for the wrong reason before CI said otherwise.
+    ///
+    /// `CLAUDE.md`: a `ListView` only builds what is near the viewport, so
+    /// copy below the fold is not merely invisible — it is not in the tree and
+    /// `find` cannot see it. The trace row sits at the bottom of a long page,
+    /// so "the row is there" failed on a build where it genuinely was, **and
+    /// "the row is absent" would have passed on a build where it was not.**
+    /// A test that cannot fail is worse than no test, because it is counted.
+    ///
+    /// Dragging rather than enlarging the surface, and both cases get the same
+    /// preparation, so the two assertions are comparing the same thing.
+    Future<void> toBottom(WidgetTester t) async {
+      // Nothing to scroll if the page is still on its spinner — which is the
+      // case in the "platform never answers" test below, and dragging a finder
+      // that matches nothing throws rather than failing the assertion.
+      if (find.byType(ListView).evaluate().isEmpty) return;
+      for (var i = 0; i < 10; i++) {
+        await t.drag(find.byType(ListView), const Offset(0, -600));
+        await t.pump();
+      }
+      await t.pumpAndSettle();
+    }
+
     // `F-176`. The owner asked for a tracker that is *"strictly temporary for
     // debugging"* and *"completely removed from the production/public Play
     // Store build"*.
@@ -421,6 +447,7 @@ void main() {
       traceEnabled = true;
       await t.pumpWidget(harness());
       await t.pumpAndSettle();
+      await toBottom(t);
 
       expect(find.text('Bubble trace'), findsOneWidget);
     });
@@ -430,6 +457,7 @@ void main() {
       traceEnabled = false;
       await t.pumpWidget(harness());
       await t.pumpAndSettle();
+      await toBottom(t);
 
       expect(find.text('Bubble trace'), findsNothing);
     });
@@ -448,6 +476,7 @@ void main() {
         await t.pump(const Duration(seconds: 3));
       }
       await t.pumpAndSettle();
+      await toBottom(t);
 
       expect(find.text('Bubble trace'), findsNothing);
     });

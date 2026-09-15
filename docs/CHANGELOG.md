@@ -1763,6 +1763,155 @@ is not.
 
 ---
 
+## Prompt 42 — 15 Sep 2026 · A flight recorder, and a launch that stops announcing itself
+
+> *"sometimes, the launcher icon disappears… can we temporarily inject a
+> detailed tracker into the app build… strictly temporary for debugging…
+> completely removed from the production/public Play Store build… it feels like
+> there's a shadow or transition being applied from the bottom upward first
+> which is kinda harsh… I want the launcher to feel like it is already part of
+> the system UI and is simply revealing itself"*
+
+### The cause, found by reading — `F-178`
+
+**Before a single line was recorded.** `SwipHoverActivity` reported foreground
+state in `onCreate`/`onDestroy`; `MainActivity` has always used
+`onResume`/`onPause`.
+
+Open the hovering card and press Home instead of closing it. The Activity is
+**stopped, not destroyed** — `onDestroy` never runs, `appInForeground` stays
+`true`, and `applyVisibility` hides the bubble on every evaluation from then
+on. And that Activity is `excludeFromRecents`, so the user cannot return to it
+to close it: the card is alive, invisible, unreachable, and holding the button
+down. The only escape was opening SWIP and leaving again, because
+`MainActivity.onPause` clears the same flag.
+
+Which matches *"randomly while using certain other apps"* exactly.
+
+Two fixes:
+
+| | |
+|---|---|
+| `onResume` / `onPause` | The claim and its release in the **same** pair of hooks, as `MainActivity` has always done |
+| `finish()` in `onStop` | A window nobody can navigate back to should not survive backgrounding while holding a camera and a second Flutter engine. `onStop`, not `onPause` — a permission dialog pauses without stopping, and finishing out from under the camera prompt would be a new bug in place of the old one |
+
+**The other half of the report is by design.** [`32` §2](32-FLOATING-BUBBLE.md):
+the bubble is never over SWIP's own scanner. Opening SWIP hides it; leaving
+brings it back. Said plainly rather than fixed.
+
+### The flight recorder — `F-176`
+
+Four independent facts hide the bubble and **every one of them is silent**:
+screen off, payment in progress, SWIP in front, snoozed. From outside all four
+look identical — the button is gone.
+
+[`BubbleTrace`](../app/android/app/src/main/kotlin/in/swip/app/BubbleTrace.kt)
+writes one JSON object per line. JSONL rather than an array because an array
+has to be closed, and **a process killed mid-write is exactly the event most
+worth recording**.
+
+| Event | |
+|---|---|
+| **`visibility`** | the verdict, `why`, and all four inputs. The line that answers the question |
+| `foreground` | with `from`, naming which Activity and which lifecycle hook |
+| `service.create` / `.start` / `.destroy` | `.start` with `restarted: true` is Android restarting it after a kill |
+| `bubble.added` / `.removed` / `.addFailed` | the overlay window itself |
+| `hover.create` / `.finishOnStop` / `.destroy` | the card |
+| `snooze.set` / `.end` | with `from`: `dragTarget`, `shadeAction`, `shake`, `settings` |
+| `drag.start` / `.snoozed`, `broadcast`, `boot.received`, `tile.pressed`, `tap.openScanner` | |
+
+Every line carries `pid`, so a changed one says the process died rather than
+the bubble being hidden. And `up` — `elapsedRealtime` — because the wall clock
+jumps when the network corrects it, and a backwards jump makes a sequence
+unreadable.
+
+Consecutive identical `visibility` evaluations are dropped: `applyVisibility`
+runs on every broadcast and most change nothing, so recording all of them would
+bury the two that matter under several hundred.
+
+### "Removed before the public build", answered as a property
+
+Every event is gated on **`FLAG_DEBUGGABLE`** — set by the build system on a
+debug APK, absent from anything signed for release. So a Play Store build
+records nothing, and `BubbleTracePage.traceEnabled()` answers false, so the
+Settings row is **never drawn**. The entry point does not exist rather than
+existing and being empty.
+
+That is deliberately stronger than a constant to flip. **A reminder in a
+checklist is a thing that gets missed; a property of the artifact is not.**
+
+`check_wiring.py` gains `check_trace_gate`, which fails the build if
+`enabled()` ever stops testing `FLAG_DEBUGGABLE` — because the obvious
+shortcut, while chasing something on a release build, is to swap it for `true`,
+and then to ship it. Nothing else would fail; the log would simply start
+following users around. Verified firing and clearing.
+
+**No captures in it.** No payloads, merchant names, payment addresses, amounts,
+geohashes or location. Window and service events only, said on the export
+screen as well as in the code — the file leaves the phone by design, and a
+debug log quietly carrying ledger data would be a privacy hole opened for
+convenience, in the one app whose whole claim is that nothing leaves it.
+
+[`docs/38`](38-BUBBLE-TRACE.md) is the ten-step removal list, and step 9 is
+deleting the gate check with it.
+
+### The launch — `F-177`
+
+**The bottom-to-top slide was Android's, not ours.**
+`SwipHoverTheme` has set `windowAnimationStyle` to `@null` since `F-163` and it
+was never enough: a theme attribute is advisory, OEM skins substitute their
+own, and it is honoured inconsistently across versions. The default activity
+transition is a bottom-up slide with a dim — which is what an app opening looks
+like because it is what an app opening is. Now overridden outright, with
+`overrideActivityTransition` on 34+ and `overridePendingTransition` below.
+
+**And our own entrance was making it worse.** `F-170` had the card rise 6% from
+below, on the reasoning that motion from the bottom edge reads as the bubble
+sending it up. That was wrong in a way worth keeping written down: **entering
+from the bottom edge is Android's grammar for a new activity**, however small
+the distance, so the gesture said "an app is opening" whatever it was meant to
+say.
+
+| | Before | After |
+|---|---|---|
+| System transition | slide + dim | none, at both API levels |
+| Card entrance | `slideY(0.06)` over 260 ms | `scaleXY(0.98 → 1)` — no direction, so nothing arrives from anywhere |
+| Scrim | 140 ms linear | 260 ms `easeOutSine` — a light turned down, not a shutter |
+| Close button | `elevation: 6` + shadow | **0**, reversing `F-172` |
+
+The elevation reversal is safe and that is checkable rather than hopeful:
+`hover_chrome_test.dart` asserts that button's contrast against its scrim over
+both a white app and a black one, and the shadow was never what carried it.
+
+### Files
+
+| File | |
+|---|---|
+| [`BubbleTrace.kt`](../app/android/app/src/main/kotlin/in/swip/app/BubbleTrace.kt) | **New, temporary.** The recorder |
+| [`BubbleTraceTest.kt`](../app/android/app/src/test/kotlin/in/swip/app/BubbleTraceTest.kt) | **New, temporary.** The line format |
+| [`bubble_trace_page.dart`](../app/lib/features/bubble/bubble_trace_page.dart) | **New, temporary.** Read, export, clear |
+| [`SwipHoverActivity.kt`](../app/android/app/src/main/kotlin/in/swip/app/SwipHoverActivity.kt) | The lifecycle fix and the transition kill |
+| [`SwipBubbleService.kt`](../app/android/app/src/main/kotlin/in/swip/app/SwipBubbleService.kt) | `traceVisibility`, and `from:` on every state-changing call |
+| [`hover_scan.dart`](../app/lib/features/bubble/hover_scan.dart) | No slide, no elevation, a softer scrim |
+| [`check_wiring.py`](../app/tool/check_wiring.py) | `check_trace_gate` — a sixth rule |
+| [`docs/38`](38-BUBBLE-TRACE.md) | **New.** What it records, and how to delete it |
+
+### Tests
+
+| | |
+|---|---|
+| `BubbleTraceTest` | The line format. **Escaping is the part that fails quietly and late** — a device name with a quote produces a line no JSON reader will parse, and the first anyone knows is an export that cannot be opened *after* the bug has been reproduced and lost. The dullest assertion is the important one: a line is exactly one line |
+| `bubble_settings_test` | The debug row is present on a debuggable build, **absent otherwise**, and absent when the platform never answers |
+
+### Open
+
+The trace stays on. **One plausible cause found by reading is not the same as
+the cause confirmed by watching** — the honest way to close this is an exported
+file showing the bubble surviving the sequence that used to kill it. Delete the
+recorder then, not before.
+
+---
+
 <!--
 Template for the next entry:
 

@@ -1160,6 +1160,104 @@ of this round is covered and the rest is not.
 
 ---
 
+## Prompt 42 — 15 Sep 2026 · A flight recorder, and a launch that stops announcing itself
+
+**You asked:** for a temporary tracker so we can stop guessing why the button
+disappears, and for the scanner to stop feeling like an app opening on top of
+your screen.
+
+**I think I found one cause before writing a line of the tracker.** Worth
+saying first, because it is specific.
+
+The hovering card and the main app both tell the service "SWIP is in front" —
+but they were doing it at different moments in their lifecycle. The main app
+says so when it appears and un-says it when it is paused. **The hovering card
+said so when it was created and un-said it only when it was destroyed.**
+
+Those are not the same thing. Press Home while the card is open and Android
+*stops* it rather than destroying it — so the "SWIP is in front" flag stayed
+set, and the button stayed hidden. And that card is deliberately kept out of
+your Recents list, so you could not get back to it to close it. It sat there,
+invisible, holding your button down. The only way out was to open SWIP and
+leave again, which is what cleared the flag.
+
+That matches *"randomly while using certain other apps"* almost exactly: it
+would have happened every time you opened the scanner from the button and then
+switched away instead of closing it.
+
+**And the other half of what you saw is deliberate, so let me say it plainly
+rather than quietly fixing it.** The button hides while SWIP itself is in the
+foreground — `docs/32` has said so since the first round, because a floating
+disc sitting on top of the app's own camera is a smudge on the viewfinder. Open
+SWIP and it goes; leave SWIP and it comes back. If it is *not* coming back for
+you, that is the bug above, and the tracker will now show it either way.
+
+**On the tracker — it is built, and it records what you listed.** Every time
+the button appears or disappears it writes down which of the four reasons
+caused it, along with all four so you can see the ones that were not the
+reason. Plus the service starting and being killed, the window being added or
+refused, which component said SWIP was in front and from which lifecycle hook,
+snoozes and where they came from, shakes, taps, reboots, and the process id —
+so a process that died and came back is distinguishable from a button that was
+merely hidden.
+
+Settings → the floating button → **Bubble trace**. Clear it, reproduce the
+problem, export. It shares a file.
+
+**On "removed before the Play Store build" — I did something stronger than
+promising to delete it.** The whole thing is switched on by asking Android
+whether the app is a debug build. A Play Store build is not, so it records
+nothing and the Settings row is not even drawn. It is not a setting and not a
+constant I have to remember to flip: **it cannot reach your users.**
+
+And because the tempting shortcut later would be to switch that gate off while
+testing something, the build gate now fails if anyone ever does. It still gets
+deleted properly once we are sure — `docs/38` is the checklist, and it includes
+deleting that guard too.
+
+**One thing I want to be explicit about, since this file leaves your phone:**
+it contains no captures. No payloads, no merchant names, no payment addresses,
+no amounts, no location, nothing from your ledger. Window and service events
+only. That is written on the export screen as well, because a debug log that
+quietly carried your data would be exactly the hole this app exists not to
+have.
+
+**On the transition — you were right, and it was not mine.** Or rather, most of
+it was not. Android's standard way of opening an activity is a slide up from
+the bottom with a dim behind it. That is what an app opening looks like because
+it is literally what an app opening is. The hover window has been asking the
+system not to do that since round 38, through a theme setting — and a theme
+setting there turns out to be a *suggestion*. Phone makers substitute their own
+and it is honoured inconsistently. It is now overridden outright.
+
+**The smaller half was mine.** Last round I had the card rise a little from
+below, on the theory that motion from the bottom reads as the button sending it
+up. That was wrong, and it is worth writing down why: entering from the bottom
+edge is Android's grammar for *a new activity*, however small the distance. The
+card now scales up by two per cent instead — a scale has no direction, so
+nothing arrives from anywhere. It resolves into focus where it already is.
+
+The shadow under the Close button is gone too. I added it last round arguing
+that the button really is floating; you are right that it is one more thing
+saying *a window has been put on top of yours*. The contrast test from that
+same round is what makes dropping it safe — the shadow was never what was
+carrying that button.
+
+**What is still there, honestly:** the half-second before the camera appears.
+That window runs a second copy of the app and starts cold, which is written up
+as the cost of this design in `hover_scan.dart`. The transition is no longer
+announcing itself, but the camera still takes a moment. Removing that means
+keeping a warm engine in memory the whole time the button is switched on, which
+for a button that sits idle all day is the wrong trade — and I would rather say
+so than quietly make your phone slower.
+
+**Still open:** the tracker stays on. One plausible cause found by reading is
+not the same as the cause confirmed by watching. Send me an export after you
+next see it disappear — or after you try the sequence above and it *doesn't* —
+and that is when the recorder comes out.
+
+---
+
 <!--
 Template:
 

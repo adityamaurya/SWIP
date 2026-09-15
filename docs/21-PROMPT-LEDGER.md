@@ -1750,7 +1750,7 @@ that rule's case exactly.
 
 ---
 
-## Prompt 41 — 15 Sep 2026 · Snooze by dragging, and stop taking the screen *(current)*
+## Prompt 41 — 15 Sep 2026 · Snooze by dragging, and stop taking the screen
 
 Attached: four screenshots — two of Wispr Flow's snooze toast
 (*"Wispr Flow is snoozed for 10 min. Shake your phone to bring it back."*),
@@ -1812,6 +1812,92 @@ that had been dead led straight to it.
 
 Worth its own line: connecting something that was never reachable does not only
 deliver the feature, it exposes everything downstream of it for the first time.
+
+---
+
+## Prompt 42 — 15 Sep 2026 · A flight recorder, and a launch that stops announcing itself *(current)*
+
+**Original prompt, verbatim:**
+
+> One observation I've made is that, sometimes, the launcher icon disappears. This seems to happen either when you open the SWIP app or randomly while using certain other apps.
+> For debugging, can we temporarily inject a detailed tracker into the app build? This would only be used during development/testing and removed before the public build is pushed to the Play Store.
+> I'd like this to be implemented as a separate container/extension whose sole purpose is to track the launcher's complete on/off lifecycle and behavior. Ideally, it should capture every meaningful state change, starting from the very first installation and the onboarding process, including:
+>
+> * When the launcher is first installed
+> * When it gets enabled during onboarding
+> * When it is enabled/disabled
+> * When it becomes visible/invisible
+> * When it is triggered
+> * What action/event triggered it
+> * When it disappears unexpectedly
+> * Whether it disappears when opening the SWIP app
+> * Whether another app being opened/used causes it to disappear
+> * When it reappears
+> * Any other small state or lifecycle changes that could help us identify the exact cause
+>
+> The idea is to have the most granular debugging information possible so that, each time I give you an exported tracker/log file, we can analyze exactly what happened before, during, and after the launcher disappeared.
+> This tracker is strictly temporary for debugging. Once we identify and fix the issue, it should be completely removed from the production/public Play Store build.
+> Also, can we make the overall look and feel more native?
+> Right now, the launching of the scanner from the launcher icon , it feels like there's a shadow or transition being applied from the bottom upward first which is kinda harsh and not subtle, almost as if another app is opening and appearing on top of the current screen. The camera viewfinder then appears on top of it (this seems fine)
+> I'm wondering if we can make this transition much more subtle and native; almost as if the camera/viewfinder is magically appearing rather than being presented like a new app or overlay.
+> Ideally:
+>
+> * No obvious bottom-to-top shadow animation
+> * No feeling that a separate app/window is opening
+> * Minimal or no visible elevation/shadow during the transition
+> * The camera viewfinder should appear smoothly and subtly
+> * The entire interaction should feel like a native part of the current screen rather than an overlay being launched
+>
+> Basically, I want the launcher to feel like it is already part of the system UI and is simply revealing itself, rather than looking like an app being opened on top of another app.
+
+| # | ID | To-do | Status |
+|---|---|---|---|
+| 1 | `F-176` | A granular, temporary lifecycle tracker | **Done** — [`docs/38`](38-BUBBLE-TRACE.md) |
+| 2 | `F-176` | Removed before the Play Store build | **Done, and stronger than asked** — it cannot reach one |
+| 3 | `F-176` | Exportable log file | **Done** — a `.jsonl` share from Settings |
+| 4 | `F-178` | Why it disappears | **A cause found by reading, before a line was recorded** |
+| 5 | `F-177` | No bottom-to-top shadow | **Done** — and it was the *system's* animation, not ours |
+| 6 | `F-177` | No elevation during the transition | **Done** — reversing `F-172`'s shadow |
+| 7 | `F-177` | Revealing rather than opening | **Done** — a scale has no direction; a slide does |
+
+### The bug the tracker found before it recorded anything
+
+`SwipHoverActivity` reported foreground state in `onCreate`/`onDestroy`.
+`MainActivity` has always used `onResume`/`onPause`.
+
+Open the hovering card, press Home instead of closing it: the Activity is
+**stopped, not destroyed**, so `onDestroy` never runs, `appInForeground` stays
+`true`, and the bubble is hidden from then on. The card is
+`excludeFromRecents`, so it cannot be returned to and closed — alive,
+invisible, unreachable, holding the button down. The only escape was opening
+SWIP and leaving again.
+
+Which is the report word for word: *"randomly while using certain other apps."*
+
+**The other half is by design** and worth saying plainly: the bubble is never
+over SWIP's own scanner ([`32` §2](32-FLOATING-BUBBLE.md)). Opening SWIP hides
+it; leaving brings it back.
+
+### "Removed before the Play Store build", answered as a property rather than a promise
+
+The gate is `FLAG_DEBUGGABLE`, which the build system sets on a debug APK and
+never on a release one. A Play Store build records nothing and does not draw
+the Settings row at all. `check_wiring.py` fails if that gate is ever weakened,
+because the obvious shortcut — swapping it for `true` while chasing something
+on a release build — would ship silently.
+
+### The transition was the system's, not ours
+
+`SwipHoverTheme` has set `windowAnimationStyle` to `@null` since `F-163`, and
+it was not enough: **a theme attribute is advisory**, OEM skins substitute
+their own, and it is honoured inconsistently across versions. Android's default
+activity transition is a bottom-up slide with a dim — which is what an app
+opening looks like because it is what an app opening *is*.
+
+Our own entrance was making it worse. `F-170` had the card rise 6% from below
+on the reasoning that motion from the bottom edge reads as the bubble sending
+it up. Wrong, and worth keeping: **entering from the bottom edge is Android's
+grammar for a new activity**, however small the distance.
 
 ---
 

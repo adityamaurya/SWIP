@@ -305,6 +305,9 @@ growing.
 | Compatible with Paper and Foil | 40 | ✅ `F-172` — the scrim follows the palette, the chrome deliberately does not |
 | The snooze goodbye message | 39, 40 | ✅ `F-170` — written in 39, **visible for the first time in 40** |
 | The reticle overlapping the copy in the short card | 40 | ✅ `F-171` — sized to its surface, and tested |
+| Why the bubble disappears | 42 | ✅ `F-178` — a lifecycle asymmetry, found by reading; **and half the report was by design**, said plainly rather than fixed |
+| A temporary, exportable lifecycle tracker | 42 | ✅ `F-176` — and it *cannot* reach a Play Store build, which is stronger than remembering to remove it |
+| The launch not feeling like an app opening | 42 | ✅ `F-177` — the bottom-up slide was Android's own, and `windowAnimationStyle: @null` had never been enough |
 | ~~An automated test for the bubble itself~~ | — | ✅ `F-173` — `ShakeDetector` is pure Kotlin with no Android imports and has a JUnit suite CI runs. **Its gestures are still untested**, and that is a different claim |
 | Snooze by dragging to a target | 41 | ✅ `F-173` — `docs/32` §4 asked for this target in round one |
 | Ten minutes, and shake to bring it back | 41 | ✅ `F-173` — the accelerometer is armed only while snoozed |
@@ -337,6 +340,8 @@ money, or is deliberately held.
 | Display serif | Held as its own commit so a bad outcome is bisectable | Mine, next round |
 | ~~Bubble step 4 — the scanner over other apps~~ | **Done** (`F-163`), and deliberately **not** as a native CameraX overlay: that would be a second implementation of scanning, and SWIP's is several rounds of hard-won behaviour. The real `ScanPage` is hovered instead, in a transparent Activity. [`32` §10](32-FLOATING-BUBBLE.md) | — |
 | ~~The result page inside the hovering card~~ | **Done** (`F-168`) — the card carries its own `Navigator`, so the push is bounded to those pixels | — |
+| Confirming the disappearance is actually fixed | `F-178` is a plausible cause found by reading, not one confirmed by watching. The recorder is on; closing this needs an exported trace showing the bubble surviving the sequence that used to kill it | **Yours** — reproduce and export |
+| Deleting the bubble trace | Deliberately still here. [`38` §4](38-BUBBLE-TRACE.md) is the ten-step list, including deleting its own gate check | Mine, once the above is confirmed |
 | A behavioural test for the bubble's **gestures** | `F-173` built the Kotlin test source set and `ShakeDetector` is covered, so the blocker is gone — but a `WindowManager` overlay cannot be exercised on the JVM. The drag, the swallow and the target's window lifecycle need instrumentation and a device | Mine — and now it is a device problem, not a build-config one |
 | The circle→camera shared-element morph, [`32` §4](32-FLOATING-BUBBLE.md) | Cannot be done as specified while the scanner is a separate Activity with its own Flutter engine — there is no shared element to morph across a process boundary | Mine — needs a different design, not more effort |
 | ~~The drag target, [`32` §4](32-FLOATING-BUBBLE.md)~~ | **Done** (`F-173`), as a **snooze** target rather than a delete one — SWIP's bubble is not a conversation you close, it is a tool you want back | — |
