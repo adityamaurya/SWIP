@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -19,6 +20,23 @@ import '../../widgets/capture_result_page.dart';
 /// Full-bleed camera under an Ink scrim, with a gold reticle. Works on any
 /// merchant-presented QR anywhere in the world; see [CaptureResolver] for the
 /// resolution order and for why an honest "Unknown" is a correct outcome.
+/// `F-171` — how big the aiming square is on a surface [width] x [height].
+///
+/// A free function, and public, for one reason: **it is the only part of this
+/// screen a test can reach.** Everything else here needs a camera, and a
+/// widget test has no engine behind `MobileScanner`'s channel — see the
+/// `MethodChannel` note in `CLAUDE.md`. The arithmetic is where the bug was,
+/// so the arithmetic is what is asserted, in `scan_layout_test.dart`.
+///
+/// [reticleChrome] is what the screen reserves above and below: roughly 50 for
+/// the mark and torch, 100 for the title and its explanation, 40 of air.
+double scanReticleSide(double width, double height) => math
+    .min(width - SwipSpace.xxxl * 2, height - reticleChrome)
+    .clamp(120.0, 260.0);
+
+/// Vertical space [scanReticleSide] keeps clear for the header and footer.
+const reticleChrome = 190.0;
+
 class ScanPage extends ConsumerStatefulWidget {
   const ScanPage({super.key});
 
@@ -60,6 +78,17 @@ class _ScanPageState extends ConsumerState<ScanPage> {
   bool _refused = false;
   bool _running = false;
 
+  /// `F-171`. Whether the torch is lit, as the **controller** reports it.
+  ///
+  /// Not a boolean this screen flips when the button is tapped. `CLAUDE.md`
+  /// records why, from the floating bubble: *"a switch that stores its own
+  /// state instead of asking the platform cannot be wrong on screen"* — it
+  /// shows the value it just set, so it agrees with itself while disagreeing
+  /// with the phone. `toggleTorch()` can fail (no torch on this lens, the
+  /// camera not started yet, the front camera selected) and the icon has to
+  /// follow what actually happened.
+  bool _torchOn = false;
+
   @override
   void initState() {
     super.initState();
@@ -81,10 +110,12 @@ class _ScanPageState extends ConsumerState<ScanPage> {
     final running = v.isRunning && v.error == null;
     final refused =
         v.error?.errorCode == MobileScannerErrorCode.permissionDenied;
-    if (running != _running || refused != _refused) {
+    final torchOn = v.torchState == TorchState.on;
+    if (running != _running || refused != _refused || torchOn != _torchOn) {
       setState(() {
         _running = running;
         _refused = refused;
+        _torchOn = torchOn;
       });
     }
   }
@@ -100,6 +131,7 @@ class _ScanPageState extends ConsumerState<ScanPage> {
     _controller.addListener(_sync);
     _running = false;
     _refused = false;
+    _torchOn = false;
   }
 
   /// Start the camera, retrying while the dashboard band still holds it.
@@ -222,121 +254,228 @@ class _ScanPageState extends ConsumerState<ScanPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: SwipColors.onCameraScrim,
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        // `F-130`. The app is light; this one screen is not. The bar floats
-        // over a camera feed, so its title, icons and status-bar icons are all
-        // forced light here rather than inherited — an inherited dark icon over
-        // a black scrim is invisible, and it is invisible only on the screen
-        // nobody screenshots.
-        backgroundColor: Colors.transparent,
-        foregroundColor: SwipColors.onCameraInk,
-        iconTheme: const IconThemeData(color: SwipColors.onCameraInk),
-        systemOverlayStyle: const SystemUiOverlayStyle(
-          statusBarColor: Colors.transparent,
-          statusBarIconBrightness: Brightness.light,
-          statusBarBrightness: Brightness.dark,
-        ),
-        // `F-166`. The mark, then the title, then the torch — with padding
-        // that survives being 380 px wide inside the hovering card.
-        //
-        // `titleSpacing: 0` is the load-bearing one. `AppBar`'s default
-        // inserts 16 px between the leading widget and the title *on top of*
-        // the leading widget's own width, which on a narrow card pushed the
-        // title into the torch and left the mark jammed against the rounded
-        // corner. Spacing is given explicitly below instead, where it can be
-        // seen.
-        titleSpacing: 0,
-        leadingWidth: 76,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: SwipSpace.lg),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: SvgPicture.asset(
-              'assets/brand/swip-slash-wordmark.svg',
-              height: 18,
-              semanticsLabel: 'SW/P',
-              // The white mark, not the ink one: this bar floats over a camera
-              // feed, which is an arbitrary image. Same rule as every other
-              // `onCamera*` colour in this file.
-              colorFilter: const ColorFilter.mode(
-                  SwipColors.onCameraInk, BlendMode.srcIn),
-            ),
-          ),
-        ),
-        title: Text('Scan a QR',
-            style: SwipType.titleM.copyWith(color: SwipColors.onCameraInk)),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: SwipSpace.sm),
-            child: IconButton(
-              tooltip: 'Torch',
-              onPressed: () => _controller.toggleTorch(),
-              icon: const Icon(Icons.flashlight_on_outlined),
-            ),
-          ),
-        ],
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      // `F-171`. The status-bar style used to ride on the `AppBar` that is no
+      // longer here. It still has to be stated: this screen is a camera feed
+      // under an ink scrim while the rest of SWIP is Paper, so inheriting the
+      // app's dark status-bar icons would make them invisible on the one
+      // screen nobody screenshots.
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
       ),
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (!_refused)
-            MobileScanner(
-              // A swapped controller is invisible to `MobileScanner` without a
-              // new key — it holds its controller in a `late final`.
-              key: ObjectKey(_controller),
-              controller: _controller,
-              onDetect: _onDetect,
-              // Only a refusal is a dead end worth a screen of copy. Contention
-              // with the dashboard band resolves itself, and [_start] is
-              // already retrying through it.
-              errorBuilder: (context, error, child) => error.errorCode ==
-                      MobileScannerErrorCode.permissionDenied
-                  ? _CameraError(onAllow: _requestPermission)
-                  : const SizedBox.shrink(),
-            )
-          else
-            _CameraError(onAllow: _requestPermission),
+      child: Scaffold(
+        backgroundColor: SwipColors.onCameraScrim,
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (!_refused)
+              MobileScanner(
+                // A swapped controller is invisible to `MobileScanner` without a
+                // new key — it holds its controller in a `late final`.
+                key: ObjectKey(_controller),
+                controller: _controller,
+                onDetect: _onDetect,
+                // Only a refusal is a dead end worth a screen of copy. Contention
+                // with the dashboard band resolves itself, and [_start] is
+                // already retrying through it.
+                errorBuilder: (context, error, child) => error.errorCode ==
+                        MobileScannerErrorCode.permissionDenied
+                    ? _CameraError(onAllow: _requestPermission)
+                    : const SizedBox.shrink(),
+              )
+            else
+              _CameraError(onAllow: _requestPermission),
 
-          // Ink scrim — the camera feed is information, not decoration, so it
-          // is dimmed rather than hidden.
-          IgnorePointer(
-            child: Container(color: SwipColors.onCameraScrim.withValues(alpha: .55)),
-          ),
-
-          Center(
-            child: Container(
-              width: 260,
-              height: 260,
-              decoration: BoxDecoration(
-                border: Border.all(color: SwipColors.onCameraAccent, width: 2),
-                borderRadius: BorderRadius.circular(28),
-              ),
-            )
-                .animate(onPlay: (c) => c.repeat(reverse: true))
-                .fadeIn(duration: 400.ms)
-                .then()
-                .scaleXY(
-                    begin: 1, end: 1.03, duration: 1400.ms, curve: Curves.easeInOut),
-          ),
-
-          Positioned(
-            left: SwipSpace.xl,
-            right: SwipSpace.xl,
-            bottom: SwipSpace.giant,
-            child: Text(
-              'Point at any payment QR - UPI, BharatQR, PIX, QRIS,\n'
-              'PayNow, PromptPay and thirty more.',
-              textAlign: TextAlign.center,
-              style: SwipType.bodyM.copyWith(color: SwipColors.onCameraInk.withValues(alpha: .72)),
+            // Ink scrim — the camera feed is information, not decoration, so it
+            // is dimmed rather than hidden.
+            IgnorePointer(
+              child: Container(color: SwipColors.onCameraScrim.withValues(alpha: .55)),
             ),
-          ),
-        ],
+
+            // `F-171`. The reticle, sized to the surface rather than fixed at
+            // 260 px.
+            //
+            // Fixed was fine while this was only ever full-screen. It is not
+            // now: inside the hovering card the surface can be as short as
+            // 320 px, and a 260 px square in a 320 px box leaves 30 px top and
+            // bottom — so the mark above it and the two lines of copy below it
+            // were drawn *on* the reticle. Nothing overflowed and nothing
+            // threw, because a `Stack` is entitled to overlap its children;
+            // it simply looked broken.
+            //
+            // `maxHeight - 190` is the chrome this screen actually reserves:
+            // roughly 50 for the mark and torch at the top, 100 for the title
+            // and its explanation at the bottom, and 40 of breathing room. The
+            // clamp keeps it from collapsing to nothing on a very short card
+            // and from growing past the size that was right all along.
+            //
+            // `LayoutBuilder`, not `MediaQuery.sizeOf` — inside the card the
+            // MediaQuery still describes the whole phone, which is the same
+            // mistake `removeTop` fixes in `hover_scan.dart`.
+            LayoutBuilder(
+              builder: (context, box) {
+                final side = scanReticleSide(box.maxWidth, box.maxHeight);
+                return Center(
+                  child: Container(
+                    width: side,
+                    height: side,
+                    decoration: BoxDecoration(
+                      border:
+                          Border.all(color: SwipColors.onCameraAccent, width: 2),
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                  )
+                      .animate(onPlay: (c) => c.repeat(reverse: true))
+                      .fadeIn(duration: 400.ms)
+                      .then()
+                      .scaleXY(
+                          begin: 1,
+                          end: 1.03,
+                          duration: 1400.ms,
+                          curve: Curves.easeInOut),
+                );
+              },
+            ),
+
+            // `F-171`. **The mark and the torch, at the very top. Nothing else.**
+            //
+            // > *"the SWIP logo is not aligning, it's aligning with the scan the
+            // > QR thing … keep the SWIP logo in the top but take it to the more
+            // > top region, also the flashlight as well"*
+            //
+            // The old version put all three in an `AppBar`, which is a single
+            // row: the mark, the title and the torch were vertically centred on
+            // each other by construction, and an `AppBar`'s row is 56 px tall
+            // with the title's cap-height sitting in the middle of it. So the
+            // wordmark could never be *at the top* while the title was beside
+            // it — those are contradictory requirements for one row, which is
+            // why moving the title out is the fix rather than a padding tweak.
+            //
+            // Freed of the title, the row carries only the two things that are
+            // chrome, and it sits directly under the status bar.
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                bottom: false,
+                // `AppBar` used to supply this inset. Nothing does now, so it is
+                // asked for explicitly — and `hover_scan.dart` strips the top
+                // inset before this widget ever sees it, because inside a card
+                // floating at the bottom of the screen the phone's status-bar
+                // height is a measurement of somewhere else entirely.
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                      SwipSpace.lg, SwipSpace.sm, SwipSpace.sm, 0),
+                  child: Row(
+                    children: [
+                      SvgPicture.asset(
+                        'assets/brand/swip-slash-wordmark.svg',
+                        height: 18,
+                        semanticsLabel: 'SW/P',
+                        // The white mark, not the ink one: this floats over a
+                        // camera feed, which is an arbitrary image. Same rule as
+                        // every other `onCamera*` colour in this file.
+                        colorFilter: const ColorFilter.mode(
+                            SwipColors.onCameraInk, BlendMode.srcIn),
+                      ),
+                      const Spacer(),
+                      _TorchButton(
+                        on: _torchOn,
+                        onPressed: () => _controller.toggleTorch(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // `F-171`. The title, moved down to live with the line it belongs
+            // to — *"get the scan QR at the below, near the below text lines"*.
+            //
+            // It reads better here than it did in the bar, and that is not a
+            // coincidence: "Scan a QR" and "Point at any payment QR…" are a
+            // heading and its explanation, and they were separated by the whole
+            // height of the screen with a camera in between.
+            Positioned(
+              left: SwipSpace.xl,
+              right: SwipSpace.xl,
+              bottom: SwipSpace.xxxl,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Scan a QR',
+                    textAlign: TextAlign.center,
+                    style: SwipType.titleL
+                        .copyWith(color: SwipColors.onCameraInk),
+                  ),
+                  const SizedBox(height: SwipSpace.sm),
+                  Text(
+                    'Point at any payment QR - UPI, BharatQR, PIX, QRIS,\n'
+                    'PayNow, PromptPay and thirty more.',
+                    textAlign: TextAlign.center,
+                    style: SwipType.bodyM.copyWith(
+                        color: SwipColors.onCameraInk.withValues(alpha: .72)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
+}
+
+/// `F-171` — the torch, as a control that knows whether it is on.
+///
+/// ## Why it is a filled circle and not a bare `IconButton`
+///
+/// It sits on a camera feed, which is an arbitrary image SWIP did not draw. A
+/// bare white icon is legible against a dark counter and invisible against a
+/// lit menu board or a white-tiled wall — and this is the button somebody
+/// reaches for *because* the light is bad, so the case where it fails is
+/// exactly the case it exists for. A translucent disc gives it its own ground
+/// without hiding what is underneath.
+///
+/// ## Why the icon changes
+///
+/// `Icons.flashlight_on_outlined` was drawn whether the torch was lit or not,
+/// so the only way to find out was to look at the room. The lit state also
+/// takes the gold, because [SwipColors.onCameraAccent] is already the
+/// screen's "this is live" colour — it is what the reticle is drawn in.
+class _TorchButton extends StatelessWidget {
+  const _TorchButton({required this.on, required this.onPressed});
+
+  final bool on;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+        onPressed: onPressed,
+        tooltip: on ? 'Turn the torch off' : 'Turn the torch on',
+        // Announced as a switch rather than a button, so a screen reader says
+        // "on"/"off" instead of leaving the state to the icon alone.
+        isSelected: on,
+        icon: const Icon(Icons.flashlight_on_outlined),
+        selectedIcon: const Icon(Icons.flashlight_on_rounded),
+        style: IconButton.styleFrom(
+          foregroundColor: on
+              ? SwipColors.onCameraScrim
+              : SwipColors.onCameraInk,
+          backgroundColor: on
+              ? SwipColors.onCameraAccent
+              : SwipColors.onCameraInk.withValues(alpha: .14),
+          // The Material 3 icon-button target, stated rather than inherited:
+          // this button is not inside an `AppBar` any more, and `AppBar` was
+          // where the 48 px minimum was coming from.
+          minimumSize: const Size(44, 44),
+          padding: EdgeInsets.zero,
+        ),
+      );
 }
 
 class _CameraError extends StatelessWidget {

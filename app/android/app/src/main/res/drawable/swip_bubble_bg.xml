@@ -17,9 +17,9 @@
   while it is square and a true pill the moment it is not, with no code
   deciding which.
 
-  **So the 24 dp here is load-bearing and is half of the 48 dp in
+  **So the 28 dp here is load-bearing and is half of the 56 dp in
   `buildBubble`.** Change one and the other has to move, or the circle stops
-  being round.
+  being round. `F-170` raised both together; before that they were 24 and 48.
 
   ## Why the colours are hard-coded rather than taken from the theme
 
@@ -34,7 +34,7 @@
     android:shape="rectangle">
 
     <solid android:color="@color/swip_bubble_ground" />
-    <corners android:radius="24dp" />
+    <corners android:radius="28dp" />
     <stroke
         android:width="1dp"
         android:color="@color/swip_bubble_edge" />

@@ -259,9 +259,17 @@ fi
 # the cost of a feature without the feature. The mechanism is here and proven
 # by CI; the lines go in with the commit that uses them.
 SWIP_GRADLE_DEPS=(
-  # Example, for when the in-overlay scanner lands:
-  #   "implementation 'androidx.camera:camera-camera2:1.3.4'"
-  #   "implementation 'com.google.mlkit:barcode-scanning:17.3.0'"
+  # `F-170`. Physics for the floating bubble — Android's own spring and fling
+  # animators, the same primitives Messenger's chat heads are built on.
+  #
+  # ~50 KB, and first-party. The alternative was Facebook Rebound (which
+  # `floaty_chatheads` uses) or hand-rolled easing, and hand-rolled easing is
+  # exactly what made the old snap feel "sticky": an OvershootInterpolator
+  # runs for a fixed duration regardless of how hard you threw the bubble, so
+  # a flick and a nudge take the same time to land. A spring does not have a
+  # duration — it has a rest position and a velocity, which is why it feels
+  # like an object rather than a slideshow.
+  "implementation 'androidx.dynamicanimation:dynamicanimation:1.0.0'"
 )
 
 # `set -u` is on, and on bash 3.2 — which is still what macOS ships —

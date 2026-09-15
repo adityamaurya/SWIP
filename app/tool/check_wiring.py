@@ -27,7 +27,17 @@ So this checks the wires themselves, in the three shapes the project uses:
   2. a method-channel name called from Dart with no handler in
      `MainActivity.kt`, or a handler nothing calls;
   3. a `SharedPreferences` key written but never read, or read but never
-     written.
+     written;
+  4. the bubble's diameter and its background's corner radius drifting apart.
+
+The fourth is a different animal from the first three and belongs here for the
+same reason they do. `swip_bubble_bg.xml` is a rounded rectangle whose radius
+is exactly **half** the bubble's size — that is what makes the collapsed state
+a true circle and the expanded state a true pill, with no code choosing between
+them. Change one number and nothing fails: the build is green, every test
+passes, and the bubble quietly becomes a rounded square. `F-170` moved both
+from 48/24 to 56/28, and the only thing that would have caught a half-done
+version of that is this.
 
 Exceptions are declared below **with a reason**, because "known and accepted"
 and "nobody noticed" look identical from the outside, and the whole point of
@@ -45,6 +55,8 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 LIB = ROOT / "lib"
 KOTLIN = ROOT / "android/app/src/main/kotlin/in/swip/app/MainActivity.kt"
+BUBBLE_KT = ROOT / "android/app/src/main/kotlin/in/swip/app/SwipBubbleService.kt"
+BUBBLE_BG = ROOT / "android/app/src/main/res/drawable/swip_bubble_bg.xml"
 
 # ── declared exceptions ─────────────────────────────────────────────────
 #
@@ -272,9 +284,45 @@ def check_callbacks() -> list[str]:
     return problems
 
 
+def check_bubble_radius() -> list[str]:
+    """The bubble's corner radius must stay half its diameter.
+
+    `buildBubble` sets `val size = dp(56f)` and `swip_bubble_bg.xml` carries
+    `<corners android:radius="28dp" />`. Neither file mentions the other except
+    in a comment, and a comment is not a check — which is exactly the situation
+    that produced every other entry in this file.
+    """
+    if not BUBBLE_KT.exists() or not BUBBLE_BG.exists():
+        return [f"{BUBBLE_KT.name} or {BUBBLE_BG.name} is missing"]
+
+    size = re.search(r"val size = dp\((\d+(?:\.\d+)?)f\)",
+                     BUBBLE_KT.read_text(encoding="utf-8"))
+    radius = re.search(r'<corners android:radius="(\d+(?:\.\d+)?)dp"',
+                       BUBBLE_BG.read_text(encoding="utf-8"))
+
+    # A pattern that stops matching is a check that silently passes forever,
+    # so an unreadable number is a failure rather than a shrug.
+    if not size:
+        return ["could not find `val size = dp(…f)` in SwipBubbleService.kt — "
+                "the bubble radius check is no longer checking anything"]
+    if not radius:
+        return ["could not find `<corners android:radius=\"…dp\">` in "
+                "swip_bubble_bg.xml — the bubble radius check is no longer "
+                "checking anything"]
+
+    want = float(size.group(1)) / 2
+    got = float(radius.group(1))
+    if abs(want - got) > 1e-6:
+        return [f"the bubble is {size.group(1)} dp across, so "
+                f"swip_bubble_bg.xml's corner radius must be {want:g} dp — it "
+                f"is {got:g} dp, which makes the collapsed bubble a rounded "
+                f"square instead of a circle"]
+    return []
+
+
 def main() -> int:
     problems = (check_unimported() + check_channel() + check_prefs()
-                + check_callbacks())
+                + check_callbacks() + check_bubble_radius())
     if problems:
         print("WIRING PROBLEMS\n")
         for p in problems:

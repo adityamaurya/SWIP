@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/swip_palette.dart';
@@ -124,11 +125,25 @@ class _HoverWindow extends StatelessWidget {
           // would be a tap the user did not intend to send to someone else's
           // checkout.
           Positioned.fill(
+            // `F-170`. Fades in rather than cutting.
+            //
+            // `SwipHoverTheme` sets `windowAnimationStyle` to `@null`
+            // deliberately — Android's activity slide would make a hovering
+            // panel look like a screen transition, which is the one thing this
+            // window must not look like. But "no transition" left a hard cut
+            // from the user's app to a dimmed one, and a hard cut is what the
+            // bubble's own pop-in was removed for. This is the replacement:
+            // SWIP's animation, not the window manager's, and short enough
+            // that it cannot be mistaken for a page change.
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: _close,
-              child: ColoredBox(color: Colors.black.withValues(alpha: 0.45)),
-            ),
+              // `F-172`. The scrim is **SWIP's**, not the app underneath's,
+              // which is the fact the chrome below depends on: this card
+              // floats over an arbitrary screen, but it does not float over an
+              // arbitrary *colour*, because this is painted first.
+              child: ColoredBox(color: HoverChrome.scrim),
+            ).animate().fadeIn(duration: 140.ms),
           ),
           Align(
             alignment: Alignment.bottomCenter,
@@ -146,8 +161,8 @@ class _HoverWindow extends StatelessWidget {
                       height: cardHeight,
                       width: double.infinity,
                       // The real scanner, unmodified — its own Scaffold, its
-                      // own bar with the torch, its own camera lifecycle, its
-                      // own result route.
+                      // own mark and torch, its own camera lifecycle, its own
+                      // result route.
                       //
                       // `F-168`. Wrapped in its **own Navigator** so the MCC
                       // lands in the card rather than over the whole screen.
@@ -160,9 +175,27 @@ class _HoverWindow extends StatelessWidget {
                       // the app underneath vanished, and dismissing it left
                       // the user on the card with a second dismissal still to
                       // go. A Navigator here bounds the push to these pixels.
-                      child: Navigator(
-                        onGenerateRoute: (_) => MaterialPageRoute<void>(
-                          builder: (_) => const ScanPage(),
+                      //
+                      // `F-171`. `removeTop` is the other half of the header
+                      // re-layout, and without it that work is invisible here.
+                      //
+                      // `ScanPage` asks for the top inset with a `SafeArea` so
+                      // its mark clears the status bar — correct full-screen.
+                      // Inside this card it is not: the card's top edge is
+                      // most of the way down the screen, and the phone's
+                      // status-bar height is a measurement of somewhere else
+                      // entirely. Left in, it pushed the mark ~30 px below the
+                      // card's rounded corner and left a band of dead camera
+                      // above it. The `AppBar` that used to be here had the
+                      // same bug, which is most likely what the owner saw as
+                      // the logo "not aligning".
+                      child: MediaQuery.removePadding(
+                        context: context,
+                        removeTop: true,
+                        child: Navigator(
+                          onGenerateRoute: (_) => MaterialPageRoute<void>(
+                            builder: (_) => const ScanPage(),
+                          ),
                         ),
                       ),
                     ),
@@ -170,7 +203,23 @@ class _HoverWindow extends StatelessWidget {
                   const SizedBox(height: SwipSpace.md),
                   _CloseButton(onTap: _close),
                 ],
-              ),
+              )
+                  // Rising a little as it arrives, because the thing that
+                  // summoned it — the bubble — is on screen behind this, and
+                  // motion from the bottom edge reads as the card being sent
+                  // up rather than dropped on.
+                  //
+                  // `easeOutCubic` over the whole 260 ms, so it decelerates
+                  // into place; the camera preview inside takes a moment to
+                  // hand over its first frame and an entrance that finishes
+                  // early would leave a still card waiting on it.
+                  .animate()
+                  .fadeIn(duration: 180.ms)
+                  .slideY(
+                      begin: 0.06,
+                      end: 0,
+                      duration: 260.ms,
+                      curve: Curves.easeOutCubic),
             ),
           ),
         ],
@@ -186,33 +235,109 @@ class _Grip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: 40,
+        width: 44,
         height: 4,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.5),
+          color: HoverChrome.grip,
           borderRadius: BorderRadius.circular(2),
         ),
       );
 }
 
+/// `F-172` — the chrome the hovering card draws around itself.
+///
+/// Pulled out of the widgets as plain colours so the claims about them can be
+/// **asserted** rather than eyeballed — see `hover_chrome_test.dart`, which
+/// composites each of these over both a white app and a black one and checks
+/// the contrast survives. The bug below is the reason that test exists.
+abstract final class HoverChrome {
+  /// How hard the app underneath is pushed back.
+  ///
+  /// Weighted by the ground rather than a flat 45%. Material scrims a light
+  /// surface less heavily than a dark one, and the reason is legibility of
+  /// what sits on top.
+  /// 0.52 and 0.62, not the 0.45 this started at, and the numbers were
+  /// chosen by the arithmetic in `hover_chrome_test.dart` rather than by eye:
+  /// at 0.45 in Paper, over a *white* app, the pale close button scored 2.6:1
+  /// against its own scrim — under WCAG's 3:1 for a graphical object. The
+  /// scrim is the only free variable there, because the button is already as
+  /// light as SWIP goes.
+  static double get scrimAlpha => SwipPalette.active.isDark ? 0.62 : 0.52;
+
+  static Color get scrim => Colors.black.withValues(alpha: scrimAlpha);
+
+  /// The close button's fill, and **the fix for why it was not prominent.**
+  ///
+  /// It was `Color(0xCC060507)` — SWIP's near-black at 80% — carrying
+  /// `Color(0xFFF2EFE9)` text. That pairing has excellent contrast *with
+  /// itself* and almost none with what it sits on. Composite it honestly: a
+  /// near-black pill, on a 45%-black scrim, over a dark app, is three dark
+  /// layers. Against a black app the button lands at about RGB 5 on a black
+  /// ground — a contrast ratio of **1.03**, which is invisible. Making it
+  /// bigger would have produced a bigger invisible button.
+  ///
+  /// The first attempt at fixing it followed the palette —
+  /// `SwipColors.surfaceRaised` — and that works beautifully in Paper and
+  /// fails in Foil for the same reason as the original: Foil's raised surface
+  /// is `#141216`, which over a dark scrim over a dark app is the near-black
+  /// pill again with extra steps.
+  ///
+  /// So it does not follow the palette, and `CLAUDE.md` already says why:
+  ///
+  /// > Camera overlays must use `onCamera*` colours, never
+  /// > `bg`/`textPrimary`/`gold500` — the feed is an arbitrary image; the app
+  /// > ground is white.
+  ///
+  /// A card floating over somebody else's app is that rule's case exactly. The
+  /// pairing is therefore **inverted** rather than re-tinted: the pale ink
+  /// becomes the fill and the near-black becomes the text, which is the
+  /// lightest thing SWIP owns sitting on the darkest thing it owns, in both
+  /// grounds, over any app.
+  static Color get closeFill => SwipColors.onCameraInk.withValues(alpha: 0.94);
+
+  static Color get closeInk => SwipColors.onCameraScrim;
+
+  /// The grip, which can only borrow contrast — it is a 4 px line with nothing
+  /// behind it but [scrim] — so it is pinned to the same light end.
+  static Color get grip => SwipColors.onCameraInk.withValues(alpha: 0.55);
+}
+
+/// `F-172` — the way out, made findable.
+///
+/// > *"the close button at the below should be a bit more prominent, keep it
+/// > transparent or maybe use the latest Android design system"*
+///
+/// The colour half of that is [HoverChrome.closeFill], which is where the
+/// interesting part is written down. This is the shape half.
+///
+/// ## Transparent *and* Material 3, rather than one or the other
+///
+/// The owner offered a choice; both are available. 94% keeps the requested
+/// translucency — the app underneath ghosts through, so the card still reads
+/// as hovering rather than as a screen that has taken over — and the shape is
+/// Material 3's: a full pill, a 56 px target, an icon paired with a label, and
+/// a tonal fill rather than a bordered outline.
 class _CloseButton extends StatelessWidget {
   const _CloseButton({required this.onTap});
 
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => TextButton.icon(
+  Widget build(BuildContext context) => FilledButton.icon(
         onPressed: onTap,
-        icon: const Icon(Icons.close_rounded, size: 18),
-        label: const Text('Close'),
-        style: TextButton.styleFrom(
-          // Hard-coded rather than themed, for the same reason the bubble's
-          // colours are: this sits over an arbitrary app, so it has to carry
-          // its own contrast instead of borrowing a ground it cannot see.
-          foregroundColor: const Color(0xFFF2EFE9),
-          backgroundColor: const Color(0xCC060507),
-          padding: const EdgeInsets.symmetric(
-              horizontal: SwipSpace.lg, vertical: SwipSpace.md),
+        icon: const Icon(Icons.close_rounded, size: 20),
+        label: Text('Close', style: SwipType.label),
+        style: FilledButton.styleFrom(
+          foregroundColor: HoverChrome.closeInk,
+          backgroundColor: HoverChrome.closeFill,
+          // Material 3 draws no shadow on a filled button, and normally that
+          // is right — a button on a page is not floating. This one is, above
+          // a scrim above somebody else's app, so a little lift is honest
+          // about where it sits rather than decorative.
+          elevation: 6,
+          shadowColor: Colors.black.withValues(alpha: 0.5),
+          minimumSize: const Size(0, 56),
+          padding: const EdgeInsets.symmetric(horizontal: SwipSpace.xxl),
           shape: const RoundedRectangleBorder(
               borderRadius: SwipRadius.pillAll),
         ),

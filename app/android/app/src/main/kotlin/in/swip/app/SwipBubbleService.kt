@@ -1,6 +1,5 @@
 package `in`.swip.app
 
-import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
@@ -22,13 +21,17 @@ import android.provider.Settings
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
+import android.view.VelocityTracker
 import android.view.View
 import android.view.WindowManager
-import android.view.animation.DecelerateInterpolator
-import android.view.animation.OvershootInterpolator
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.dynamicanimation.animation.DynamicAnimation
+import androidx.dynamicanimation.animation.FlingAnimation
+import androidx.dynamicanimation.animation.FloatPropertyCompat
+import androidx.dynamicanimation.animation.SpringAnimation
+import androidx.dynamicanimation.animation.SpringForce
 import kotlin.math.abs
 
 /**
@@ -146,6 +149,16 @@ class SwipBubbleService : Service() {
         const val ACTION_SNOOZE_HOUR = "in.swip.app.BUBBLE_SNOOZE_HOUR"
 
         private const val ONE_HOUR_MS = 60L * 60L * 1000L
+
+        /**
+         * How long the bubble stays on screen after being snoozed, so the
+         * message explaining where it went can be read.
+         *
+         * Longer than [peek]'s own 900 ms settle would be pointless — the pill
+         * has collapsed back to a circle by then and there is nothing left to
+         * read. Shorter and the sentence is gone before the eye reaches it.
+         */
+        private const val GOODBYE_MS = 900L
 
         /**
          * `SYSTEM_ALERT_WINDOW` became a special, user-granted permission in
@@ -360,6 +373,39 @@ class SwipBubbleService : Service() {
     private var screenOff = false
 
     /**
+     * What [show] last decided, so a no-op call is a no-op.
+     *
+     * Starts `false` because the bubble genuinely is not on screen until the
+     * first `applyVisibility` — which means the very first appearance pops,
+     * which is the one appearance most worth popping.
+     */
+    private var wasVisible = false
+
+    /**
+     * `F-170`. Epoch millis until which [show] refuses to hide the bubble.
+     *
+     * ## The bug this fixes, which is the `F-169` shape again
+     *
+     * `F-167` added the long-press snooze and, with it, a line promising the
+     * bubble would announce itself before going — *"a button that silently
+     * disappears when held reads as a bug"*. The string exists, the [peek]
+     * call is there, and **nobody has ever seen it.**
+     *
+     * The long-press handler peeks the message and then calls
+     * `applyVisibility`, which finds a snooze in storage and sets the window
+     * `GONE` — on the same frame. The pill was made visible and taken away
+     * before one frame had been drawn with it in. Finished, correct,
+     * unreachable: the shape `check_wiring.py` exists for, and the shape it
+     * cannot see, because every individual piece works.
+     *
+     * A grace period rather than reordering the two calls, because `snooze()`
+     * also `nudge()`s and that broadcast comes back a few milliseconds later
+     * to hide the bubble anyway. The only place that can honour "say goodbye
+     * first" is the method that does the hiding.
+     */
+    private var goodbyeUntil = 0L
+
+    /**
      * `F-165`. Which side the bubble is parked against.
      *
      * The window is `WRAP_CONTENT` and positioned by its **left** edge, so
@@ -374,6 +420,204 @@ class SwipBubbleService : Service() {
 
     /** Re-show the bubble the moment a payment's quiet window expires. */
     private val unquiet = Runnable { applyVisibility() }
+
+    // ── the physics ─────────────────────────────────────────────────────────
+    //
+    // `F-170`. **Everything the bubble does is a spring or a fling now, and
+    // none of it has a duration.**
+    //
+    // > *"make it as beautiful and as seamless as the messenger bubble icon
+    // > that comes and pops up … so it feels very native rather than too much
+    // > sticky type experience"*
+    //
+    // That word — sticky — is an accurate description of what a fixed-duration
+    // interpolator does. The old edge snap was
+    // `ValueAnimator` + `OvershootInterpolator(1.1f)` + `duration = 260`, and
+    // a duration is the problem: **a hard flick and a gentle nudge both took
+    // 260 ms.** Throw the bubble across the screen and it crawls; push it a
+    // centimetre and it lurches. The motion is not related to what the finger
+    // did, so it reads as an animation being played *at* you rather than an
+    // object you are holding.
+    //
+    // A `SpringAnimation` has no duration. It has a rest position, a
+    // stiffness, a damping ratio and — the part that matters — a **start
+    // velocity**, which is handed straight from the `VelocityTracker` that was
+    // watching the finger. The same gesture that threw it is the thing that
+    // decides how fast it arrives, so a flick lands hard and a nudge drifts.
+    //
+    // ## Where this came from
+    //
+    // Asked to go and look at how other people do this. The open-source chat
+    // heads all reach for the same idea:
+    //
+    //   * flipkart-incubator/springy-heads — spring physics per head
+    //   * Crdzbird/floaty_chatheads — Facebook Rebound, the library Facebook
+    //     wrote for chat heads before Android had its own
+    //   * txusballesteros/bubbles-for-android, henrychuangtw/Android-ChatHead
+    //
+    // Rebound is what Messenger itself used. Android has since absorbed the
+    // idea as `androidx.dynamicanimation` — same maths, ~50 KB, first-party,
+    // no third-party animation runtime in an app whose selling point is that
+    // it does not phone home. That is the dependency `bootstrap.sh` now
+    // injects, and it is the first real use of the `F-161` mechanism.
+    //
+    // ## Why a `FloatPropertyCompat` and not `DynamicAnimation.X`
+    //
+    // The built-in `DynamicAnimation.X` / `.Y` animate a **View's** position
+    // inside its parent. This bubble has no parent — it is its own window, and
+    // it moves by mutating `WindowManager.LayoutParams` and calling
+    // `updateViewLayout`. So the property is written by hand: the getter reads
+    // the layout params, the setter writes them and pushes the window. The
+    // spring does not know or care that it is driving a window rather than a
+    // view, which is the whole point of the abstraction.
+
+    /**
+     * The window's left edge, as something a spring can pull on.
+     *
+     * `runCatching` because `updateViewLayout` throws if the window has
+     * already been removed, and an animation outlives its view by up to a
+     * frame — the service can be stopped mid-flight. A crash inside an
+     * animation callback would take the whole app down for the sake of a
+     * bubble that was on its way out anyway.
+     */
+    private val windowX = object : FloatPropertyCompat<View>("windowX") {
+        override fun getValue(view: View): Float = (params?.x ?: 0).toFloat()
+        override fun setValue(view: View, value: Float) {
+            val lp = params ?: return
+            lp.x = value.toInt()
+            runCatching { windows.updateViewLayout(view, lp) }
+        }
+    }
+
+    private val windowY = object : FloatPropertyCompat<View>("windowY") {
+        override fun getValue(view: View): Float = (params?.y ?: 0).toFloat()
+        override fun setValue(view: View, value: Float) {
+            val lp = params ?: return
+            lp.y = value.toInt()
+            runCatching { windows.updateViewLayout(view, lp) }
+        }
+    }
+
+    /**
+     * Held as fields, one per property, and **reused** rather than recreated.
+     *
+     * This is not a micro-optimisation, it is the interruption behaviour. A
+     * running `SpringAnimation` handed a new `animateToFinalPosition` keeps
+     * its current position *and its current velocity* and re-aims — so
+     * grabbing the bubble mid-flight, or a second peek arriving during the
+     * first one's settle, is continuous motion. Building a fresh animation
+     * each time would start it from a standstill, which is the visible
+     * stutter this whole change exists to remove.
+     */
+    private var slideX: SpringAnimation? = null
+    private var settleY: SpringAnimation? = null
+    private var glideY: FlingAnimation? = null
+    private var popX: SpringAnimation? = null
+    private var popY: SpringAnimation? = null
+
+    private fun springFor(
+        view: View,
+        property: FloatPropertyCompat<View>,
+        stiffness: Float,
+        damping: Float,
+    ): SpringAnimation = SpringAnimation(view, property).apply {
+        // `setSpring(...)`, `setStiffness(...)` and `setDampingRatio(...)`
+        // spelled out as calls rather than as Kotlin property assignments.
+        // Every setter in `dynamicanimation` returns the object for chaining,
+        // and **Kotlin only synthesises a property for a setter returning
+        // void** — so `spring = …` and `stiffness = …` do not compile here.
+        // They look like they should, which is why this note exists.
+        setSpring(
+            SpringForce().also {
+                it.setStiffness(stiffness)
+                it.setDampingRatio(damping)
+            }
+        )
+    }
+
+    /** Build every animation this bubble will ever need, once, on add. */
+    private fun buildPhysics(view: View) {
+        // LOW stiffness + LOW_BOUNCY: it travels a visible distance, so the
+        // eye can follow it across, and it settles with one small overshoot
+        // rather than the wobble MEDIUM_BOUNCY gives — a bubble that jiggles
+        // twice after landing looks like a toy.
+        slideX = springFor(
+            view, windowX,
+            SpringForce.STIFFNESS_LOW,
+            SpringForce.DAMPING_RATIO_LOW_BOUNCY,
+        )
+        // NO_BOUNCY vertically. Horizontal overshoot reads as landing against
+        // the edge; vertical overshoot reads as the bubble having been
+        // *dropped*, because there is no edge there to land on.
+        settleY = springFor(
+            view, windowY,
+            SpringForce.STIFFNESS_LOW,
+            SpringForce.DAMPING_RATIO_NO_BOUNCY,
+        )
+        // The press, and the pop-in. MEDIUM_BOUNCY is right for scale in a way
+        // it is not for position: a button that squashes and springs back with
+        // a little life is the single clearest "this is a real control"
+        // signal, and it is what makes the Messenger head feel alive.
+        popX = springFor(
+            view, DynamicAnimation.SCALE_X,
+            SpringForce.STIFFNESS_MEDIUM,
+            SpringForce.DAMPING_RATIO_MEDIUM_BOUNCY,
+        )
+        popY = springFor(
+            view, DynamicAnimation.SCALE_Y,
+            SpringForce.STIFFNESS_MEDIUM,
+            SpringForce.DAMPING_RATIO_MEDIUM_BOUNCY,
+        )
+    }
+
+    /** Stop everything mid-flight. Called on touch-down and on removal. */
+    private fun cancelMotion() {
+        runCatching { slideX?.cancel() }
+        runCatching { settleY?.cancel() }
+        runCatching { glideY?.cancel() }
+        glideY = null
+    }
+
+    /**
+     * Spring both scales to [to]. The press, the release and the pop-in.
+     *
+     * The explicit zero matters because a `DynamicAnimation` **keeps its start
+     * velocity after being cancelled** — `endAnimationInternal` clears the
+     * start *value* and leaves the velocity alone. So a press arriving after a
+     * cancelled [kickScale] would inherit that kick and shoot past its target.
+     *
+     * It costs nothing when the spring is already running: `SpringAnimation`
+     * reads the start velocity only at `start()`, and
+     * `animateToFinalPosition` on a running spring just re-aims it, keeping
+     * the motion it already has. Zeroing here is therefore "clean start when
+     * stopped, continuous when moving", which is what both callers want.
+     */
+    private fun scaleTo(to: Float) {
+        popX?.apply { setStartVelocity(0f); animateToFinalPosition(to) }
+        popY?.apply { setStartVelocity(0f); animateToFinalPosition(to) }
+    }
+
+    /**
+     * Shove the bubble outwards and let it come back by itself.
+     *
+     * A spring whose rest position is already where it is, handed a velocity,
+     * overshoots and settles — which is a bulge with no duration, no end
+     * callback and nothing to cancel. See [peek] for why the chained version
+     * that used to live there had to go.
+     */
+    private fun kickScale(velocity: Float) {
+        // `cancel()` first, and this is the one place it is right to. A start
+        // velocity is only read at `start()`, so kicking a spring that is
+        // already running — a peek during the pop-in, say — would be silently
+        // ignored and the bubble would not acknowledge the tap at all. Here
+        // the bump IS the feedback, so it has to be guaranteed rather than
+        // merged.
+        for (spring in listOfNotNull(popX, popY)) {
+            spring.cancel()
+            spring.setStartVelocity(velocity)
+            spring.animateToFinalPosition(1f)
+        }
+    }
 
     private val systemEvents = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -493,7 +737,12 @@ class SwipBubbleService : Service() {
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = 0
+            // `F-170`. The 8 dp margin, not 0. Every later rest position is
+            // `margin` or `screenWidth - width - margin`, so starting flush
+            // against the glass meant the very first drag ended with the
+            // bubble sitting 8 dp further in than where it had begun, for no
+            // reason the user could see.
+            x = dp(8f)
             // Roughly a third down the screen: clear of the status bar, clear
             // of the thumb's resting place, and out of the way of the bottom
             // sheets most apps put their primary action in.
@@ -504,10 +753,24 @@ class SwipBubbleService : Service() {
             .onSuccess {
                 bubble = view
                 params = lp
+                // Ordered after the assignment: `windowX`/`windowY` read
+                // `params`, so a spring built before it is set would take its
+                // start position from a null and begin at zero.
+                buildPhysics(view)
             }
     }
 
     private fun removeBubble() {
+        cancelMotion()
+        // Reset, or a service that is stopped and started again builds a fresh
+        // view while `show` still believes the old one was on screen — and the
+        // guard there would then skip the pop-in for the one appearance that
+        // most needs it.
+        wasVisible = false
+        slideX = null
+        settleY = null
+        popX = null
+        popY = null
         bubble?.let { v -> runCatching { windows.removeView(v) } }
         bubble = null
         label = null
@@ -530,7 +793,7 @@ class SwipBubbleService : Service() {
         // two things most likely to happen during one.
         val asleep = snoozedUntil(this)
         val hidden = screenOff || quiet || appInForeground || asleep > 0L
-        bubble?.visibility = if (hidden) View.GONE else View.VISIBLE
+        show(!hidden)
 
         // Re-check when whichever timer expires first; nothing else will wake
         // us. A snooze can be hours away, and `postDelayed` holds no wakelock,
@@ -544,6 +807,69 @@ class SwipBubbleService : Service() {
         if (next != null) main.postDelayed(unquiet, next - now + 250L)
     }
 
+    /**
+     * `F-170`. Appear by **popping in**, disappear instantly.
+     *
+     * > *"as seamless as the messenger bubble icon that comes and pops up"*
+     *
+     * The bubble spends most of its life hidden — behind a payment, behind
+     * SWIP itself, behind a snoozed afternoon — so the moment it comes back is
+     * the moment the user actually sees, and it used to be a hard cut from
+     * nothing to a full-size circle. That cut is why it read as an overlay
+     * pasted on the screen rather than something arriving on it.
+     *
+     * Springing up from 60% with `DAMPING_RATIO_MEDIUM_BOUNCY` is the chat
+     * head's entrance, and it costs nothing: the same two scale springs the
+     * press uses, aimed somewhere else.
+     *
+     * **Going away is not animated, deliberately.** Three of the four reasons
+     * to hide are the screen turning off, a payment app coming forward and
+     * SWIP itself coming forward — all of which mean something else is already
+     * taking the screen, and animating out under it would draw the eye to a
+     * bubble that is supposed to be getting out of the way. The fourth, the
+     * long-press snooze, does its own goodbye through [peek] before this runs.
+     *
+     * [wasVisible] rather than reading `view.visibility`: this method is
+     * called on every broadcast and every nudge, many of which change nothing,
+     * and re-popping a bubble that was already on screen would make it twitch
+     * every time the user unlocked their phone.
+     */
+    private fun show(visible: Boolean) {
+        val view = bubble ?: return
+
+        // Checked before the no-op guard below, and `wasVisible` deliberately
+        // left alone: this call has not been honoured, so the next one still
+        // has to find a state that says "on screen, wants to be off".
+        if (!visible) {
+            val left = goodbyeUntil - System.currentTimeMillis()
+            if (left > 0L) {
+                main.removeCallbacks(unquiet)
+                main.postDelayed(unquiet, left + 50L)
+                return
+            }
+        }
+
+        if (visible == wasVisible && view.visibility != View.GONE) return
+        wasVisible = visible
+
+        if (!visible) {
+            cancelMotion()
+            view.visibility = View.GONE
+            return
+        }
+
+        view.visibility = View.VISIBLE
+        // Set directly, not sprung: this is the *start* of the pop, and a
+        // spring cannot be told where to begin — only where to end. Cancelling
+        // first because writing a property a running animation owns is
+        // undefined, and the press spring may still be settling from the tap
+        // that hid it.
+        runCatching { popX?.cancel(); popY?.cancel() }
+        view.scaleX = 0.6f
+        view.scaleY = 0.6f
+        scaleTo(1f)
+    }
+
     // ── the bubble itself ───────────────────────────────────────────────────
 
     /**
@@ -555,8 +881,8 @@ class SwipBubbleService : Service() {
      *
      * Because the circle and the pill have to be **the same view at two
      * widths**, and that only works if the width is measured rather than set.
-     * The window is `WRAP_CONTENT`; a 32 dp disc between two 8 dp pads
-     * measures to exactly the 48 dp minimum, so it is a circle. Show the
+     * The window is `WRAP_CONTENT`; a 38 dp disc between two 9 dp pads
+     * measures to exactly the 56 dp minimum, so it is a circle. Show the
      * label and the same measure pass makes it a pill. Nothing computes a
      * width, nothing animates one, and there is no state that can disagree
      * with what is on screen.
@@ -565,9 +891,19 @@ class SwipBubbleService : Service() {
      * **on top of** the glyph inside an unchanged circle. That was the first
      * version of this method and it would have shipped as a smudge.
      *
-     * The 24 dp corner radius in `swip_bubble_bg.xml` is half of [size]. That
-     * is what makes the square case a true circle, and it is why the two
-     * numbers have to move together.
+     * ## The size, and the one number that has to move with it
+     *
+     * `F-170` — *"can you make sure that you increase the size a bit"*. 48 dp
+     * to **56 dp**, which is Material's FAB diameter: the size Android itself
+     * uses for a round thing that floats over content and is pressed with a
+     * thumb. Messenger's chat head is about the same. 48 dp is the *minimum*
+     * touch target — correct as a floor, too small for the one control that
+     * has to be findable over somebody else's app.
+     *
+     * **The corner radius in `swip_bubble_bg.xml` is half of [size] and has to
+     * be changed with it.** That is what makes the square case a true circle;
+     * left at 24 dp on a 56 dp bubble it would be a rounded square, and
+     * nothing would fail — it would just quietly stop being round.
      *
      * Built in code rather than inflated from a layout because it is one row
      * with two children, and a layout file for that is a second place to keep
@@ -575,8 +911,8 @@ class SwipBubbleService : Service() {
      */
     @SuppressLint("ClickableViewAccessibility")
     private fun buildBubble(): View {
-        val size = dp(48f)
-        val disc = dp(32f)
+        val size = dp(56f)
+        val disc = dp(38f)
         val pad = (size - disc) / 2
 
         val glyph = ImageView(this).apply {
@@ -589,7 +925,7 @@ class SwipBubbleService : Service() {
             // Inset within the disc. `ImageView` fits the drawable into the
             // padded content box, so this is what sizes the slash rather than
             // a second dimension to keep in sync.
-            setPadding(dp(6f), dp(6f), dp(6f), dp(6f))
+            setPadding(dp(7f), dp(7f), dp(7f), dp(7f))
             layoutParams = LinearLayout.LayoutParams(disc, disc)
         }
 
@@ -598,7 +934,7 @@ class SwipBubbleService : Service() {
             // The one colour that is safe over SWIP's ink ground, hard-coded
             // for the same reason the drawable's are - see swip_bubble_bg.xml.
             setTextColor(0xFFF2EFE9.toInt())
-            textSize = 12f
+            textSize = 13f
             maxLines = 1
             // GONE rather than INVISIBLE: INVISIBLE still occupies width, so
             // the bubble would be pill-shaped and empty at rest.
@@ -616,10 +952,9 @@ class SwipBubbleService : Service() {
         return LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            // 48 dp is Material's minimum touch target and the floor for this
-            // control specifically. The reference bubble measures about 28 dp
-            // and is genuinely awkward to hit; SWIP's is pressed one-handed,
-            // at a counter, usually in a hurry, so it does not copy that.
+            // See the size note above: 56 dp, Material's FAB diameter, not
+            // the 48 dp minimum touch target. This is pressed one-handed, at
+            // a counter, usually in a hurry, over an app SWIP did not draw.
             minimumWidth = size
             minimumHeight = size
             setPadding(pad, pad, pad, pad)
@@ -637,6 +972,11 @@ class SwipBubbleService : Service() {
             isClickable = true
             setOnTouchListener(DragAndTap())
             contentDescription = getString(R.string.swip_bubble_description)
+            // Hidden until `applyVisibility` has had its say. Added visible,
+            // there is a frame where a bubble that should be suppressed — mid
+            // payment, screen off, snoozed — is drawn at full size before
+            // being taken away again.
+            visibility = View.GONE
         }
     }
 
@@ -666,10 +1006,21 @@ class SwipBubbleService : Service() {
             // inside the press timeout, and a snooze nobody asked for is a
             // button that vanishes for a day on its own.
             if (dragging || !running) return@Runnable
+
+            // `F-170`. Claimed BEFORE the snooze is written, because writing
+            // it nudges the receiver, and the receiver hides the bubble. Set
+            // afterwards this would be a grace period awarded to a bubble
+            // that had already gone.
+            goodbyeUntil = System.currentTimeMillis() + GOODBYE_MS
+
             snoozeForTheDay(this@SwipBubbleService)
             // Say so, in the bubble itself, in the moment before it goes. A
             // button that silently disappears when held reads as a bug.
             peek(getString(R.string.swip_bubble_snoozed))
+            // A goodbye the finger can feel as well as read: the same scale
+            // spring the press uses, kicked inwards so the bubble shrinks
+            // under the thumb that is still on it.
+            kickScale(-1.4f)
             applyVisibility()
         }
 
@@ -678,28 +1029,82 @@ class SwipBubbleService : Service() {
                 .scaledTouchSlop
         }
 
+        /**
+         * `F-170`. How fast the finger was moving when it let go.
+         *
+         * This is the single value that turns the snap from an animation into
+         * a throw, and there is no other way to get it — `MotionEvent` carries
+         * a position, never a speed. `VelocityTracker` is Android's own
+         * least-squares fit over the recent history of the gesture, which is
+         * why it is fed every event rather than just the last two: a
+         * two-sample difference is dominated by whatever jitter the digitiser
+         * produced in the final 8 ms.
+         *
+         * Nullable and recycled on every lift because the tracker comes from a
+         * system pool. Holding one past the gesture leaks a pooled object;
+         * failing to recycle it means the next gesture gets a fresh allocation
+         * instead of the pooled one.
+         */
+        private var speed: VelocityTracker? = null
+
+        /**
+         * Above this, the *direction of the throw* picks the edge; below it,
+         * the nearer edge wins.
+         *
+         * This is the difference between a bubble and a slider. Flick left
+         * from the right-hand half of the screen and a midpoint rule sends it
+         * back to the right — the gesture is ignored and it feels like the
+         * bubble is fighting you. Messenger does not do that, and neither does
+         * any of the chat-head implementations that were looked at.
+         *
+         * `scaledMinimumFlingVelocity` rather than a number of my own, because
+         * it is the same threshold every list in Android uses to decide a
+         * flick happened, and it is adjusted per device density.
+         */
+        private val flingFloor by lazy {
+            android.view.ViewConfiguration.get(this@SwipBubbleService)
+                .scaledMinimumFlingVelocity.toFloat()
+        }
+
         override fun onTouch(view: View, event: MotionEvent): Boolean {
             val lp = params ?: return false
 
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
+                    // `F-170`. The finger outranks the physics. Without this
+                    // a bubble grabbed while it is still flying keeps being
+                    // pulled towards the edge it was thrown at, and drags with
+                    // a ghost tugging at it — the exact opposite of the direct
+                    // manipulation this change is for.
+                    cancelMotion()
+
                     downX = event.rawX
                     downY = event.rawY
                     startX = lp.x
                     startY = lp.y
                     downAt = System.currentTimeMillis()
                     dragging = false
+
+                    speed?.recycle()
+                    speed = VelocityTracker.obtain().apply { addMovement(event) }
+
                     main.postDelayed(
                         longPress,
                         android.view.ViewConfiguration.getLongPressTimeout()
                             .toLong(),
                     )
-                    view.animate().scaleX(0.92f).scaleY(0.92f)
-                        .setDuration(120).start()
+                    // Sprung rather than `animate().setDuration(120)`, for the
+                    // reason in the physics section: a tap shorter than 120 ms
+                    // used to release before the press had finished shrinking,
+                    // so the two fixed animations fought and the bubble
+                    // visibly hitched under a quick tap. A spring handed a new
+                    // target keeps its velocity and simply turns round.
+                    scaleTo(0.88f)
                     return true
                 }
 
                 MotionEvent.ACTION_MOVE -> {
+                    speed?.addMovement(event)
                     val dx = event.rawX - downX
                     val dy = event.rawY - downY
                     if (!dragging && (abs(dx) > slop || abs(dy) > slop)) {
@@ -717,11 +1122,22 @@ class SwipBubbleService : Service() {
 
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     main.removeCallbacks(longPress)
-                    view.animate().scaleX(1f).scaleY(1f)
-                        .setDuration(120).start()
+                    scaleTo(1f)
+
+                    // 1000 units of time = pixels per second, which is what
+                    // `SpringAnimation` and `FlingAnimation` both expect. The
+                    // default is pixels per millisecond and would make every
+                    // throw a thousand times too slow to see.
+                    val tracker = speed
+                    tracker?.addMovement(event)
+                    tracker?.computeCurrentVelocity(1000)
+                    val vx = tracker?.xVelocity ?: 0f
+                    val vy = tracker?.yVelocity ?: 0f
+                    tracker?.recycle()
+                    speed = null
 
                     if (dragging) {
-                        snapToEdge(view, lp)
+                        snapToEdge(view, lp, vx, vy)
                     } else if (event.actionMasked == MotionEvent.ACTION_UP) {
                         // A tap. `ViewConfiguration`'s long-press timeout is
                         // the right boundary: anything longer was somebody
@@ -745,18 +1161,63 @@ class SwipBubbleService : Service() {
         }
 
         /**
-         * Messenger's chat-head behaviour: go to whichever side is nearer,
-         * with an overshoot so it reads as landing rather than sliding to a
-         * halt.
+         * `F-170`. Let go, and the bubble carries on doing what the finger
+         * was doing — then lands.
+         *
+         * The old version of this method was four lines of `ValueAnimator`
+         * with `duration = 260` and an `OvershootInterpolator`, and it ignored
+         * the gesture entirely: where the finger was when it lifted was the
+         * only input. This one takes the velocity as well, and the two axes
+         * get different treatment because they are different problems.
+         *
+         * ## X is a spring, because there is somewhere to land
+         *
+         * Horizontally the bubble has exactly two rest positions — the left
+         * margin and the right one. That is a spring: a fixed target, a start
+         * velocity, and no duration at all. Thrown hard it arrives fast and
+         * overshoots a little into the edge; nudged, it drifts across. Same
+         * code, and the difference is the throw rather than a branch.
+         *
+         * ## Y is a fling, because there is nowhere to land
+         *
+         * Vertically every position is equally valid, so there is no target to
+         * spring to — what should happen is that the bubble keeps travelling
+         * and slows down, which is precisely what `FlingAnimation` is. Bounded
+         * by `setMinValue`/`setMaxValue` so it stops at the edges of the
+         * allowed strip instead of sailing off the top, which is a bubble the
+         * user has to reboot to get back.
+         *
+         * Friction 1.1 rather than the default 1.0: slightly stickier than a
+         * scrolling list, because a bubble that keeps gliding for a second
+         * after you let go feels out of control when it is sitting on top of
+         * somebody else's app.
+         *
+         * ## Why the throw direction can beat the midpoint
+         *
+         * See [flingFloor]. Below it, the nearer edge wins, which is what you
+         * want when someone has carefully placed the bubble. Above it, the
+         * direction of the throw wins, which is what you want when someone has
+         * flicked it — and a midpoint rule in that case sends the bubble back
+         * where it came from, which reads as the app refusing the gesture.
          */
-        private fun snapToEdge(view: View, lp: WindowManager.LayoutParams) {
+        private fun snapToEdge(
+            view: View,
+            lp: WindowManager.LayoutParams,
+            vx: Float,
+            vy: Float,
+        ) {
             val screenWidth = resources.displayMetrics.widthPixels
             val margin = dp(8f)
-            parkedRight = lp.x + view.width / 2 >= screenWidth / 2
-            val target = if (parkedRight) {
-                screenWidth - view.width - margin
+
+            parkedRight = if (abs(vx) > flingFloor) {
+                vx > 0f
             } else {
-                margin
+                lp.x + view.width / 2 >= screenWidth / 2
+            }
+            val target = if (parkedRight) {
+                (screenWidth - view.width - margin).toFloat()
+            } else {
+                margin.toFloat()
             }
 
             // Keep it on screen vertically too — a bubble dragged off the top
@@ -770,16 +1231,40 @@ class SwipBubbleService : Service() {
             // `coerceAtLeast` first makes the range provably non-empty.
             val lowest = (screenHeight - view.height - dp(72f))
                 .coerceAtLeast(margin)
-            lp.y = lp.y.coerceIn(margin, lowest)
 
-            ValueAnimator.ofInt(lp.x, target).apply {
-                duration = 260
-                interpolator = OvershootInterpolator(1.1f)
-                addUpdateListener {
-                    lp.x = it.animatedValue as Int
-                    runCatching { windows.updateViewLayout(view, lp) }
+            slideX?.apply {
+                cancel()
+                setStartVelocity(vx)
+                animateToFinalPosition(target)
+            }
+
+            if (lp.y in margin..lowest && abs(vy) > flingFloor) {
+                // Started inside the strip and thrown: glide, and let friction
+                // decide where it stops.
+                glideY = FlingAnimation(view, windowY).apply {
+                    setStartVelocity(vy)
+                    // `setFriction`, not `friction =` — see `springFor`.
+                    setFriction(1.1f)
+                    setMinValue(margin.toFloat())
+                    setMaxValue(lowest.toFloat())
+                    start()
                 }
-                start()
+            } else {
+                // Either barely moving, or already outside the strip because
+                // the finger dragged it there. Both want the same thing: come
+                // to rest at the nearest legal position, without a bounce —
+                // `DAMPING_RATIO_NO_BOUNCY`, set in `buildPhysics`.
+                //
+                // A fling would be wrong here: `FlingAnimation` with a start
+                // position outside its own min/max ends immediately, leaving
+                // the bubble stranded off screen.
+                settleY?.apply {
+                    cancel()
+                    setStartVelocity(vy)
+                    animateToFinalPosition(
+                        lp.y.coerceIn(margin, lowest).toFloat()
+                    )
+                }
             }
         }
     }
@@ -847,13 +1332,21 @@ class SwipBubbleService : Service() {
         text.visibility = View.VISIBLE
         reanchor()
 
-        view.animate().scaleX(1.06f).scaleY(1.06f)
-            .setInterpolator(DecelerateInterpolator())
-            .setDuration(140)
-            .withEndAction {
-                view.animate().scaleX(1f).scaleY(1f).setDuration(140).start()
-            }
-            .start()
+        // `F-170`. One call, no timer, no second animation waiting on the
+        // first's end callback.
+        //
+        // This used to be `animate().scaleX(1.06f)` for 140 ms followed by a
+        // `withEndAction` scaling back — two fixed animations chained through
+        // a callback, so a peek arriving while the last one was mid-chain
+        // produced a visible double bump, and a service destroyed between them
+        // left the bubble parked at 1.06.
+        //
+        // A spring already rests at 1. Handing it an outward velocity and the
+        // same rest position makes it bulge and return on its own, with the
+        // size of the bulge set by the kick rather than by a hard-coded
+        // scale: 2.5 against `STIFFNESS_MEDIUM` peaks at about 6%, which is
+        // where the old number came from. Interrupting it is free.
+        kickScale(2.5f)
 
         main.removeCallbacks(settle)
         main.postDelayed(settle, 900)
@@ -874,13 +1367,30 @@ class SwipBubbleService : Service() {
      */
     private fun reanchor() {
         val view = bubble ?: return
-        val lp = params ?: return
         view.post {
             if (bubble !== view) return@post
             val margin = dp(8f)
             val screenWidth = resources.displayMetrics.widthPixels
-            lp.x = if (parkedRight) screenWidth - view.width - margin else margin
-            runCatching { windows.updateViewLayout(view, lp) }
+            val target = if (parkedRight) {
+                (screenWidth - view.width - margin).toFloat()
+            } else {
+                margin.toFloat()
+            }
+
+            // `F-170`. Sprung, not assigned.
+            //
+            // Two reasons, and the second is a bug rather than a polish. The
+            // pill widening by ~90 px used to move the window's left edge by
+            // that much in a single frame, which is a jump the eye catches on
+            // the one side of the screen where the bubble is parked. And
+            // writing `lp.x` directly while [slideX] is mid-flight means the
+            // spring's next frame overwrites the assignment — a peek during an
+            // edge snap would silently do nothing at all.
+            //
+            // `animateToFinalPosition` on the same spring instance is the
+            // answer to both: it re-aims the motion that is already running,
+            // keeping its velocity, rather than competing with it.
+            slideX?.animateToFinalPosition(target)
         }
     }
 
