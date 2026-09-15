@@ -127,7 +127,8 @@ When the cause is found, in this order:
 | 7 | Delete every `BubbleTrace.log(` call — `SwipBubbleService.kt`, `SwipHoverActivity.kt`, `SwipBootReceiver.kt`, `SwipTile.kt`, `MainActivity.kt` |
 | 8 | Delete `traceVisibility` and `lastTrace` from `SwipBubbleService.kt` |
 | 9 | Delete `check_trace_gate` and `TRACE_KT` from [`check_wiring.py`](../app/tool/check_wiring.py), and its line from that file's docstring |
-| 10 | Delete this page, and its rows in `docs/35` and `CLAUDE.md` |
+| 10 | Delete [`tool/read_trace.py`](../app/tool/read_trace.py) — the reader is half of the same tool |
+| 11 | Delete this page, and its rows in `docs/35` and `CLAUDE.md` |
 
 **Keep** the `from:` parameters on `noteForeground`, `snooze` and `wake`. They
 were added for the trace and they are worth having without it: a call site that
@@ -146,8 +147,30 @@ quietly stop meaning anything.
    it is far easier to read than a long one.
 3. **Export** — it shares a `.jsonl` file.
 
-The first thing worth looking at is the last `visibility` line before the
-button vanished, and its `why`.
+### Reading it
+
+```bash
+cd app && python3 tool/read_trace.py ~/Downloads/SWIP_BubbleTrace_….jsonl
+```
+
+[`read_trace.py`](../app/tool/read_trace.py) prints the visibility changes only,
+with the reason and how long each hidden stretch lasted; flags a **process
+change**, because a new pid means the service was killed rather than the bubble
+hidden, and those are different bugs; and lists every foreground claim with the
+component and lifecycle hook that made it.
+
+It reports a claim with no matching release as an **observation with
+timestamps, not a verdict.** That is deliberate: `F-178` is a bug found by
+reading, and a tool that cheerfully confirms its author's hypothesis is not
+evidence.
+
+**What it cannot tell you:** whether the button was on screen. The trace records
+what the service *decided*. A bubble can be `VISIBLE` and sitting behind another
+app's overlay — so if the file says visible and you say it was not, that is a
+real finding, not a contradiction to explain away.
+
+By hand, the first thing worth looking at is the last `visibility` line before
+the button vanished, and its `why`.
 
 ---
 

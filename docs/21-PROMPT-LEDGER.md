@@ -1925,7 +1925,7 @@ encrypted backup first.
 
 ---
 
-## Prompt 44 — 15 Sep 2026 · Who else has built a floater *(current)*
+## Prompt 44 — 15 Sep 2026 · Who else has built a floater
 
 **Original prompt, verbatim:**
 
@@ -1954,6 +1954,56 @@ sharing shortcut and is scoped to a conversation and a `Person`. SWIP has a
 shop code, not a person. `SYSTEM_ALERT_WINDOW` is therefore not a shortcut
 around a nicer API; it is the only route open, which is worth knowing whenever
 the permission screen has to justify itself.
+
+---
+
+## Prompt 45 — 15 Sep 2026 · Continue *(current)*
+
+**Original prompt, verbatim:**
+
+> continue
+
+Taken as *finish the round properly*, which meant three things — one of them a
+rule I had broken on the way out.
+
+| # | ID | Did | Why |
+|---|---|---|---|
+| 1 | — | Read CI for the prompt-44 push | **I had pushed without reading it.** The standing rule is every push, and I had ended the turn before checking |
+| 2 | — | **Corrected a fact I had canonised one commit earlier** | The Bubbles API claim in `CLAUDE.md` came from a search summary. Read at source, it was overstated |
+| 3 | `F-179` | Built [`tool/read_trace.py`](../app/tool/read_trace.py) | The recorder has been on since `F-176` with nothing to read its output |
+
+### The correction
+
+`docs/39` §4 said flatly that notification bubbles are *"scoped to conversations
+and a `Person`"*. Reading
+[the official page](https://developer.android.com/develop/ui/compose/notifications/bubbles)
+rather than a search result: **true from API 30 only.** Below that there are
+three routes in, and the third is *"the app is in the foreground when the
+notification is sent"* — nothing to do with conversations.
+
+The conclusion survives and is now sharper. That legacy route is open precisely
+when SWIP is in the foreground, which is **exactly when the bubble is supposed
+to be hidden** (`docs/32` §2). So the one loophole is useless to this app for a
+second, independent reason, and the overlay permission is the only route on
+every Android version.
+
+Caught by applying this project's own rule to a claim I had just written down.
+
+### The reader
+
+`F-176` shipped a recorder and no way to read it. The file is fine by eye for
+thirty lines; a real report will be several hundred with the two that matter in
+the middle.
+
+**Verified against a synthetic trace of the `F-178` sequence before trusting
+it** — generated the bug (hover card opened, Home pressed, foreground never
+released) and the fix, and checked it names one and shows a clean 13-second
+hidden stretch on the other. Also fed it a truncated final line, because a
+process killed mid-write is the event most worth recording.
+
+It reports an unreleased foreground claim as an **observation with timestamps,
+not a verdict**: `F-178` is a bug I found by reading, and a tool that confirms
+its author's hypothesis is not evidence.
 
 ---
 

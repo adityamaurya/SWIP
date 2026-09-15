@@ -91,15 +91,41 @@ the next person does not re-derive it.
 are Android's *blessed* floating UI. No `SYSTEM_ALERT_WINDOW`, no foreground
 service, no permission screen — the system draws and manages the bubble.
 
-**SWIP does not qualify.** From API 30 a bubble's notification must reference a
-**sharing shortcut**, and bubbles are scoped to conversations and a `Person`.
-SWIP has no conversations and no people; it has a shop code. Declaring a fake
-conversation to borrow the API would be misrepresenting the app to the system
-and to Play review.
+**SWIP does not qualify.** Read at source rather than taken from a summary,
+because this claim is load-bearing enough to be in `CLAUDE.md`:
 
-So the overlay permission is not a shortcut taken around a nicer API — it is
-the only route open to this kind of app. Worth knowing when the permission
-screen has to justify itself.
+> *"If an app targets Android 11 (API level 30) or higher, a notification
+> doesn't appear as a bubble unless it meets the conversation requirements."*
+>
+> *"If targeting Android 11 (API level 30) or higher, make sure the bubble
+> metadata or notification references a sharing shortcut."*
+
+SWIP has no conversations and no people; it has a shop code. Declaring a fake
+sharing shortcut to borrow the API would misrepresent the app to the system and
+to Play review.
+
+### The pre-API-30 exception, and why it does not help
+
+The first version of this section said flatly that bubbles are scoped to
+conversations. **That is only true from API 30.** On API 29 and below the docs
+list three ways in, and the third has nothing to do with conversations at all:
+
+> * *"The notification uses `MessagingStyle` and has a `Person` added."*
+> * *"The notification is from a call to `Service.startForeground`, has a
+>   `category` of `CATEGORY_CALL`, and has a `Person` added."*
+> * *"The app is in the foreground when the notification is sent."*
+
+So on old Android any notification could bubble — **provided the app was in the
+foreground.** Which is exactly inverted from what SWIP needs. The whole purpose
+of the floating button is to be there when SWIP is **not** in front; `docs/32`
+§2 goes further and hides it deliberately whenever SWIP *is*. The one legacy
+loophole is open precisely in the state where SWIP does not want a bubble, and
+closed in every state where it does.
+
+So the conclusion stands and is now exact: the overlay permission is not a
+shortcut taken around a nicer API — it is the only route open to this kind of
+app, on every Android version, for two different reasons. Worth knowing when
+the permission screen has to justify itself.
 
 Samples, for reference:
 

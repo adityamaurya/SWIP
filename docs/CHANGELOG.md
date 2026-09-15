@@ -2015,6 +2015,71 @@ time the permission screen has to justify itself.
 
 ---
 
+## Prompt 45 — 15 Sep 2026 · Continue
+
+> *"continue"*
+
+### A rule I had broken
+
+**I pushed prompt 44 and ended the turn without reading CI.** The standing rule
+in `CLAUDE.md` is every push, including the APK job, and it exists because two
+builds were once reported green while the APK job had failed. Read now, and
+green — run [34983902452](https://github.com/adityamaurya/SWIP/actions/runs/34983902452).
+
+Recording it rather than quietly checking, because the rule is only worth
+anything if breaking it is visible.
+
+### A fact corrected one commit after canonising it
+
+`docs/39` §4 and `CLAUDE.md` said notification bubbles are *"scoped to
+conversations and a `Person`"*. That came from a search summary. Read at
+[source](https://developer.android.com/develop/ui/compose/notifications/bubbles):
+
+> *"If an app targets Android 11 (API level 30) or higher, a notification
+> doesn't appear as a bubble unless it meets the conversation requirements."*
+
+**True from API 30 only.** Below it there are three routes in, and the third has
+nothing to do with conversations:
+
+> *"The app is in the foreground when the notification is sent."*
+
+So on old Android any notification could bubble — **provided the app was in
+front.** Which is exactly inverted from what SWIP needs: the button exists to be
+there when SWIP is *not* in front, and `docs/32` §2 hides it deliberately
+whenever SWIP is. The loophole is open in the one state where SWIP does not want
+a bubble and closed in every state where it does.
+
+The conclusion stands and is now exact — the overlay permission is the only
+route on every version, for two independent reasons. Both places now quote the
+docs rather than paraphrase them.
+
+### `F-179` — [`tool/read_trace.py`](../app/tool/read_trace.py)
+
+`F-176` shipped a recorder with nothing to read its output. This is the other
+half, and it is deleted with it — [`38` §4](38-BUBBLE-TRACE.md) step 10.
+
+| It prints | Because |
+|---|---|
+| Visibility changes only, with the reason and how long each hidden stretch lasted | The question is always *what happened just before it vanished* |
+| A **process change**, loudly | A new pid means the service was killed rather than the bubble hidden. Different bugs |
+| Every foreground claim, with the component and hook that made it | `F-178` was an asymmetry between two components' lifecycle hooks |
+
+**An unreleased claim is reported as an observation with timestamps, not a
+verdict.** `F-178` is a bug found by reading, and a tool that cheerfully
+confirms its author's hypothesis is not evidence. It also states what it
+*cannot* say: whether the button was on screen. The trace records what the
+service decided — a bubble can be `VISIBLE` and behind another app's overlay, so
+"the file says visible and you say it was not" is a finding rather than a
+contradiction.
+
+**Verified before trusting.** Generated a synthetic trace of the `F-178`
+sequence — hover card opened, Home pressed, foreground never released — plus one
+of the fixed behaviour, and checked it names the first and shows a clean 13 s
+hidden stretch on the second. Fed it a truncated final line too, since a process
+killed mid-write is the event most worth recording.
+
+---
+
 <!--
 Template for the next entry:
 
