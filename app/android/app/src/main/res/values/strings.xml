@@ -40,7 +40,7 @@
       TalkBack reads this. The bubble is a 56 dp circle containing a glyph and
       no text, so without it a blind user is told "button" and nothing more.
     -->
-    <string name="swip_bubble_description">SWIP scan button. Double tap to read a shop code. Drag to move it.</string>
+    <string name="swip_bubble_description">SWIP scan button. Double tap to read a shop code. Drag to move it, or drag it onto the moon to snooze it for ten minutes.</string>
 
     <string name="swip_bubble_channel">Floating scan button</string>
     <string name="swip_bubble_channel_note">Android requires an ongoing notification while an app draws over other apps. This is it. It never makes a sound.</string>
@@ -54,5 +54,19 @@
       labelled button is the only way anyone finds out the long-press exists.
     -->
     <string name="swip_bubble_snooze_hour">Snooze 1 hour</string>
-    <string name="swip_bubble_snoozed">Back tomorrow</string>
+    <!--
+      `F-173`. What the bubble says as it goes, and it says it as a system
+      toast rather than in the bubble, because the bubble is the thing that
+      just left. The shape is taken from the owner's Wispr Flow screenshot:
+      how long, and how to end it early, in one line.
+
+      "Shake your phone" is stated because nobody guesses a shake gesture. An
+      undiscoverable way back is the same as no way back, and the previous
+      snooze had exactly that problem — it lasted until tomorrow and the only
+      escape was to open SWIP and find a switch.
+    -->
+    <string name="swip_bubble_snoozed_toast">SWIP is snoozed for 10 minutes. Shake your phone to bring it back.</string>
+
+    <!-- Spoken by TalkBack when the drag target appears. -->
+    <string name="swip_bubble_snooze_target">Drop here to snooze SWIP for ten minutes</string>
 </resources>

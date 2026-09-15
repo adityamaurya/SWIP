@@ -13,7 +13,8 @@ import '../../core/settings/home_market.dart';
 import '../../core/theme/swip_tokens.dart';
 import '../../data/repositories/capture_repository.dart';
 import '../../data/sources/capture_resolver.dart';
-import '../../widgets/capture_result_page.dart';
+import '../../widgets/capture_result_sheet.dart';
+import '../capture_nfc/tap_page.dart';
 
 /// `S-02` — Scan a QR.
 ///
@@ -218,10 +219,35 @@ class _ScanPageState extends ConsumerState<ScanPage> {
     ref.read(ledgerRevisionProvider.notifier).state++;
 
     if (!mounted) return;
-    // `F-144`. Full screen, not a sheet. The MCC is the product and a sheet
-    // renders it at 60 px over a live camera feed; this gives it the page.
-    await CaptureResultPage.open(
+    // `F-175`. **A sheet, not the full screen** — reversing `F-144` for this
+    // vector and this vector only.
+    //
+    // That round's argument was that the number is the product and a sheet
+    // caps it at 60 px over a camera feed. True, and it is why the hero is
+    // still rendered large here: `CaptureLayout.brief` gives the digits the
+    // same treatment the page did, on a sheet that is 62% of the screen.
+    //
+    // What changed is what is behind it. The camera is still running and still
+    // pointed at the counter, so covering it completely means the next code
+    // needs a dismissal first — and the covering screen carried a button whose
+    // only job was to undo the covering. Putting the sheet down is that button
+    // now, which is what frees both slots for *View all* and *Tap POS*.
+    await CaptureResultSheet.open(
       context,
+      // `F-175`. The most useful route out of a missing category, as a button
+      // rather than as item one of a printed list. From the hovering card this
+      // brings the real app forward instead of pushing — the hover engine has
+      // no NFC channel. See `openPosCapture`.
+      onPos: () {
+        openPosCapture(context, () {
+          // Pop the sheet, then REPLACE this page rather than stacking on it.
+          // Leaving the scanner underneath would keep a camera open behind a
+          // screen that wants the user holding the phone against a terminal.
+          Navigator.of(context).pop();
+          Navigator.of(context).pushReplacement(
+              MaterialPageRoute<void>(builder: (_) => const TapPage()));
+        });
+      },
       event: event,
       mcc: repo.lookup(event.mcc),
       sourceLabel: resolved.sourceLabel,

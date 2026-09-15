@@ -31,12 +31,37 @@ import io.flutter.plugin.common.MethodChannel
  */
 class MainActivity : FlutterFragmentActivity() {
 
-    private companion object {
+    companion object {
         const val METHOD_CHANNEL = "in.swip.app/nfc"
+
+        /**
+         * `F-175`. Open SWIP at the **POS reader** rather than the dashboard.
+         *
+         * Set by [SwipHoverActivity] when *Tap POS* is pressed in the hovering
+         * card. That window runs its own Flutter engine, in which this
+         * Activity's method channel does not exist, so NFC cannot be read
+         * there at all — the only honest answer to the button is to bring the
+         * real app forward at the right screen. Holding a phone against a card
+         * machine is not a thing to do through a card floating over somebody
+         * else's app anyway.
+         *
+         * Public, unlike the rest of this companion, because the hovering
+         * Activity is the thing that sets it.
+         */
+        const val EXTRA_OPEN_TAP = "in.swip.app.OPEN_TAP"
         const val EVENT_CHANNEL = "in.swip.app/nfc/captures"
 
         /** `F-159`. Request code for the POST_NOTIFICATIONS dialog. */
         const val NOTIFICATION_REQUEST = 0x5117
+
+        /**
+         * What `consumeTileLaunch` answers with. These two strings are matched
+         * in `main.dart`; anything else is treated there as "nothing pending",
+         * so a typo fails closed — the app opens on the dashboard rather than
+         * on a screen nobody asked for.
+         */
+        const val OPEN_QR = "qr"
+        const val OPEN_NFC = "nfc"
     }
 
     private var cardEmulation: CardEmulation? = null
@@ -75,7 +100,16 @@ class MainActivity : FlutterFragmentActivity() {
      * means the user is standing in front of a code right now and wants the
      * scanner, not the dashboard.
      */
-    private var pendingOpenScanner = false
+    /**
+     * Which capture surface to open on the next Dart poll, or null.
+     *
+     * `F-175`. **A string rather than the boolean it used to be.** There are
+     * two callers now — the Quick Settings tile, which means "the scanner",
+     * and the hovering card's *Tap POS*, which means the POS reader — and a
+     * second boolean would have been a second thing for Dart to ask about and
+     * a state where both could be true at once.
+     */
+    private var pendingOpenCapture: String? = null
 
     /**
      * `F-159`. The Dart side of an in-flight `POST_NOTIFICATIONS` request.
@@ -105,8 +139,16 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     private fun captureTileLaunch(intent: Intent?) {
-        if (intent?.getBooleanExtra(SwipTile.EXTRA_OPEN_SCANNER, false) == true) {
-            pendingOpenScanner = true
+        if (intent == null) return
+        if (intent.getBooleanExtra(SwipTile.EXTRA_OPEN_SCANNER, false)) {
+            pendingOpenCapture = OPEN_QR
+        }
+        // `F-175`. Checked second and therefore wins a (impossible) tie, which
+        // is the right way round: the tap extra is only ever set by a
+        // deliberate button press, the scanner extra by a tile that may have
+        // been pressed a moment earlier.
+        if (intent.getBooleanExtra(EXTRA_OPEN_TAP, false)) {
+            pendingOpenCapture = OPEN_NFC
         }
     }
 
@@ -482,8 +524,14 @@ class MainActivity : FlutterFragmentActivity() {
                     // UPI intent and the share payload: a rotation must not
                     // re-open the scanner.
                     "consumeTileLaunch" -> {
-                        result.success(pendingOpenScanner)
-                        pendingOpenScanner = false
+                        // `F-175`. Answers with "qr", "nfc" or null. It was a
+                        // boolean; the name is kept because renaming a channel
+                        // method means the Dart and Kotlin halves can disagree
+                        // for exactly one commit, and `check_wiring.py` only
+                        // catches that if both sides are changed in the same
+                        // one. The doc comment is the cheaper fix.
+                        result.success(pendingOpenCapture)
+                        pendingOpenCapture = null
                     }
 
                     "consumeSharedPayload" -> {

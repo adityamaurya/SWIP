@@ -82,9 +82,14 @@ class SwipHoverActivity : FlutterFragmentActivity() {
      * moment is to unblock the user. That is a worse failure than a crash
      * because nobody would ever report it.
      *
-     * So the channel is registered with that single method and no others.
-     * Anything else returns `notImplemented` rather than being quietly
-     * swallowed, which is what makes a missing wire show up.
+     * So the channel is registered with the handful of methods this window
+     * can genuinely answer and no others. Anything else returns
+     * `notImplemented` rather than being quietly swallowed, which is what
+     * makes a missing wire show up.
+     *
+     * `F-175` added the second: `openTapScreen`. It is here rather than in
+     * `MainActivity` precisely *because* this engine cannot do NFC — the whole
+     * method exists to hand the job to the Activity that can.
      */
     override fun configureFlutterEngine(engine: FlutterEngine) {
         super.configureFlutterEngine(engine)
@@ -101,6 +106,33 @@ class SwipHoverActivity : FlutterFragmentActivity() {
                                     android.net.Uri.fromParts(
                                         "package", packageName, null)
                                 )
+                            )
+                        }.isSuccess
+                        result.success(ok)
+                    }
+
+                    /**
+                     * `F-175`. *Tap POS*, pressed inside the hovering card.
+                     *
+                     * NFC is read entirely through `MainActivity`'s channel,
+                     * which does not exist in this engine, so the POS screen
+                     * cannot be opened here — it would come up and wait for a
+                     * platform reply that can never arrive.
+                     *
+                     * `SINGLE_TOP` so a running SWIP is reused rather than
+                     * stacked, which is also what delivers the extra to
+                     * `onNewIntent` and therefore to `captureTileLaunch`.
+                     */
+                    "openTapScreen" -> {
+                        val ok = runCatching {
+                            startActivity(
+                                Intent(this, MainActivity::class.java).apply {
+                                    addFlags(
+                                        Intent.FLAG_ACTIVITY_NEW_TASK or
+                                            Intent.FLAG_ACTIVITY_SINGLE_TOP
+                                    )
+                                    putExtra(MainActivity.EXTRA_OPEN_TAP, true)
+                                }
                             )
                         }.isSuccess
                         result.success(ok)

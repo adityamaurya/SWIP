@@ -198,22 +198,34 @@ class _SwipShellState extends ConsumerState<SwipShell>
     if (resumed) unawaited(_maybeOpenFromTile());
   }
 
-  /// `F-115`. Launched from the Quick Settings tile: go straight to the
-  /// scanner.
+  /// `F-115`, widened by `F-175`. Opened at a capture surface rather than the
+  /// dashboard, because something outside the app said which one.
   ///
-  /// Someone who swiped down and pressed a tile called "Scan a shop code" is
-  /// standing in front of a code. Landing them on the dashboard would make them
-  /// take a second action to reach the thing the tile named.
+  /// Two things ask for this. The Quick Settings tile means *the scanner* —
+  /// someone who swiped down and pressed a tile called "Scan a shop code" is
+  /// standing in front of a code, and landing them on the dashboard would make
+  /// them take a second action to reach the thing the tile named. And the
+  /// hovering card's *Tap POS* means *the POS reader*, because NFC cannot be
+  /// read inside that window at all.
+  ///
+  /// The platform answers with a string rather than a boolean now. An
+  /// unrecognised value is treated as nothing pending, so a typo on either
+  /// side opens the dashboard rather than a screen nobody asked for.
   bool _openingFromTile = false;
 
   Future<void> _maybeOpenFromTile() async {
     if (_openingFromTile) return;
     try {
       final open = await const MethodChannel('in.swip.app/nfc')
-          .invokeMethod<bool>('consumeTileLaunch');
-      if (open != true || !mounted) return;
+          .invokeMethod<String>('consumeTileLaunch');
+      final vector = switch (open) {
+        'qr' => CaptureVector.qr,
+        'nfc' => CaptureVector.nfc,
+        _ => null,
+      };
+      if (vector == null || !mounted) return;
       _openingFromTile = true;
-      await _openCapture(CaptureVector.qr);
+      await _openCapture(vector);
     } on PlatformException {
       // No tile on this platform build.
     } on MissingPluginException {

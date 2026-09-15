@@ -270,6 +270,24 @@ SWIP_GRADLE_DEPS=(
   # duration — it has a rest position and a velocity, which is why it feels
   # like an object rather than a slideshow.
   "implementation 'androidx.dynamicanimation:dynamicanimation:1.0.0'"
+
+  # `F-173`. JUnit, so the bubble finally has a test.
+  #
+  # Every round until now ended with the same honest sentence: the APK job
+  # proves the bubble compiles and nothing proves it behaves. The reason was
+  # circular — a Kotlin test needs a `testImplementation` line, and nothing in
+  # `android/app/build.gradle` survives a bootstrap. `F-161` built the way
+  # round that and this is the second thing to use it.
+  #
+  # Test sources live in `android/app/src/test/kotlin/`, which bootstrap does
+  # NOT regenerate: it backs up and restores `src/main` only, and
+  # `flutter create` adds files rather than removing them. So they are
+  # ordinary tracked files and they stay put.
+  #
+  # `testImplementation`, not `androidTestImplementation`: these run on the JVM
+  # in CI with no emulator, which is why `ShakeDetector` is written with no
+  # Android imports at all.
+  "testImplementation 'junit:junit:4.13.2'"
 )
 
 # `set -u` is on, and on bash 3.2 — which is still what macOS ships —
@@ -302,8 +320,19 @@ if [ "$SWIP_DEP_COUNT" -gt 0 ]; then
     echo "dependencies {"
     for dep in "${SWIP_GRADLE_DEPS[@]}"; do
       # Kotlin DSL wants implementation("x"); Groovy wants implementation 'x'.
+      #
+      # `F-173`. The configuration name is captured rather than spelled, and
+      # that is a bug fix rather than tidying. The first version of this line
+      # matched the literal lowercase word `implementation`, so
+      # `testImplementation 'junit:junit:4.13.2'` — capital I — passed through
+      # untouched and would have been emitted as Groovy syntax inside a Kotlin
+      # DSL file. Gradle would have failed with a script error naming a file
+      # nobody wrote, on the Kotlin-DSL half of the world only.
+      #
+      # Caught by dry-running the substitution rather than by reading it, which
+      # is the rule this project keeps relearning: read the built thing.
       if [ "$APP_GRADLE" = "android/app/build.gradle.kts" ]; then
-        printf '    %s\n' "$(printf '%s' "$dep" | sed "s/implementation '\(.*\)'/implementation(\"\1\")/")"
+        printf '    %s\n' "$(printf '%s' "$dep" | sed -E "s/^([A-Za-z]+) '(.*)'$/\1(\"\2\")/")"
       else
         printf '    %s\n' "$dep"
       fi

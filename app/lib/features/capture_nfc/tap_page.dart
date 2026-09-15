@@ -10,7 +10,7 @@ import '../../core/theme/swip_tokens.dart';
 import '../../data/models/capture_event.dart';
 import '../../data/repositories/capture_repository.dart';
 import '../../data/sources/terminal_health.dart';
-import '../../widgets/capture_result_page.dart';
+import '../../widgets/capture_result_sheet.dart';
 
 /// `S-03` — Tap a POS terminal. Vector 2, `F-08`.
 ///
@@ -215,9 +215,15 @@ class _TapPageState extends ConsumerState<TapPage> with WidgetsBindingObserver {
       ref.read(ledgerRevisionProvider.notifier).state++;
       if (!mounted) return;
 
-      // `F-144`. > "The same goes for the POS tab. Once the POS tab is
-      // detected, it should show in a full-screen format."
-      await CaptureResultPage.open(
+      // `F-175`. A sheet, for the same reason the QR path uses one: the tap
+      // surface underneath is still armed, so putting this down is already
+      // "tap another" and does not need a button.
+      //
+      // **No `onPos` here.** This capture came *from* the POS reader, so a
+      // button offering to take the user to the POS reader would be a button
+      // that goes nowhere. The footer renders one action rather than inventing
+      // a second — see `_Footer`.
+      await CaptureResultSheet.open(
         context,
         event: event,
         mcc: repo.lookup(event.mcc),

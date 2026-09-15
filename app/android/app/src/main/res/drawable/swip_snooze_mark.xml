@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  `F-173` — the crescent inside the snooze target.
+
+  ## Why a moon and not an X
+
+  Messenger's target carries an X, because dropping a chat head there **closes
+  the conversation**. SWIP's does not close anything — it hides the button for
+  ten minutes and it comes straight back. An X would promise a destruction that
+  does not happen, and the first time somebody dropped the bubble expecting it
+  to be gone for good they would have been told something untrue by an icon.
+
+  A crescent says "asleep", which is exactly what happens and is legible at
+  28 dp in a way that no word is.
+
+  ## Why the path is drawn from two curves rather than boolean-subtracted
+
+  `VectorDrawable` has no boolean operations, so a crescent cannot be a circle
+  minus a circle. It is one closed path: the outer arc runs down the left side
+  from top to bottom, and the inner arc returns up through the middle, which
+  leaves the lune between them filled. Approximated with cubics because
+  `pathData` arcs are supported unevenly across API levels and a shape that
+  silently fails to parse on older Android would be an invisible icon in a
+  window the user is being asked to aim at.
+
+  Geometry sits inside the middle 20 of a 24 unit viewport, with the fill
+  hard-coded for the same reason the ring's colours are.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <path
+        android:fillColor="#F4F3EF"
+        android:pathData="M12.2,2.4 C7.0,2.9 3.0,7.3 3.0,12.6 C3.0,18.2 7.5,22.7 13.1,22.7 C16.9,22.7 20.2,20.6 21.9,17.5 C20.8,17.9 19.7,18.1 18.5,18.1 C13.2,18.1 8.9,13.8 8.9,8.5 C8.9,6.3 9.6,4.2 10.9,2.6 C10.7,2.5 10.4,2.4 10.2,2.4 Z" />
+</vector>

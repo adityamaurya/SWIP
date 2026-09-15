@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  `F-173` — the ring the bubble is dropped into to snooze it.
+
+  ## Why a ring and not a filled disc
+
+  Because it is a **destination, not a control.** A filled circle the size of
+  the bubble reads as a second button, and for the half-second it is on screen
+  the user has to work out which of the two round things they are supposed to
+  be looking at. An outlined ring with a dim centre reads as a place — the
+  bubble goes *in* it — which is the whole idea being communicated and there is
+  no time to communicate it in words.
+
+  Messenger's delete target is the same shape for the same reason, and so is
+  every launcher's "drop here to remove".
+
+  ## Why the colours are hard-coded, like the bubble's
+
+  Same rule as `swip_bubble_bg.xml` and the camera overlays: this is drawn over
+  an arbitrary app that SWIP does not control and cannot measure, so it carries
+  its own contrast rather than borrowing a ground it cannot see. Following the
+  Paper/Foil palette here would produce an ink ring on a dark app exactly when
+  somebody needed to find it.
+
+  The fill is deliberately very low alpha. The target has to be findable
+  without hiding what is behind it, because the user is mid-gesture and still
+  needs to see where the bubble is going.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+
+    <solid android:color="#B8060507" />
+    <stroke
+        android:width="2dp"
+        android:color="@color/swip_bubble_edge" />
+</shape>

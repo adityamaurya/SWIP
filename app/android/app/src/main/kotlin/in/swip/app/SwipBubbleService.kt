@@ -13,13 +13,19 @@ import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.SystemClock
 import android.provider.Settings
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.VelocityTracker
 import android.view.View
@@ -27,6 +33,7 @@ import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.dynamicanimation.animation.DynamicAnimation
 import androidx.dynamicanimation.animation.FlingAnimation
 import androidx.dynamicanimation.animation.FloatPropertyCompat
@@ -151,6 +158,22 @@ class SwipBubbleService : Service() {
         private const val ONE_HOUR_MS = 60L * 60L * 1000L
 
         /**
+         * `F-173`. **Ten minutes, and the number came from the owner's own
+         * reference.**
+         *
+         * > *"in similar way in the screenshot of wispr flow it should snooze
+         * > for 10mins by default"*
+         *
+         * It replaces "until tomorrow", and the change is bigger than the
+         * duration. A snooze until tomorrow has to be *undone* — there is no
+         * gesture that means "actually, come back", so the only way out was to
+         * open SWIP and find a switch. Ten minutes ends by itself, which is
+         * what makes it safe to offer as a one-handed drag rather than
+         * something you have to be sure about.
+         */
+        const val SNOOZE_DEFAULT_MS = 10L * 60L * 1000L
+
+        /**
          * How long the bubble stays on screen after being snoozed, so the
          * message explaining where it went can be read.
          *
@@ -159,6 +182,16 @@ class SwipBubbleService : Service() {
          * read. Shorter and the sentence is gone before the eye reaches it.
          */
         private const val GOODBYE_MS = 900L
+
+        /**
+         * `F-173`. How long the bubble is kept on screen while it is being
+         * pulled into the snooze target and shrunk away.
+         *
+         * Shorter than [GOODBYE_MS] because there is nothing to *read* — the
+         * animation is the message, and an animation that lingers after it has
+         * finished reads as lag.
+         */
+        private const val SWALLOW_MS = 420L
 
         /**
          * `SYSTEM_ALERT_WINDOW` became a special, user-granted permission in
@@ -203,16 +236,16 @@ class SwipBubbleService : Service() {
             nudge(context)
         }
 
-        /** Snooze until the next local midnight — "the rest of the day". */
-        fun snoozeForTheDay(context: Context) {
-            val midnight = java.util.Calendar.getInstance().apply {
-                add(java.util.Calendar.DAY_OF_YEAR, 1)
-                set(java.util.Calendar.HOUR_OF_DAY, 0)
-                set(java.util.Calendar.MINUTE, 0)
-                set(java.util.Calendar.SECOND, 0)
-                set(java.util.Calendar.MILLISECOND, 0)
-            }.timeInMillis
-            snooze(context, midnight)
+        /**
+         * `F-173`. The drag-to-target snooze: ten minutes, shake to end it.
+         *
+         * This replaces `snoozeForTheDay`, which is deleted rather than kept
+         * alongside. Two snooze lengths reachable by two gestures on the same
+         * button is a thing to explain, and the long one had no way back
+         * except opening the app — see [SNOOZE_DEFAULT_MS].
+         */
+        fun snoozeBriefly(context: Context) {
+            snooze(context, System.currentTimeMillis() + SNOOZE_DEFAULT_MS)
         }
 
         /** Bring it back now. */
@@ -570,6 +603,318 @@ class SwipBubbleService : Service() {
         )
     }
 
+    // ── the snooze target ───────────────────────────────────────────────────
+    //
+    // `F-173`. **Drag the bubble onto it and SWIP goes away for ten minutes.**
+    //
+    // > *"we need snoozing mechanism where in i drag and drop the launcher
+    // > icon to the center … it should snooze for 10mins by default and if I
+    // > shake the phone it should be back"*
+    //
+    // `docs/32` §4 has specified this since the beginning — *"a delete target
+    // that appears at the bottom on drag"*, Messenger's model — and it was
+    // still on the not-built list a round ago. This is it, doing snooze rather
+    // than delete, because SWIP's bubble is not a conversation you close: it
+    // is a tool you want back.
+    //
+    // ## What it replaces, and why the old gesture is deleted rather than kept
+    //
+    // A long-press. Which nobody discovers, and which is what the owner is
+    // describing as *"on holding the launcher icon it glitches and is not
+    // smooth animating"* — accurately, because a long-press fired **under a
+    // finger that might still be about to drag**, and its handler then ran a
+    // text peek, a re-anchor spring and a scale kick at once, on a view whose
+    // press spring was still settling. Four animations, one view, one frame.
+    //
+    // A drag target has none of that shape. The gesture is already a drag, so
+    // nothing has to guess what it will become; the animation is the bubble
+    // being pulled into the target, which is one spring; and it is visible
+    // from the moment you start, so it teaches itself.
+    //
+    // ## Why bottom-centre and not the middle of the screen
+    //
+    // The owner said "the center", and horizontally that is exactly what this
+    // is. Vertically it sits above the bottom edge rather than at the true
+    // centre, and that is a correction worth stating rather than making
+    // quietly: **the middle of the screen is where the bubble passes through
+    // on almost every ordinary drag.** A target there would swallow the bubble
+    // every time someone moved it from one side to the other, which is the
+    // most common thing they do with it. Every chat-head implementation puts
+    // the target near the bottom for this reason, and it is also where a thumb
+    // already is.
+
+    private var target: View? = null
+    private var targetParams: WindowManager.LayoutParams? = null
+
+    /** Whether the bubble is currently close enough to be swallowed. */
+    private var targetArmed = false
+
+    private var targetScaleX: SpringAnimation? = null
+    private var targetScaleY: SpringAnimation? = null
+
+    /** Radius, from the target's centre, within which a drop counts. */
+    private val targetGrab: Int get() = dp(64f)
+
+    /**
+     * The target's diameter, in one place.
+     *
+     * Four methods need it — building it, positioning its window, measuring
+     * the distance to it, and aiming the swallow. It was written out four
+     * times for about ten minutes, which was long enough for
+     * `check_wiring.py`'s bubble-radius rule to match **this** `val size`
+     * instead of the bubble's and fail the build demanding a 36 dp corner.
+     *
+     * A repeated literal is not only a thing that can drift. It is a thing
+     * other tools can mistake for something else.
+     */
+    private val targetSize: Int get() = dp(72f)
+
+    private fun buildTarget(): View = ImageView(this).apply {
+        setBackgroundResource(R.drawable.swip_snooze_target)
+        setImageResource(R.drawable.swip_snooze_mark)
+        val pad = dp(22f)
+        setPadding(pad, pad, pad, pad)
+        // No `layoutParams` here. This view is added straight to the
+        // WindowManager, so its size comes from the `WindowManager.LayoutParams`
+        // in [showTarget] and anything set here is replaced by `addView`.
+        contentDescription = getString(R.string.swip_bubble_snooze_target)
+        // Starts invisible-small; [showTarget] springs it up. Set here
+        // rather than there so the very first frame after `addView` is
+        // already the small one — assigning after the window is added shows
+        // one frame at full size, which reads as a flash.
+        scaleX = 0.4f
+        scaleY = 0.4f
+        alpha = 0f
+    }
+
+    /**
+     * Put the target on screen. Called when a drag is recognised, **not** on
+     * touch-down: a tap would otherwise flash a snooze target at the user for
+     * one frame every time they opened the scanner.
+     */
+    private fun showTarget() {
+        if (target != null) return
+
+        val view = buildTarget()
+        val size = targetSize
+        val lp = WindowManager.LayoutParams(
+            size,
+            size,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            else
+                @Suppress("DEPRECATION")
+                WindowManager.LayoutParams.TYPE_PHONE,
+            // NOT_TOUCHABLE as well as NOT_FOCUSABLE, which the bubble's window
+            // does not have and this one must: the finger dragging the bubble
+            // is going to pass over these pixels, and a window that accepts
+            // touches would steal the gesture from the view being dragged
+            // halfway through it.
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT,
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = (resources.displayMetrics.widthPixels - size) / 2
+            y = resources.displayMetrics.heightPixels - size - dp(132f)
+        }
+
+        runCatching { windows.addView(view, lp) }
+            .onSuccess {
+                target = view
+                targetParams = lp
+                targetArmed = false
+                targetScaleX = springFor(
+                    view, DynamicAnimation.SCALE_X,
+                    SpringForce.STIFFNESS_MEDIUM,
+                    SpringForce.DAMPING_RATIO_LOW_BOUNCY,
+                )
+                targetScaleY = springFor(
+                    view, DynamicAnimation.SCALE_Y,
+                    SpringForce.STIFFNESS_MEDIUM,
+                    SpringForce.DAMPING_RATIO_LOW_BOUNCY,
+                )
+                targetScaleX?.animateToFinalPosition(1f)
+                targetScaleY?.animateToFinalPosition(1f)
+                view.animate().alpha(1f).setDuration(140).start()
+            }
+    }
+
+    private fun hideTarget() {
+        val view = target ?: return
+        target = null
+        targetParams = null
+        targetArmed = false
+        runCatching { targetScaleX?.cancel(); targetScaleY?.cancel() }
+        targetScaleX = null
+        targetScaleY = null
+        // Faded out first and removed in the callback, because
+        // `removeView` is immediate — dropping the window on the same frame
+        // makes the target vanish rather than leave.
+        view.animate().alpha(0f).scaleX(0.5f).scaleY(0.5f)
+            .setDuration(140)
+            .withEndAction { runCatching { windows.removeView(view) } }
+            .start()
+    }
+
+    /**
+     * True when the bubble's centre is within [targetGrab] of the target's.
+     *
+     * Distance from the **centres**, not rectangle intersection: a 56 dp
+     * bubble and a 72 dp target touch corners long before the gesture looks
+     * like a drop, so intersection arms far too eagerly and the user cannot
+     * drag past the bottom of the screen without snoozing.
+     */
+    private fun overTarget(bubble: View, lp: WindowManager.LayoutParams): Boolean {
+        val tp = targetParams ?: return false
+        val size = targetSize
+        val dx = (lp.x + bubble.width / 2f) - (tp.x + size / 2f)
+        val dy = (lp.y + bubble.height / 2f) - (tp.y + size / 2f)
+        return dx * dx + dy * dy <= targetGrab.toFloat() * targetGrab
+    }
+
+    /** Grow the target and buzz once when the bubble comes into range. */
+    private fun updateTarget(bubble: View, lp: WindowManager.LayoutParams) {
+        val view = target ?: return
+        val armed = overTarget(bubble, lp)
+        if (armed == targetArmed) return
+        targetArmed = armed
+
+        targetScaleX?.animateToFinalPosition(if (armed) 1.3f else 1f)
+        targetScaleY?.animateToFinalPosition(if (armed) 1.3f else 1f)
+        // The bubble shrinks towards the target as well, which is what makes
+        // the pair read as one being drawn into the other rather than two
+        // things overlapping.
+        scaleTo(if (armed) 0.7f else 0.88f)
+
+        // `performHapticFeedback` rather than `Vibrator`: it needs no
+        // permission, it honours the user's system haptics setting, and on a
+        // drag target the buzz IS the affordance — it is how you know the drop
+        // will land without looking away from what you are dragging.
+        runCatching {
+            if (armed) {
+                view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+            }
+        }
+    }
+
+    /**
+     * The drop. Pull the bubble the rest of the way in, shrink it to nothing,
+     * then snooze.
+     *
+     * [goodbyeUntil] is claimed before the snooze is written, for the reason
+     * recorded on that field: writing it nudges the receiver, and the receiver
+     * hides the bubble. Without the grace this animation would be cut off on
+     * its first frame — which is exactly the bug `F-170` found in the gesture
+     * this one replaces.
+     */
+    private fun swallow(bubble: View, centre: Pair<Int, Int>?) {
+        goodbyeUntil = System.currentTimeMillis() + SWALLOW_MS
+
+        // [centre] is passed in rather than read from `targetParams`, and that
+        // is a bug fix rather than a style. The touch handler hides the target
+        // the moment the finger lifts — it has to, or a gesture that ends
+        // anywhere leaves an overlay window on screen — and `hideTarget` nulls
+        // `targetParams`. Reading it here would therefore always find null, so
+        // the bubble would shrink where it was dropped instead of being pulled
+        // in, and the one animation this whole gesture exists to show would
+        // never have played.
+        if (centre != null) {
+            slideX?.apply {
+                cancel()
+                setStartVelocity(0f)
+                animateToFinalPosition(centre.first - bubble.width / 2f)
+            }
+            settleY?.apply {
+                cancel()
+                setStartVelocity(0f)
+                animateToFinalPosition(centre.second - bubble.height / 2f)
+            }
+        }
+        scaleTo(0f)
+
+        snoozeBriefly(this)
+
+        // A system toast, which is what the owner's Wispr Flow screenshot
+        // shows — a pill above the keyboard saying where the button went and
+        // how to get it back. It has to be a toast rather than something drawn
+        // in the bubble, because the bubble is the thing that just left.
+        runCatching {
+            Toast.makeText(
+                this,
+                getString(R.string.swip_bubble_snoozed_toast),
+                Toast.LENGTH_LONG,
+            ).show()
+        }
+        applyVisibility()
+    }
+
+    // ── shake to bring it back ──────────────────────────────────────────────
+    //
+    // `F-173`. Armed **only while snoozed**, which is the whole reason this is
+    // acceptable at all: a floating button that listens to the accelerometer
+    // all day is a battery complaint waiting to be written, and one that
+    // listens for the ten minutes it is deliberately hiding is not.
+    //
+    // The decision of what counts as a shake lives in [ShakeDetector], which
+    // has no Android in it and is unit-tested on the JVM — see
+    // `ShakeDetectorTest.kt`. That split exists because both ways this can be
+    // wrong are silent: too sensitive and the bubble returns while the user is
+    // walking, undoing something they asked for; too dull and shaking does
+    // nothing and they cannot tell whether they shook it wrong.
+
+    private val shake = ShakeDetector()
+    private var sensors: SensorManager? = null
+    private var listening = false
+
+    private val shakeListener = object : SensorEventListener {
+        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
+
+        override fun onSensorChanged(event: SensorEvent?) {
+            val v = event?.values ?: return
+            if (v.size < 3) return
+            // `elapsedRealtime`, not `currentTimeMillis`: the wall clock jumps
+            // when the network corrects it, and a backwards jump mid-gesture
+            // would park the detector's window in the future.
+            if (!shake.onSample(v[0], v[1], v[2], SystemClock.elapsedRealtime())) return
+            if (snoozedUntil(this@SwipBubbleService) <= 0L) return
+            wake(this@SwipBubbleService)
+            applyVisibility()
+        }
+    }
+
+    private fun listenForShake(on: Boolean) {
+        if (on == listening) return
+        listening = on
+
+        if (!on) {
+            runCatching { sensors?.unregisterListener(shakeListener) }
+            return
+        }
+
+        val manager = sensors
+            ?: (getSystemService(Context.SENSOR_SERVICE) as? SensorManager)
+                ?.also { sensors = it }
+            ?: return
+        val accelerometer = manager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        if (accelerometer == null) {
+            // No accelerometer at all — rare, but a tablet or an emulator. The
+            // snooze still ends on its own timer, so the feature degrades to
+            // "wait ten minutes" rather than breaking.
+            listening = false
+            return
+        }
+        shake.reset()
+        // `SENSOR_DELAY_UI` is about 60 ms. `NORMAL` (200 ms) is cheaper and
+        // too slow: a wrist reverses in roughly 150-250 ms, so at 200 ms the
+        // sampling aliases against the gesture and a genuine shake can miss.
+        runCatching {
+            manager.registerListener(
+                shakeListener, accelerometer, SensorManager.SENSOR_DELAY_UI)
+        }
+    }
+
     /** Stop everything mid-flight. Called on touch-down and on removal. */
     private fun cancelMotion() {
         runCatching { slideX?.cancel() }
@@ -705,6 +1050,10 @@ class SwipBubbleService : Service() {
 
     override fun onDestroy() {
         running = false
+        // Before anything else: an accelerometer listener that outlives its
+        // service is a leak the system logs and nobody reads.
+        listenForShake(false)
+        hideTarget()
         main.removeCallbacks(unquiet)
         main.removeCallbacks(settle)
         runCatching { unregisterReceiver(systemEvents) }
@@ -794,6 +1143,13 @@ class SwipBubbleService : Service() {
         val asleep = snoozedUntil(this)
         val hidden = screenOff || quiet || appInForeground || asleep > 0L
         show(!hidden)
+
+        // `F-173`. The accelerometer is registered here and nowhere else, so
+        // "listening" and "snoozed" cannot drift apart: this method already
+        // runs on every start, every system broadcast and every nudge, and it
+        // already reads the snooze from storage. Anywhere else would be a
+        // second source of truth for the same fact.
+        listenForShake(asleep > 0L)
 
         // Re-check when whichever timer expires first; nothing else will wake
         // us. A snooze can be hours away, and `postDelayed` holds no wakelock,
@@ -993,37 +1349,6 @@ class SwipBubbleService : Service() {
         private var downAt = 0L
         private var dragging = false
 
-        /**
-         * `F-167`. Fires if the finger stays still long enough.
-         *
-         * Posted on DOWN and cancelled by a drag or a lift, which is how a
-         * long-press has to be detected when the same listener also owns
-         * dragging: you cannot know a press was long until the moment it
-         * becomes one, and by then the gesture may already have been a drag.
-         */
-        private val longPress = Runnable {
-            // `running` as well as `dragging`: the service can be destroyed
-            // inside the press timeout, and a snooze nobody asked for is a
-            // button that vanishes for a day on its own.
-            if (dragging || !running) return@Runnable
-
-            // `F-170`. Claimed BEFORE the snooze is written, because writing
-            // it nudges the receiver, and the receiver hides the bubble. Set
-            // afterwards this would be a grace period awarded to a bubble
-            // that had already gone.
-            goodbyeUntil = System.currentTimeMillis() + GOODBYE_MS
-
-            snoozeForTheDay(this@SwipBubbleService)
-            // Say so, in the bubble itself, in the moment before it goes. A
-            // button that silently disappears when held reads as a bug.
-            peek(getString(R.string.swip_bubble_snoozed))
-            // A goodbye the finger can feel as well as read: the same scale
-            // spring the press uses, kicked inwards so the bubble shrinks
-            // under the thumb that is still on it.
-            kickScale(-1.4f)
-            applyVisibility()
-        }
-
         private val slop by lazy {
             android.view.ViewConfiguration.get(this@SwipBubbleService)
                 .scaledTouchSlop
@@ -1088,11 +1413,22 @@ class SwipBubbleService : Service() {
                     speed?.recycle()
                     speed = VelocityTracker.obtain().apply { addMovement(event) }
 
-                    main.postDelayed(
-                        longPress,
-                        android.view.ViewConfiguration.getLongPressTimeout()
-                            .toLong(),
-                    )
+                    // `F-173`. **No long-press timer here any more.**
+                    //
+                    // There used to be one, posted on this line, which snoozed
+                    // the bubble if the finger stayed still. It is gone, and
+                    // the deletion is the fix rather than a side effect: a
+                    // timer that fires under a finger which may still be about
+                    // to drag has to guess what the gesture will become, and
+                    // when it guessed wrong it ran a text peek, a re-anchor
+                    // spring and a scale kick on a view whose press spring was
+                    // still settling. That pile-up is what the owner saw as
+                    // *"on holding the launcher icon it glitches"*.
+                    //
+                    // Snoozing is a drag onto a target now. A drag cannot be
+                    // mistaken for anything else, because by the time the
+                    // target appears the gesture has already declared itself.
+
                     // Sprung rather than `animate().setDuration(120)`, for the
                     // reason in the physics section: a tap shorter than 120 ms
                     // used to release before the press had finished shrinking,
@@ -1109,20 +1445,34 @@ class SwipBubbleService : Service() {
                     val dy = event.rawY - downY
                     if (!dragging && (abs(dx) > slop || abs(dy) > slop)) {
                         dragging = true
-                        // Moving means this was a drag, not a hold.
-                        main.removeCallbacks(longPress)
+                        // `F-173`. The target appears the moment the gesture
+                        // becomes a drag — not on touch-down, or a tap would
+                        // flash a snooze target for one frame every time
+                        // somebody opened the scanner.
+                        showTarget()
                     }
                     if (dragging) {
                         lp.x = startX + dx.toInt()
                         lp.y = startY + dy.toInt()
                         runCatching { windows.updateViewLayout(view, lp) }
+                        updateTarget(view, lp)
                     }
                     return true
                 }
 
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    main.removeCallbacks(longPress)
-                    scaleTo(1f)
+                    // Whether this ends in a snooze or not, the target goes.
+                    // Ordered first so an early `return` further down cannot
+                    // leave an overlay window on screen with nothing dragging.
+                    val snoozing = dragging && targetArmed &&
+                        event.actionMasked == MotionEvent.ACTION_UP
+                    // Read before `hideTarget` nulls it. See [swallow].
+                    val centre = targetParams?.let {
+                        (it.x + targetSize / 2) to (it.y + targetSize / 2)
+                    }
+                    hideTarget()
+
+                    if (!snoozing) scaleTo(1f)
 
                     // 1000 units of time = pixels per second, which is what
                     // `SpringAnimation` and `FlingAnimation` both expect. The
@@ -1136,7 +1486,9 @@ class SwipBubbleService : Service() {
                     tracker?.recycle()
                     speed = null
 
-                    if (dragging) {
+                    if (snoozing) {
+                        swallow(view, centre)
+                    } else if (dragging) {
                         snapToEdge(view, lp, vx, vy)
                     } else if (event.actionMasked == MotionEvent.ACTION_UP) {
                         // A tap. `ViewConfiguration`'s long-press timeout is

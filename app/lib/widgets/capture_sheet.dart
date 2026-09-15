@@ -45,6 +45,33 @@ enum CaptureLayout {
   /// link. [CaptureResultPage] owns those, because they have to be pinned to
   /// the bottom of the viewport rather than to the end of the content.
   fullScreen,
+
+  /// `F-175`. **The answer and nothing else**, for the popup that appears the
+  /// instant a code is read.
+  ///
+  /// > *"can we have a non intrusive UI where, you could simply show a pop up
+  /// > like you do on dashbaord just above the Cta"*
+  ///
+  /// ## What it leaves out, and why leaving it out is the feature
+  ///
+  /// [fullScreen] shows everything: the verdict, the reason the category is
+  /// missing, the four routes to getting it, the detection line, the place,
+  /// the confidence, the publications and a table of every field. All of it is
+  /// true and all of it was asked for in earlier rounds — and stacked on one
+  /// screen, at a counter, with somebody waiting to be paid, it is the screen
+  /// the owner described as *"so messed up"*.
+  ///
+  /// The thing being bought with a glance is **one fact**: what is this shop,
+  /// and can I use the card in my hand. So brief renders the verdict, what it
+  /// means, who is being paid and the RuPay line — and stops.
+  ///
+  /// Nothing is deleted. Everything else is one tap away behind *View all*,
+  /// which is the same [sheet] layout the ledger has always opened. And the
+  /// most useful of the four missing-category routes — tap the shop's card
+  /// machine — stops being an item in a list and becomes a button, which was
+  /// the owner's own idea and is what makes the rest of that block safe to
+  /// fold away.
+  brief,
 }
 
 /// The one capture sheet. Every vector ends here — QR, POS tap, pay-by-app
@@ -79,6 +106,7 @@ class CaptureSheet extends StatelessWidget {
     this.rupay,
     this.absence,
     this.layout = CaptureLayout.sheet,
+    this.showFurniture = true,
   });
 
   final CaptureEvent event;
@@ -123,10 +151,30 @@ class CaptureSheet extends StatelessWidget {
   /// `F-125`. When there is no category: why, and what would find one.
   final MccAbsence? absence;
 
+  /// `F-175`. Whether to draw the primary button, the "saved to your ledger"
+  /// line and the technical-details link at the end of the content.
+  ///
+  /// Only [CaptureLayout.sheet] has ever drawn them, and for the ledger that
+  /// is right — the sheet ends where its content ends and the button ends with
+  /// it. [CaptureResultSheet] reuses the same layout for its expanded state
+  /// and pins its own footer instead, so it turns these off: two primary
+  /// buttons on one sheet, one of them scrolling and one of them not, is the
+  /// shape the pinned bar in `F-145` existed to avoid.
+  final bool showFurniture;
+
   /// `F-144`. Sheet or full screen. See [CaptureLayout].
   final CaptureLayout layout;
 
-  bool get _full => layout == CaptureLayout.fullScreen;
+  /// Whether the hero is rendered large and centred.
+  ///
+  /// True for [CaptureLayout.brief] as well as [CaptureLayout.fullScreen]:
+  /// both are a *result arriving*, where the number is the whole point. Only
+  /// the ledger's [CaptureLayout.sheet] — where a capture is being reviewed
+  /// rather than received — keeps the compact inline treatment.
+  bool get _full => layout != CaptureLayout.sheet;
+
+  /// `F-175`. Whether to stop after the verdict. See [CaptureLayout.brief].
+  bool get _brief => layout == CaptureLayout.brief;
 
   @override
   Widget build(BuildContext context) {
@@ -146,8 +194,12 @@ class CaptureSheet extends StatelessWidget {
       // `F-144`. Full screen skips the bottom padding: the page puts a
       // technical-details panel and a pinned button below this, and a gap
       // baked into the content would push them apart by a random amount.
-      top: !_full,
-      bottom: !_full,
+      // `F-175`. Only the ledger's sheet insets itself. Full screen and
+      // brief are both wrapped by something that owns the bottom edge — a
+      // pinned bar or a footer — and padding baked in here would push that
+      // furniture away from the content by an amount neither of them chose.
+      top: layout == CaptureLayout.sheet,
+      bottom: layout == CaptureLayout.sheet,
       child: Padding(
         padding: EdgeInsets.fromLTRB(
             SwipSpace.xl, SwipSpace.md, SwipSpace.xl, _full ? 0 : SwipSpace.xl),
@@ -298,7 +350,13 @@ class CaptureSheet extends StatelessWidget {
             // routes that would actually find it *for this merchant*, as things
             // to do rather than as an apology. Empty for a small merchant,
             // where the honest answer is that nothing will work.
-            if (!known && absence != null) ...[
+            //
+            // `F-175`. Not in [CaptureLayout.brief]. This is the block the
+            // owner circled: a reason paragraph and four numbered routes, on
+            // the screen that appears while somebody is waiting to be paid.
+            // It moves behind *View all*, and its first route becomes the
+            // *Tap POS* button.
+            if (!_brief && !known && absence != null) ...[
               const SizedBox(height: SwipSpace.md),
               _WhyMissing(absence: absence!),
             ],
@@ -306,8 +364,10 @@ class CaptureSheet extends StatelessWidget {
             // `F-53` — which mode of payment the category was read from.
             // Asked for explicitly, and it is the difference between a number
             // you can act on and a number you have to take on trust.
-            const SizedBox(height: SwipSpace.md),
-            _DetectionLine(vector: event.vector, hasMcc: known),
+            if (!_brief) ...[
+              const SizedBox(height: SwipSpace.md),
+              _DetectionLine(vector: event.vector, hasMcc: known),
+            ],
 
             // 3 ── the merchant, registered name where one exists.
             //
@@ -348,7 +408,7 @@ class CaptureSheet extends StatelessWidget {
             // `F-40` — where you were, discreetly. Read off the event rather
             // than passed in by each vector, so it appears everywhere the
             // moment location is switched on and nowhere when it is not.
-            if (event.placeLabel != null) ...[
+            if (!_brief && event.placeLabel != null) ...[
               const SizedBox(height: SwipSpace.xs),
               Row(
                 children: [
@@ -368,7 +428,7 @@ class CaptureSheet extends StatelessWidget {
               ),
             ],
 
-            if (known) ...[
+            if (!_brief && known) ...[
               const SizedBox(height: SwipSpace.md),
               Row(children: [
                 ConfidencePill(event.confidence),
@@ -415,7 +475,7 @@ class CaptureSheet extends StatelessWidget {
             // can be pinned to the bottom of the viewport rather than left
             // floating at the end of however much content this capture
             // happened to produce.
-            if (!_full) ...[
+            if (!_full && showFurniture) ...[
               const SizedBox(height: SwipSpace.xl),
 
               SizedBox(

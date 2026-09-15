@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/runtime/surface.dart';
 import '../../core/theme/swip_palette.dart';
 import '../../core/theme/swip_theme.dart';
 import '../../core/theme/swip_tokens.dart';
@@ -68,7 +69,12 @@ class HoverScanApp extends ConsumerWidget {
   ///
   /// `main()` branches on this: the same Dart entrypoint runs in both
   /// Activities, and this string is the only thing that tells them apart.
-  static const route = '/hover';
+  ///
+  /// `F-175`. The literal moved to [SwipSurface.hoverRoute] so that code with
+  /// no business importing this feature — the capture result popup, which has
+  /// to know whether *Tap POS* can push a screen or has to bring the app
+  /// forward — can ask the same question without an import cycle.
+  static const route = SwipSurface.hoverRoute;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

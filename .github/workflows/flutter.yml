@@ -147,6 +147,27 @@ jobs:
       - name: Build debug APK
         run: flutter build apk --debug
 
+      # `F-173`. **The first automated test the floating bubble has ever had.**
+      #
+      # Every round so far ended with the same honest note: the APK job proves
+      # the bubble compiles and nothing proves it behaves. `ShakeDetector`
+      # decides whether a snoozed bubble comes back, and both ways it can be
+      # wrong are silent — too sensitive and it returns while the user walks,
+      # too dull and shaking does nothing. Neither throws.
+      #
+      # Ordered AFTER the APK build on purpose. Gradle needs the configuration
+      # `flutter build` produces (local.properties, the plugin list), so
+      # running it first would fail for reasons that have nothing to do with
+      # the test. Placed before the upload so a red test does not ship an
+      # artifact.
+      #
+      # NOT continue-on-error. The other gates collect their findings so one
+      # push surfaces everything; a failing unit test is a different thing —
+      # it means the behaviour under it is wrong right now.
+      - name: Run the Kotlin unit tests
+        working-directory: app/android
+        run: ./gradlew :app:testDebugUnitTest --console=plain
+
       - name: Upload the APK
         uses: actions/upload-artifact@v4
         with:

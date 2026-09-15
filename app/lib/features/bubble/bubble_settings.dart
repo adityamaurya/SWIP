@@ -397,9 +397,10 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
                         color: SwipColors.warning),
                     title: const Text('Sleeping'),
                     subtitle: Text(
-                      'Back at ${_clock(_asleepUntil!)}. Holding the button '
-                      'sends it away until tomorrow; the notice in your shade '
-                      'can send it away for an hour.',
+                      'Back at ${_clock(_asleepUntil!)}, or the moment you '
+                      'shake your phone. Dragging the button onto the moon '
+                      'sends it away for ten minutes; the notice in your '
+                      'shade can send it away for an hour.',
                       style: SwipType.bodyS
                           .copyWith(color: SwipColors.textSecondary),
                     ),
@@ -478,9 +479,10 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
                 // exist. It is back because the feature is.
                 const _Promise(
                   icon: Icons.bedtime_outlined,
-                  text: 'Hold the button to send it away until tomorrow, or '
-                      'use Snooze in the notice for an hour. Sleeping is not '
-                      'the same as off — it comes back on its own.',
+                  text: 'Drag the button down onto the moon to send it away '
+                      'for ten minutes — shake your phone to bring it back '
+                      'sooner. Sleeping is not the same as off: it comes back '
+                      'on its own either way.',
                 ),
                 const _Promise(
                   icon: Icons.restart_alt_rounded,

@@ -24,8 +24,8 @@ So this checks the wires themselves, in the three shapes the project uses:
 
   0. a widget callback declared, called, and never passed by any caller;
   1. a Dart file in `lib/` that nothing in `lib/` imports;
-  2. a method-channel name called from Dart with no handler in
-     `MainActivity.kt`, or a handler nothing calls;
+  2. a method-channel name called from Dart with no handler in either
+     `MainActivity.kt` or `SwipHoverActivity.kt`, or a handler nothing calls;
   3. a `SharedPreferences` key written but never read, or read but never
      written;
   4. the bubble's diameter and its background's corner radius drifting apart.
@@ -55,6 +55,21 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 LIB = ROOT / "lib"
 KOTLIN = ROOT / "android/app/src/main/kotlin/in/swip/app/MainActivity.kt"
+
+# `F-175`. The **second** engine's channel handler.
+#
+# SWIP runs two Flutter engines: `MainActivity` is the app, `SwipHoverActivity`
+# is the transparent window the floating bubble opens. Both register
+# `in.swip.app/nfc`, and they do NOT register the same methods — the hovering
+# one answers only what a window with no NFC and no `MainActivity` state can
+# honestly answer.
+#
+# This check compared Dart's calls against `MainActivity` alone, so a method
+# that only the hovering window handles (`openTapScreen`) would have been
+# reported as a call into nothing. Which is the gate crying wolf about
+# correctly wired code — and a gate that cries wolf stops being read, which is
+# the lesson `check_secrets.sh` already taught this project.
+KOTLIN_HOVER = ROOT / "android/app/src/main/kotlin/in/swip/app/SwipHoverActivity.kt"
 BUBBLE_KT = ROOT / "android/app/src/main/kotlin/in/swip/app/SwipBubbleService.kt"
 BUBBLE_BG = ROOT / "android/app/src/main/res/drawable/swip_bubble_bg.xml"
 
@@ -126,8 +141,15 @@ def check_channel() -> list[str]:
                 f.read_text()):
             called.add(m.group(1))
 
-    handled = set(re.findall(r"""^\s+"([a-zA-Z]\w*)"\s*->""",
-                             KOTLIN.read_text(), re.MULTILINE))
+    # The union of BOTH engines' handlers. See KOTLIN_HOVER above for why
+    # there are two, and why comparing against one of them reported correctly
+    # wired code as broken.
+    handled = set()
+    for source in (KOTLIN, KOTLIN_HOVER):
+        if not source.exists():
+            continue
+        handled |= set(re.findall(r"""^\s+"([a-zA-Z]\w*)"\s*->""",
+                                  source.read_text(), re.MULTILINE))
 
     # NOTE: a channel name has to be a plain literal at the call site to be
     # seen here — `invokeMethod<bool>(on ? 'a' : 'b')` is invisible to this,
@@ -139,11 +161,12 @@ def check_channel() -> list[str]:
     problems = []
     for name in sorted(called - handled):
         problems.append(
-            f"Dart calls '{name}' on the method channel and MainActivity.kt "
-            f"has no handler for it. The call returns nothing, forever.")
+            f"Dart calls '{name}' on the method channel and neither "
+            f"MainActivity.kt nor SwipHoverActivity.kt has a handler for it. "
+            f"The call returns nothing, forever.")
     for name in sorted(handled - called):
         problems.append(
-            f"MainActivity.kt handles '{name}' and no Dart calls it. "
+            f"'{name}' is handled in Kotlin and no Dart calls it. "
             f"Dead platform code.")
     return problems
 
@@ -295,16 +318,27 @@ def check_bubble_radius() -> list[str]:
     if not BUBBLE_KT.exists() or not BUBBLE_BG.exists():
         return [f"{BUBBLE_KT.name} or {BUBBLE_BG.name} is missing"]
 
-    size = re.search(r"val size = dp\((\d+(?:\.\d+)?)f\)",
-                     BUBBLE_KT.read_text(encoding="utf-8"))
+    # Anchored to `buildBubble`, not searched across the file.
+    #
+    # `F-173` added a snooze target with its own `val size = dp(72f)`, earlier
+    # in the file than the bubble's, and an unanchored search matched that
+    # one — so the gate demanded a 36 dp corner radius and failed a build over
+    # a number it had read off the wrong widget. A check that can be pointed at
+    # the wrong thing by an unrelated edit is worse than no check, because it
+    # fails loudly and for a reason that is not true.
+    kotlin = BUBBLE_KT.read_text(encoding="utf-8")
+    builder = kotlin.find("private fun buildBubble")
+    size = (re.search(r"val size = dp\((\d+(?:\.\d+)?)f\)", kotlin[builder:])
+            if builder >= 0 else None)
     radius = re.search(r'<corners android:radius="(\d+(?:\.\d+)?)dp"',
                        BUBBLE_BG.read_text(encoding="utf-8"))
 
     # A pattern that stops matching is a check that silently passes forever,
     # so an unreadable number is a failure rather than a shrug.
     if not size:
-        return ["could not find `val size = dp(…f)` in SwipBubbleService.kt — "
-                "the bubble radius check is no longer checking anything"]
+        return ["could not find `val size = dp(…f)` inside `buildBubble` in "
+                "SwipBubbleService.kt — the bubble radius check is no longer "
+                "checking anything"]
     if not radius:
         return ["could not find `<corners android:radius=\"…dp\">` in "
                 "swip_bubble_bg.xml — the bubble radius check is no longer "

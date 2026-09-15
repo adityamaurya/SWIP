@@ -337,10 +337,17 @@ void main() {
 
       expect(find.textContaining('do NOT switch SWIP off'), findsOneWidget);
       expect(find.textContaining('accessibility shortcut'), findsOneWidget);
-      // `F-167`. Snooze is explained where the other ways of losing the
-      // button are, because "I held it and it vanished" is otherwise
+      // `F-167`, rewritten by `F-173`. Snooze is explained where the other
+      // ways of losing the button are, because "it vanished" is otherwise
       // indistinguishable from the bug this feature keeps being reported as.
-      expect(find.textContaining('until tomorrow'), findsOneWidget);
+      //
+      // The assertion moved with the gesture. It used to look for "until
+      // tomorrow"; the snooze is now a drag onto a target for ten minutes,
+      // with a shake to end it early, and **the way back is the half worth
+      // asserting on** — a snooze whose escape hatch is undiscoverable is the
+      // thing that made the old one feel like a bug.
+      expect(find.textContaining('ten minutes'), findsOneWidget);
+      expect(find.textContaining('shake your phone'), findsOneWidget);
     });
   });
 }

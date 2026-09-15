@@ -816,9 +816,10 @@ class _KeepItRunningStep extends StatelessWidget {
           const SizedBox(height: SwipSpace.lg),
           const _Note(
             icon: Icons.bedtime_outlined,
-            text: 'Holding the button sends it away until tomorrow. The notice '
-                'in your shade can send it away for an hour. Neither is the '
-                'same as switching it off — it comes back on its own.',
+            text: 'Drag the button down onto the moon and it sleeps for ten '
+                'minutes — shake your phone to bring it back sooner. The '
+                'notice in your shade can send it away for an hour. Neither '
+                'is the same as switching it off; it comes back on its own.',
           ),
           const SizedBox(height: SwipSpace.lg),
           const _Note(
