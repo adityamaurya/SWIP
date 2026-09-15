@@ -1058,6 +1058,108 @@ new physics is covered.
 
 ---
 
+## Prompt 41 — 15 Sep 2026 · Snooze by dragging, and stop taking the screen
+
+**You asked:** for a snooze you drag to, ten minutes, a shake to undo it,
+smoother motion, the striped bar at the bottom explained and gone, a minimal
+screen, and the scan result to stop taking over — with the CTA split into
+*View all* and *Tap POS*.
+
+**On the glitch — you described the symptom and it had one specific cause.**
+Holding the button started a timer, and a timer that fires while your finger is
+still down has to *guess* whether you were going to drag. When it guessed wrong
+it kicked off four animations at once on a button that was still springing back
+from the press. That is what you saw.
+
+So I deleted the long-press rather than smoothing it. A drag onto a target
+cannot be mistaken for anything else, because by the time the target appears
+you have already told it what you are doing. It is also the thing `docs/32` has
+said we should build since the very first round, and it was still not built.
+
+**One thing I did differently from what you asked, and I want to say so rather
+than let you find it.** You said drag it to *the centre*. The target is centred
+left-to-right but sits above the bottom edge, not in the middle of the screen —
+because the middle is exactly where the button passes through when you move it
+from one side to the other, which is the most common thing anyone does with it.
+A target there would swallow it by accident all day. If you try it and want it
+higher, that is one number.
+
+**Ten minutes, and a shake to end it early**, both as in your screenshot, and
+the toast says so in the same shape Wispr Flow's does — because nobody guesses
+a shake gesture, and an undiscoverable way back is the same as no way back.
+That was the real problem with "until tomorrow": there was no gesture that
+meant *actually, come back*.
+
+**And the bubble now has a test. Its first, ever.** Every round so far I have
+ended by admitting that the APK job proves it compiles and nothing proves it
+works. The reason was circular — a Kotlin test needs a build setting, and the
+build file is regenerated on every machine. `F-161` solved that two rounds ago
+and this is the second thing to use it.
+
+The test is aimed at the part where being wrong is *invisible*: shake detection
+that is too eager brings the button back while you are walking, undoing what
+you just asked for, and one that is too dull does nothing when you shake it and
+you cannot tell whether you shook it wrong. Neither crashes. So the suite feeds
+it a phone on a table, a brisk walk, a single knock, movements too far apart,
+and a real shake, and asserts on which of those come back.
+
+**The striped bar was a real bug and it was mine.** It said
+`BOTTOM OVERFLOWED BY 28 PIXELS` — Flutter's way of saying a layout was given
+less room than it needed. The capture sheet had no scroll view in it, so a
+capture with enough to say had nowhere to put the overflow.
+
+**The uncomfortable part is why you saw it now.** It has been like that for a
+long time. The only way to reach that screen was a ledger row — and last round
+I fixed the dashboard's MCC tap, which had been wired to nothing. Repairing the
+dead wire led you straight to the bug behind it. Worth writing down: connecting
+something that was never reachable does not just deliver the feature, it
+exposes everything behind it for the first time.
+
+And it matters more than it looks, because **that stripe only appears in a test
+build**. On a phone from the Play Store the same layout would have quietly cut
+the bottom off with nothing to show for it.
+
+**On minimalising — nothing is deleted, it is folded.** The screen now shows
+the verdict, what it means, who gets paid, and the RuPay line. That is it.
+Everything else — why the category is missing, the four ways to get it, the
+detection line, the field table — is behind *View all*, which opens it in place
+rather than sending you to another screen. You had asked for all of that in
+earlier rounds and all of it is still true; it just should not all be in front
+of you while somebody is waiting to be paid.
+
+**On the popup — this reverses a decision I argued for in round 36**, and the
+reversal is the interesting part. Back then I replaced a sheet with a
+full-screen page because the number is the product and a sheet shrank it to
+60 px. Still true, which is why the digits are still big here.
+
+What changed is what is *behind* it. A scan and a POS tap both happen with the
+camera or the reader still running, and covering that completely meant the next
+code needed a dismissal first — and the covering screen carried a button whose
+whole job was to undo the covering. **The scanner staying live behind the sheet
+is what let me give you both CTA slots**, because "try another" is now just
+putting the sheet down. The share sheet and the pay-by-app handover keep the
+full screen, because nothing is running behind those.
+
+**Tap POS is the best idea in your message.** When the code has no category,
+the old screen printed a list headed HOW TO GET IT whose first item was "tap
+their card machine" — advice about something SWIP can do, printed next to no
+way to do it. It is a button now.
+
+One honest wrinkle: from the hovering card it cannot open the POS screen
+directly. That window runs a second copy of the app with no connection to the
+NFC code, so the screen would come up and wait forever for an answer that never
+arrives. There it brings the real app forward at the POS screen and closes the
+card — which is also what you would want, since tapping a terminal means
+holding the phone against it rather than reaching through a floating window.
+
+**Still open, and I would rather say it than let a test count imply otherwise:**
+the bubble's *gestures* are still untested — the drag, the drop, the window
+appearing and going. The shake could be tested because it is arithmetic; an
+overlay window cannot be, without a real device in the loop. The riskiest part
+of this round is covered and the rest is not.
+
+---
+
 <!--
 Template:
 

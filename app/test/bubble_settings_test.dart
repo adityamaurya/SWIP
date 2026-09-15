@@ -381,7 +381,14 @@ void main() {
       granted = true;
       await t.pumpWidget(harness());
       await t.pumpAndSettle();
-      expect(find.textContaining('until tomorrow'), findsOneWidget);
+
+      // `F-173` rewrote the gesture and this assertion moved with it. It used
+      // to look for "until tomorrow"; snoozing is a drag onto a target for ten
+      // minutes now, and **the way back is the half worth pinning** — a snooze
+      // whose escape hatch is undiscoverable is what made the old one read as
+      // the button being broken.
+      expect(find.textContaining('ten minutes'), findsOneWidget);
+      expect(find.textContaining('shake your phone'), findsOneWidget);
       // And the one that is still not built stays gone.
       expect(find.textContaining('see-through'), findsNothing);
     });

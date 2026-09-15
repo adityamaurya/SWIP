@@ -214,7 +214,18 @@ void main() {
       await surfaced(t, const Size(400, 800));
       await t.pumpWidget(
           harness(sheet(withMcc, onPos: () {}), surface: const Size(400, 800)));
-      await t.pump();
+      // `pumpAndSettle`, not `pump`, and only in the tests that render a
+      // capture WITH a category — those draw `_FoilCode`, whose gold sweep is
+      // `.animate(onPlay: (c) => c.repeat(count: 4))`. A single `pump` leaves
+      // that animation's timer running, and the test then fails on "A Timer is
+      // still pending even after the widget tree was disposed" rather than on
+      // anything it was asserting.
+      //
+      // `CLAUDE.md` already records this trap from `F-159` and I walked into
+      // it anyway. Settling is safe here because the repeat is bounded; an
+      // unbounded one would hang instead, which is why the no-category tests
+      // above deliberately stay on a plain `pump`.
+      await t.pumpAndSettle();
 
       expect(find.widgetWithText(FilledButton, 'View all'), findsOneWidget);
       expect(find.widgetWithText(OutlinedButton, 'Tap POS'), findsOneWidget);

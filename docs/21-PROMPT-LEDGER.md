@@ -1693,7 +1693,7 @@ default and flagging it would make the gate noise.
 
 ---
 
-## Prompt 40 — 15 Sep 2026 · Make it feel like Messenger *(current)*
+## Prompt 40 — 15 Sep 2026 · Make it feel like Messenger
 
 Attached: a long set of pasted technical notes about Wispr Flow's overlay.
 
@@ -1747,6 +1747,71 @@ that rule's case exactly.
 * The reticle was a fixed 260 px square, which overlaps the copy at both ends
   inside the 320 px hovering card. A `Stack` is entitled to overlap its
   children, so nothing failed — it just looked broken.
+
+---
+
+## Prompt 41 — 15 Sep 2026 · Snooze by dragging, and stop taking the screen *(current)*
+
+Attached: four screenshots — two of Wispr Flow's snooze toast
+(*"Wispr Flow is snoozed for 10 min. Shake your phone to bring it back."*),
+one of SWIP's capture screen with `BOTTOM OVERFLOWED BY 28 PIXELS` across the
+foot of it, and one of the hovering card over the launcher.
+
+**Original prompt, verbatim:**
+
+> - the snooze button ux is unfurnished, on holding the launcher icon it gltiches and is not smooth animating, firstly we need snoozing mechanism where in i drag and drop the launcher icon to the center then in similar way in the screenshot of wispr flow it should snooze for 10mins by default and if I shake the phone it should be back as shown in the red circled way, also the animation bas to be more smooth
+>
+> in next 3rd inage while scanning in full screen the UI IS SO MESSED UP AND THERE IS SOME BUG AT THE BOTTOM IDK WHAT THAT IS, its not good looking minimalise the ui make it super well made and thoughtfully made screen
+>
+> - and the last screen when a WR is scanned the outout screen shown in a full screen format can we have a non intrusive UI where, you could simply show a pop up like you do on dashbaord just above the Cta and split the cta into View all and Tap POS or get from pos or soemthign inshort but professional ux copy throguhout and once the person taps this pos button it will take you to the swip's in app POS capturing screen
+>
+> PLAN ALL THE ABOVE FIRST SET, RESEARCH FIRST AND THEN START BUILDING VERY PRECISELY AND THROGUHLY TESTED and the ui that opens once you tap the launcher icon, thats very well made
+
+| # | ID | To-do | Status |
+|---|---|---|---|
+| 1 | `F-173` | Snooze by dragging to a target | **Done** — the long-press is deleted, not repaired |
+| 2 | `F-173` | Ten minutes by default | **Done** — replacing "until tomorrow" |
+| 3 | `F-173` | Shake to bring it back | **Done** — `SensorManager`, armed only while snoozed |
+| 4 | `F-173` | Smoother animation | **Done** — the glitch had a specific cause; see below |
+| 5 | `F-174` | The bug at the bottom | **Done** — a 28 px `RenderFlex` overflow, and it was mine |
+| 6 | `F-174` | Minimalise the screen | **Done** — a `brief` layout; nothing deleted, everything folded |
+| 7 | `F-175` | Non-intrusive popup instead of full screen | **Done** — for the two live vectors only |
+| 8 | `F-175` | Split the CTA into *View all* and *Tap POS* | **Done** |
+| 9 | `F-175` | Tap POS reaches the in-app POS screen | **Done** — from both windows, by two different routes |
+| 10 | — | Thoroughly tested | **Done** — and the bubble has its first automated test ever |
+
+### The glitch had a cause, and it was the gesture rather than the animation
+
+*"on holding the launcher icon it gltiches and is not smooth animating."*
+
+A long-press timer fires **under a finger that may still be about to drag**, so
+it has to guess what the gesture will become. When it guessed wrong the handler
+ran a text peek, a re-anchor spring and a scale kick on a view whose press
+spring was still settling — four animations, one view, one frame.
+
+So the long-press is **deleted** rather than smoothed. A drag onto a target
+cannot be mistaken for anything else, because by the time the target appears
+the gesture has already declared itself.
+
+### One correction, stated rather than made quietly
+
+The prompt says *"drag and drop the launcher icon to the center"*. The target
+is horizontally centred and sits **above the bottom edge**, not at the true
+middle of the screen — because the middle is where the bubble passes through on
+almost every ordinary reposition drag, and a target there would swallow it by
+accident constantly. Every chat-head implementation puts it near the bottom for
+this reason, and it is also where a thumb already is.
+
+### The striped bar was a real bug, and `F-169` uncovered it
+
+`showCaptureDetail` put `CaptureSheet` — a `Column` with no scroll view —
+straight into a modal sheet that can grow to the screen and no further. It had
+been that way for a long time and nobody had seen it, because the only way in
+was a ledger row. **`F-169` wired up the dashboard's MCC tap**, and the tap
+that had been dead led straight to it.
+
+Worth its own line: connecting something that was never reachable does not only
+deliver the feature, it exposes everything downstream of it for the first time.
 
 ---
 

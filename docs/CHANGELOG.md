@@ -1540,6 +1540,174 @@ than leaving implied.
 
 ---
 
+## Prompt 41 — 15 Sep 2026 · Snooze by dragging, and stop taking the screen
+
+> *"the snooze button ux is unfurnished, on holding the launcher icon it
+> gltiches… we need snoozing mechanism where in i drag and drop the launcher
+> icon to the center… it should snooze for 10mins by default and if I shake the
+> phone it should be back… THERE IS SOME BUG AT THE BOTTOM IDK WHAT THAT IS…
+> minimalise the ui… can we have a non intrusive UI… split the cta into View
+> all and Tap POS"*
+
+### The snooze — `F-173`
+
+| | Before | After |
+|---|---|---|
+| Gesture | long-press | **drag onto a target** that rises from the bottom centre |
+| Length | until the next midnight | **10 minutes** |
+| Way back | open SWIP and find a switch | **shake the phone**, or wait |
+| What it says | a pill in the bubble, for **less than one frame** | a system toast: how long, and how to end it early |
+| Feedback while dragging | none | the target grows and the phone buzzes when the drop will land |
+
+**The long-press is deleted rather than repaired, and that is the fix.** A
+long-press timer fires under a finger that may still be about to drag, so it
+has to guess what the gesture will become — and when it guessed wrong its
+handler ran a text peek, a re-anchor spring and a scale kick on a view whose
+press spring was still settling. Four animations, one view, one frame. That is
+the glitch, exactly.
+
+`docs/32` §4 has specified this drag target since the first round — *"a delete
+target that appears at the bottom on drag"* — and it was still on the not-built
+list one round ago. It carries a **crescent, not Messenger's X**: dropping a
+SWIP bubble does not destroy anything, and an X would promise a permanence that
+does not happen.
+
+**Shake to bring it back** is `SensorManager`, registered **only while
+snoozed**. A floating button that listens to the accelerometer all day is a
+battery complaint; one that listens for the ten minutes it is deliberately
+hiding is not.
+
+### The bubble's first automated test — `F-173`
+
+Every round until now ended with the same honest sentence: the APK job proves
+the bubble compiles and nothing proves it behaves. That changes here.
+
+[`ShakeDetector`](../app/android/app/src/main/kotlin/in/swip/app/ShakeDetector.kt)
+is pure Kotlin with **no Android imports at all**, which is what lets
+[`ShakeDetectorTest`](../app/android/app/src/test/kotlin/in/swip/app/ShakeDetectorTest.kt)
+run on the JVM in CI with no emulator. It is aimed where being wrong is
+invisible:
+
+| Fed | Must |
+|---|---|
+| A phone lying on a table, 10 s | not fire |
+| A brisk walk, 10 s | not fire |
+| One sharp knock (setting it down) | not fire |
+| Three hard movements 700 ms apart | not fire |
+| Three reversals at 200 ms | **fire, once** |
+| Two seconds of continuous shaking | fire a handful of times, not 100 |
+
+Both failure modes are silent — too sensitive and the bubble returns while the
+user is walking, undoing something they asked for; too dull and shaking does
+nothing and they cannot tell whether they shook it wrong. Neither throws,
+neither logs, neither fails a build.
+
+`testImplementation` reaches Gradle through `SWIP_GRADLE_DEPS`, the `F-161`
+mechanism. **Adding it exposed a bug in that mechanism**: the Kotlin-DSL
+rewrite matched the literal lowercase word `implementation`, so
+`testImplementation` — capital I — passed through untouched and would have been
+emitted as Groovy syntax inside a `.kts` file, failing on the Kotlin-DSL half
+of the world only. The configuration name is captured now. Found by dry-running
+the substitution rather than reading it.
+
+### The bar at the bottom of the screen — `F-174`
+
+`BOTTOM OVERFLOWED BY 28 PIXELS`. Flutter's overflow indicator, and **it is
+debug-only** — in a release build the identical layout clips silently and
+whatever falls off the bottom is simply missing.
+
+`showCaptureDetail` opened the capture sheet like this:
+
+```dart
+showModalBottomSheet(
+  isScrollControlled: true,
+  builder: (_) => CaptureSheet(...),   // a Column. Not scrollable.
+);
+```
+
+`isScrollControlled: true` lets the sheet grow to the height of the screen and
+then stops, and `CaptureSheet` has no scroll view anywhere in it.
+
+**It had been that way for a long time and surfaced only now**, because the
+only routes in were ledger rows until `F-169` wired up the dashboard's MCC tap
+last round. Connecting something that was never reachable exposes everything
+downstream of it for the first time — worth remembering the next time a dead
+wire is repaired.
+
+[`CaptureSheetShell`](../app/lib/widgets/capture_sheet_shell.dart) caps the
+height, scrolls the content and pins a footer. `Flexible` rather than
+`Expanded` is the operative word: with `Expanded` every capture would fill its
+cap, so a short one would cover the screen — the full-screen page again,
+wearing a grabber.
+
+### The result, without taking the screen — `F-175`
+
+`CaptureLayout.brief` renders the verdict, what it means, who is being paid and
+the RuPay line, **and stops**. The reason paragraph, the four routes, the
+detection line, the place, the confidence and the field table all move behind
+*View all*, which expands this same sheet in place rather than pushing a second
+screen.
+
+**This reverses `F-144` for two vectors only.** That round replaced a sheet
+with a page because *the number is the product* and a sheet capped four digits
+at 60 px — still true, which is why `brief` gives the digits the full-screen
+treatment on a 62%-height sheet. What changed is what is *behind* it: a QR scan
+and a POS tap both happen with their capture surface still running, and
+covering it completely meant the next capture needed a dismissal first. The
+share sheet and the pay-by-app handover keep the page, because nothing is
+running behind them.
+
+**That is also what frees the CTA.** *"Try another"* was a button that existed
+only to undo the covering; putting the sheet down does that now. So the row is
+the two the owner asked for:
+
+| | Filled when | Does |
+|---|---|---|
+| **View all** | there *is* a category | expands in place, no second dismissal |
+| **Tap POS** | there is **not** | opens SWIP's POS reader |
+
+*Tap POS* is the better half of this change and it was the owner's idea. A
+capture with no category used to print a list headed **HOW TO GET IT** whose
+first item was *"tap their card machine"* — advice about a thing SWIP can do,
+printed next to no way to do it.
+
+From the hovering card it cannot push that screen: **that window runs its own
+Flutter engine and `MainActivity`'s NFC channel does not exist in it.** So it
+brings the real app forward at the POS screen and closes the card, which is
+also the honest thing — tapping a terminal means holding the phone against it,
+not reaching through a window floating over somebody else's app.
+
+### Files
+
+| File | Change |
+|---|---|
+| [`ShakeDetector.kt`](../app/android/app/src/main/kotlin/in/swip/app/ShakeDetector.kt) | **New.** Pure logic, unit-tested |
+| [`SwipBubbleService.kt`](../app/android/app/src/main/kotlin/in/swip/app/SwipBubbleService.kt) | The target window, the swallow, the sensor, no long-press |
+| [`swip_snooze_target.xml`](../app/android/app/src/main/res/drawable/swip_snooze_target.xml), [`swip_snooze_mark.xml`](../app/android/app/src/main/res/drawable/swip_snooze_mark.xml) | **New.** The ring and its crescent |
+| [`capture_sheet_shell.dart`](../app/lib/widgets/capture_sheet_shell.dart) | **New.** The overflow fix |
+| [`capture_result_sheet.dart`](../app/lib/widgets/capture_result_sheet.dart) | **New.** The popup and the split CTA |
+| [`surface.dart`](../app/lib/core/runtime/surface.dart) | **New.** Which of the two windows this engine is |
+| [`capture_sheet.dart`](../app/lib/widgets/capture_sheet.dart) | `CaptureLayout.brief`, `showFurniture` |
+| [`bootstrap.sh`](../app/tool/bootstrap.sh) | JUnit, and the DSL-rewrite fix |
+| [`check_wiring.py`](../app/tool/check_wiring.py) | Both engines' channels; the radius rule anchored |
+
+### Tests
+
+| File | Asserts |
+|---|---|
+| [`ShakeDetectorTest.kt`](../app/android/app/src/test/kotlin/in/swip/app/ShakeDetectorTest.kt) | The table above. **The first test the bubble has ever had** |
+| [`capture_result_sheet_test.dart`](../app/test/capture_result_sheet_test.dart) | No overflow on a 320 px surface or at 1.8× text; a short capture makes a short sheet; the CTA pair, its emphasis, and that *Tap POS* reaches its callback |
+
+### Open
+
+The bubble's **gestures** still have no test — the drag, the swallow, the
+window lifecycle. `ShakeDetector` was extractable because it is arithmetic;
+a `WindowManager` overlay is not, without instrumentation and a device. The
+honest position is that the riskiest part of this round is covered and the rest
+is not.
+
+---
+
 <!--
 Template for the next entry:
 
