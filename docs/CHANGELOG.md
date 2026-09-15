@@ -2078,6 +2078,49 @@ of the fixed behaviour, and checked it names the first and shows a clean 13 s
 hidden stretch on the second. Fed it a truncated final line too, since a process
 killed mid-write is the event most worth recording.
 
+## Prompt 46 — 15 Sep 2026 · A tutorial from the comments
+
+No code changed. A piece of prior art was read at source and graded, and one
+claim about our own code was turned from an assumption into a check.
+
+### Screens changed
+
+None.
+
+### Code
+
+| Where | Change | Why |
+|---|---|---|
+| [`tool/read_trace.py`](../app/tool/read_trace.py) | Dropped a `dangling` list that was appended to and never read | Dead code in a file committed the same round. `check_wiring.py` catches this shape in Dart and Kotlin; nothing watches Python |
+
+### Docs
+
+| File | Added |
+|---|---|
+| [`39-FLOATING-OVERLAY-PRIOR-ART.md`](39-FLOATING-OVERLAY-PRIOR-ART.md) | **§7** — the tutorial graded line by line, seven rows, plus the check it prompted on `SwipBubbleService` |
+| [`21-PROMPT-LEDGER.md`](21-PROMPT-LEDGER.md) | Prompt 46 verbatim |
+| [`28-CONVERSATION-LOG.md`](28-CONVERSATION-LOG.md) | The answer |
+| [`CLAUDE.md`](../CLAUDE.md) | One row — the signed-difference tap test |
+
+### What the reading found
+
+The pasted `CODE.txt` is the **canonical** floating-view service. Four things in
+it are wrong in 2026: a `mediaProjection` foreground-service type on a service
+that never projects (Android 14 refuses to start it), an empty `Notification`
+handed to `startForeground`, a `TYPE_PHONE` fallback deprecated at API 26, and
+an unguarded `removeView` in `onDestroy`.
+
+And one live bug: `if (Xdiff < 10 && Ydiff < 10)` decides tap versus drag on
+**signed** differences, so a drag left or up launches the app.
+
+**SWIP's equivalent was read rather than assumed** —
+`SwipBubbleService.kt:1545` uses `abs` on both axes against
+`ViewConfiguration.scaledTouchSlop`. Correct.
+
+### Open
+
+Unchanged. The bubble trace stays until an exported file confirms `F-178`.
+
 ---
 
 <!--

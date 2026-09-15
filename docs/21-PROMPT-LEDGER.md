@@ -2005,6 +2005,76 @@ It reports an unreleased foreground claim as an **observation with timestamps,
 not a verdict**: `F-178` is a bug I found by reading, and a tool that confirms
 its author's hypothesis is not evidence.
 
+## Prompt 46 — 15 Sep 2026 · 20:32 IST · A tutorial from the comments
+
+**Original prompt, verbatim:**
+
+> Hey Guys
+> Welcome in this video we are going to show you how can u create widget like messenger icon
+>
+>
+> ************************************************************************************
+> if you want to give me donation my donations is: just install these app and use daily:
+> I know you need these apps
+> My whatsApp No is: +923115799224
+>
+> App No 1 PDF). https://play.google.co...​
+> App No 3). https://play.google.co...​
+> ***********************************************************************
+>
+> Here is the Code
+>
+> https://drive.google.c...​
+>
+> Click on the link to get code for whole project
+>
+> Do Subscribe
+> Thanks
+>
+>
+> how about this?
+>
+> keep a log of this as well
+>
+>
+> https://drive.google.com/file/d/1fY9r9uNZ9JYcbFWInI3ivmOyZEsMURG_/view?pli=1
+>
+> look at this
+
+A pasted YouTube description and the `CODE.txt` behind it —
+`ahmadullahbs@gmail.com`, 7,969 bytes, written 31 May 2021. Two asks: judge it,
+and write it down.
+
+| # | ID | Did | Why |
+|---|---|---|---|
+| 1 | — | Read the file at source and graded it line by line — [`docs/39` §7](39-FLOATING-OVERLAY-PRIOR-ART.md) | It is the *canonical* floating-view service, so its faults are everybody's faults |
+| 2 | — | **Checked SWIP's own tap-versus-drag test against the bug in it** | The tutorial's is signed, so a leftward drag opens the app. Ours uses `abs` and `scaledTouchSlop`. Read, not assumed |
+| 3 | — | Noted what the video calls a donation | Install-these-apps-and-message-me is a *quid pro quo*, which is the thing [`docs/27` §3](27-DONATIONS.md) already declined for SWIP |
+
+### The verdict
+
+**Nothing in it that SWIP does not already have, and four things in it that are
+wrong in 2026:** a `mediaProjection` foreground-service type on a service that
+never captures the screen (illegal from Android 14 — SWIP declares
+`specialUse`), an empty `Notification` passed to `startForeground`, a
+`TYPE_PHONE` fallback deprecated at API 26, and an unguarded `removeView` in
+`onDestroy`.
+
+### The bug worth the reading
+
+```java
+if (Xdiff < 10 && Ydiff < 10) {   // "so that is click event"
+```
+
+Both differences are **signed**. Drag the bubble left or up and the difference
+is negative, which is less than 10, so letting go launches the app. A drag in
+two of four directions is counted as a tap. It survives review because the
+comment above it is a true sentence about a false test.
+
+Ours, checked rather than assumed —
+[`SwipBubbleService.kt:1545`](../app/android/app/src/main/kotlin/in/swip/app/SwipBubbleService.kt):
+`abs(dx) > slop || abs(dy) > slop`, with `slop` from `ViewConfiguration`.
+
 ---
 
 <!--

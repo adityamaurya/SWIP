@@ -1315,6 +1315,55 @@ already using the thing the dead libraries were imitating.
 matter much. **Maintenance status is what to re-check**, and two of the
 best-known projects on the list were already dead when I looked.
 
+## Prompt 46 — 15 Sep 2026 · A tutorial from the comments
+
+**You asked:** how about this? — a YouTube video on building a Messenger-style
+floating icon, and the `CODE.txt` behind it.
+
+**I answered:** I read the file rather than the description. It is 7,969 bytes
+written in May 2021, and it is the **canonical** floating-view service — the
+shape that most chat-head tutorials and a good many shipped overlays descend
+from. Which is the reason to read it, and the reason it is worth writing down.
+
+**There is nothing in it SWIP does not already have, and four things in it that
+are wrong in 2026.** The full grading is in
+[`docs/39` §7](39-FLOATING-OVERLAY-PRIOR-ART.md); the short version is that it
+declares a `mediaProjection` foreground service for something that never
+captures the screen (which Android 14 refuses to start), hands `startForeground`
+an empty notification, keeps a `TYPE_PHONE` fallback deprecated at API 26, and
+tears the window down without guarding against its never having been attached.
+
+**The part worth your time is one line:**
+
+```java
+if (Xdiff < 10 && Ydiff < 10) {   // "so that is click event"
+```
+
+Both numbers are signed. Drag the icon **left or up** and the difference comes
+out negative — which is less than 10 — so releasing it opens the app. A drag in
+two of the four directions is silently counted as a tap. The comment above it
+reads perfectly sensibly, which is exactly why nobody catches it.
+
+**So I went and read ours instead of assuming it was fine.**
+[`SwipBubbleService.kt:1545`](../app/android/app/src/main/kotlin/in/swip/app/SwipBubbleService.kt)
+is `abs(dx) > slop || abs(dy) > slop` — absolute value on both axes, either one
+enough to count, and the threshold is the device's own `scaledTouchSlop` rather
+than a hardcoded 10. Correct. But it is checked now rather than believed.
+
+**If you have ever noticed an overlay in someone else's app that snaps nowhere
+when you let go, or that opens itself when you drag it towards the left edge —
+that is this file.** One tutorial, copied.
+
+**One thing I did not act on.** The video's "donation" is *install these apps
+and message me on WhatsApp*. That is a benefit given in exchange, which makes it
+a transaction rather than a donation — the same distinction
+[`docs/27` §2–§3](27-DONATIONS.md) already draws for SWIP, and the reason the
+cashback mechanism stays declined. I did not install anything or contact the
+number; the code was readable from the Drive link on its own.
+
+**Still open:** unchanged. The bubble trace stays on until you can send me an
+export showing the button surviving the press-Home-with-the-card-open sequence.
+
 ---
 
 <!--

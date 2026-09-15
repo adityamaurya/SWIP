@@ -171,3 +171,56 @@ Read in order of how much they would change:
 * Everything in §2 and §3 draws over other apps and so needs
   `SYSTEM_ALERT_WINDOW`, plus a foreground service on modern Android — the same
   permission wizard SWIP built in `F-159`. None of them makes that go away.
+
+---
+
+## 7. A tutorial from YouTube, read line by line
+
+> *"how about this?"* — prompt 46, with a video description and
+> [a Drive link to the code](https://drive.google.com/file/d/1fY9r9uNZ9JYcbFWInI3ivmOyZEsMURG_/view)
+
+`CODE.txt`, 7,969 bytes, written 31 May 2021. It is the **canonical**
+floating-view service — the shape almost every "chat head" tutorial and a great
+many shipped overlays descend from. Worth reading precisely because it is
+typical, and worth writing down because **four of the things in it are wrong
+today and one of them is a real bug that is easy to reproduce.**
+
+Read at source rather than skimmed, because "this is the standard approach" is
+exactly the kind of claim this project keeps getting caught by.
+
+| In `CODE.txt` | What it does | Where SWIP stands |
+|---|---|---|
+| `android:foregroundServiceType="mediaProjection"` | Declares screen capture for a service that never captures the screen | **Illegal from Android 14.** `startForeground` throws unless a projection is actually running. SWIP declares `specialUse` — [`AndroidManifest.xml:286`](../app/android/app/src/main/AndroidManifest.xml) |
+| `startForeground(1, new Notification())` on pre-O | Promotes the service with an empty notification | A `Notification` with no channel is rejected from API 26. A dead branch on any modern `minSdk`, and a crash if it ever ran |
+| `TYPE_PHONE` as the pre-O window type | The old overlay window | Deprecated at API 26 and refused for new apps. SWIP uses `TYPE_APPLICATION_OVERLAY` and nothing else |
+| **`if (Xdiff < 10 && Ydiff < 10)`** | Decides tap versus drag | **The bug.** Both are *signed*. Drag left or up and the difference is negative, which is `< 10`, so letting go opens `MainActivity` — a drag in two of four directions is counted as a tap. It needs `Math.abs`, and the threshold should be `ViewConfiguration.scaledTouchSlop`, not a hardcoded 10 |
+| `updateViewLayout` on every `ACTION_MOVE`, nothing on `ACTION_UP` | The bubble stays exactly where the finger left it | No edge snap, no velocity, no spring. This is the *absence* of what [`F-170`](32-FLOATING-BUBBLE.md) built |
+| `mWindowManager.removeView(...)` in `onDestroy`, unguarded | Detaches the window | Throws `IllegalArgumentException` if the view was never attached — which is the case if `addView` failed for want of the overlay permission. SWIP wraps every add and remove in `runCatching` |
+| No `Settings.canDrawOverlays` check anywhere in the file | — | SWIP has the whole permission wizard, `F-159` |
+
+**And the things it has that SWIP does not: none.**
+
+### The check this prompted on our own code
+
+The signed-difference bug is the kind that survives review because the comment
+above it sounds right — *"sometimes elements move a little while clicking"* is
+a true statement about a false test. So I went and read ours rather than
+assuming:
+
+[`SwipBubbleService.kt:1545`](../app/android/app/src/main/kotlin/in/swip/app/SwipBubbleService.kt)
+
+```kotlin
+if (!dragging && (abs(dx) > slop || abs(dy) > slop)) {
+```
+
+`abs` on both axes, `||` not `&&` — either axis moving far enough is a drag —
+and `slop` is `ViewConfiguration.get(context).scaledTouchSlop`, which is the
+device's own number rather than a guess. The tap branch then fires only when
+`dragging` was never set. **Correct, and now checked rather than assumed.**
+
+### Why it is still worth having read
+
+Because it explains a thing you can observe on other people's apps: overlays
+that snap nowhere when you let go, and that open themselves when you drag them
+towards the left edge. That is not a coincidence of bad luck — it is one
+tutorial, copied.

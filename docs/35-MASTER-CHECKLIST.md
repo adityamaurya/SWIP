@@ -306,6 +306,7 @@ growing.
 | The snooze goodbye message | 39, 40 | ✅ `F-170` — written in 39, **visible for the first time in 40** |
 | The reticle overlapping the copy in the short card | 40 | ✅ `F-171` — sized to its surface, and tested |
 | A reader for the exported bubble trace | 45 | ✅ `F-179` — [`tool/read_trace.py`](../app/tool/read_trace.py), verified against a synthetic trace of the bug before being trusted |
+| Judge a floating-icon tutorial, and log it | 46 | ✅ [`39` §7](39-FLOATING-OVERLAY-PRIOR-ART.md) — nothing in it SWIP lacks, four things in it illegal or dead in 2026, and one live bug; **and it prompted a read of our own tap-versus-drag test**, which is correct |
 | The latest APK | 43 | ✅ link, not file — the artifact host is blocked by this environment's egress proxy, established by trying |
 | A survey of open-source floating-icon projects | 44 | ✅ [`39`](39-FLOATING-OVERLAY-PRIOR-ART.md) — every entry opened and verified, not recalled |
 | Why the bubble disappears | 42 | ✅ `F-178` — a lifecycle asymmetry, found by reading; **and half the report was by design**, said plainly rather than fixed |
