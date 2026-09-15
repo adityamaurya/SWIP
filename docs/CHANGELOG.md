@@ -1720,6 +1720,39 @@ registered (a bootstrap change, an AGP bump), the bubble's only suite would
 silently stop running and CI would stay green. The workflow now counts the
 JUnit XML and **fails on zero**.
 
+### CI, read rather than assumed
+
+Commit [`8ffd9b3`](https://github.com/adityamaurya/SWIP/commit/8ffd9b3), run
+[34954911831](https://github.com/adityamaurya/SWIP/actions/runs/34954911831).
+
+| Job | Result |
+|---|---|
+| links / wiring / analyze / test | ✅ all four, from the **Report** step |
+| Build debug APK | ✅ artifact 94,466,128 bytes |
+| Run the Kotlin unit tests | ✅ |
+| **Prove the Kotlin tests actually ran** | ✅ `1 result file(s), 11 test(s), 0 failure(s), 0 error(s)` |
+
+**Eleven is the number worth checking, not the tick.** `ShakeDetectorTest` has
+exactly eleven `@Test` methods, so the count confirms the source set is
+compiled and the suite ran — which a green Gradle step on its own does not say.
+
+**The first run of this round failed and I nearly called it green.** The jobs
+API reports `conclusion: "success"` for every `continue-on-error` step whatever
+happened, so reading step conclusions showed all-clear while two tests were
+red. The workflow's own Report step reads `outcome`, which is the honest field.
+Same trap as the APK job in `F-110`, wearing different clothes.
+
+The two failures, both mine and both instructive:
+
+* `bubble_settings_test` still asserted on *"until tomorrow"* — I changed the
+  screen's copy and not the test that pins it.
+* `capture_result_sheet_test` died on *"A Timer is still pending even after the
+  widget tree was disposed"*, not on anything it was asserting. A capture
+  **with** a category draws `_FoilCode`, whose sweep is
+  `.animate(onPlay: (c) => c.repeat(count: 4))`, and a single `pump` leaves it
+  running. `CLAUDE.md` has recorded that trap since `F-159` and I walked into
+  it anyway.
+
 ### Open
 
 The bubble's **gestures** still have no test — the drag, the swallow, the
