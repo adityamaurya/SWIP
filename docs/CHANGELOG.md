@@ -1506,6 +1506,30 @@ green and the bubble quietly becomes a rounded square. Verified both ways.
 | [`bootstrap.sh`](../app/tool/bootstrap.sh) | The physics dependency |
 | [`check_wiring.py`](../app/tool/check_wiring.py) | The radius check |
 
+### CI, read rather than assumed
+
+Commit [`acb448b`](https://github.com/adityamaurya/SWIP/commit/acb448b), run
+[34931453712](https://github.com/adityamaurya/SWIP/actions/runs/34931453712).
+
+| Job | Result |
+|---|---|
+| links / wiring / analyze | ✅ all four steps `success`; analyze clean |
+| `flutter test` | ✅ **349 passing** (301 last round; the two new suites are the difference) |
+| **Build debug APK** | ✅ `✓ Built build/app/outputs/flutter-apk/app-debug.apk` in 288.9 s, artifact 94,439,631 bytes |
+
+**The APK job is the proof the Gradle injection worked**, and it is better
+proof than the log line would have been. `SwipBubbleService.kt` imports
+`androidx.dynamicanimation.animation.*`; had `SWIP_GRADLE_DEPS` failed to reach
+the generated `build.gradle`, `compileDebugKotlin` would have failed on
+unresolved references rather than producing an APK. That is the
+read-the-artifact-not-the-source rule in `CLAUDE.md`, applied.
+
+No new warnings from SWIP's own sources. The three that appear are all
+pre-existing and none is ours: the Kotlin Gradle Plugin notice for
+`mobile_scanner`/`sensors_plus`/`share_plus`, a deprecated-API note inside
+`geocoding_android`, and GitHub's Node 20 deprecation for
+`actions/upload-artifact`.
+
 ### Open
 
 Nothing new. The bubble still has **no automated test at all** — there is no
