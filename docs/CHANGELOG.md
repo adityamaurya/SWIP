@@ -1388,6 +1388,134 @@ constants in `merchant_directory.dart`. All in
 
 ---
 
+## Prompt 40 — 15 Sep 2026 · Make it feel like Messenger
+
+> *"increase the size a bit… the SWIP logo is not aligning… get the scan QR at
+> the below near the below text lines… keep the SWIP logo in the top but take
+> it to the more top region, also the flashlight… make it as beautiful and as
+> seamless as the messenger bubble icon that comes and pops up… go on some
+> github open repositories and find some great animations for such floater
+> tabs… it feels very native experience rather than too much sticky type
+> experience… the close button at the below should be a bit more prominent…
+> make it compatible with black and white mode… make sure it doesn't break,
+> test and retest"*
+
+### The bubble — `F-170`
+
+| What | Before | After |
+|---|---|---|
+| Diameter | 48 dp | **56 dp** (Material's FAB size) |
+| Corner radius | 24 dp | **28 dp** — half the diameter, or it stops being round |
+| Glyph disc | 32 dp | 38 dp |
+| Edge snap | `ValueAnimator` + `OvershootInterpolator(1.1f)`, `duration = 260` | `SpringAnimation` on X, start velocity from a `VelocityTracker` |
+| Vertical release | clamped, no motion | `FlingAnimation` with friction and bounds |
+| Press | `animate().scaleX(0.92f).setDuration(120)` | scale spring, interruptible |
+| Peek | two chained `ViewPropertyAnimator`s | one velocity kick on the same spring |
+| Arrival | hard cut from nothing | springs up from 60% |
+
+**The diagnosis, in one line: a duration is the bug.** The old snap ran for
+260 ms whether the bubble was flicked across the screen or nudged a
+centimetre, so the motion had no relationship to the gesture — which is what
+"sticky" describes. A spring has no duration; it has a rest position and a
+start velocity, and the velocity comes from the finger.
+
+Above `ViewConfiguration.scaledMinimumFlingVelocity` the **direction of the
+throw** now picks the edge instead of the midpoint, so flicking left from the
+right-hand half of the screen no longer sends the bubble back where it came
+from.
+
+Dependency: `androidx.dynamicanimation:dynamicanimation:1.0.0`, injected
+through `SWIP_GRADLE_DEPS` in [`tool/bootstrap.sh`](../app/tool/bootstrap.sh)
+— the first real use of the `F-161` mechanism, which had been built and left
+empty on purpose.
+
+### The scanner header — `F-171`
+
+The mark, the title and the torch were one `AppBar` row. A row centres its
+children on each other, so *"keep the logo at the top"* and *"the title beside
+it"* were contradictory requirements for one widget — which is why the fix is
+moving the title out rather than adjusting padding.
+
+* `AppBar` removed; the mark and torch are a `Positioned` row under a
+  `SafeArea`, and the status-bar style moved to an `AnnotatedRegion`.
+* *"Scan a QR"* moved down to sit above the line that explains it.
+* The torch now **shows whether it is on**, read from the controller rather
+  than from a boolean the button sets itself — the mistake recorded in
+  `CLAUDE.md` about the bubble switch.
+* The reticle was a fixed 260 px square. In the 320 px hovering card that
+  leaves 30 px at each end, so the mark and the copy were drawn on top of it.
+  It is now sized to its surface, and the arithmetic is tested.
+* `hover_scan.dart` strips the top inset with `MediaQuery.removePadding`,
+  because inside a card at the bottom of the screen the phone's status-bar
+  height is a measurement of somewhere else. **This is most likely what the
+  owner saw as the logo "not aligning".**
+
+### The close button — `F-172`
+
+Not a size problem. It was `Color(0xCC060507)` — SWIP's near-black at 80% —
+on a 45% black scrim, over whatever app was underneath. Three dark layers:
+against a dark app the pill composites to roughly RGB 5 on black, a contrast
+ratio of **1.03:1**. A bigger version of it would have been a bigger invisible
+button.
+
+The pairing is inverted rather than re-tinted: the pale `onCameraInk` becomes
+the fill at 94% and the near-black becomes the label, which is the lightest
+thing SWIP owns on the darkest thing it owns. Material 3 shape — a 56 px
+pill, icon plus label, tonal fill, and a shadow because it genuinely is
+floating.
+
+**"Compatible with black and white mode" is answered in two halves,** and the
+second is the interesting one:
+
+* The scrim *is* SWIP's own, so it follows the palette — 0.52 in Paper, 0.62
+  in Foil, chosen by the contrast arithmetic rather than by eye.
+* The chrome *is not*, deliberately. A first attempt used
+  `SwipColors.surfaceRaised`, which is beautiful in Paper and is `#141216` in
+  Foil — the invisible near-black pill again. `CLAUDE.md`'s camera-overlay
+  rule already covers this case: a surface over an arbitrary app carries its
+  own contrast.
+
+### Two dead features found on the way
+
+* **The long-press snooze has never shown its goodbye.** `F-167` peeks a
+  message explaining where the bubble went, then calls `applyVisibility`,
+  which hides the window on the same frame. String, call and handler all
+  present and correct. `show()` now honours a 900 ms grace.
+* **The reticle overlap above.** A `Stack` is entitled to overlap its
+  children, so nothing threw and nothing failed.
+
+### Tests
+
+| File | What it actually asserts |
+|---|---|
+| [`test/hover_chrome_test.dart`](../app/test/hover_chrome_test.dart) | Composites the scrim, pill, label and grip over a **white app and a black app**, in both palettes, and checks the WCAG ratios. The old design scores 1.03 and fails it |
+| [`test/scan_layout_test.dart`](../app/test/scan_layout_test.dart) | The reticle leaves room for the header and footer on a phone, on the tallest card and on the shortest |
+
+`check_wiring.py` gains a **fifth check**: the bubble's diameter against its
+background's corner radius. Drifting them apart fails nothing — the build is
+green and the bubble quietly becomes a rounded square. Verified both ways.
+
+### Files
+
+| File | Change |
+|---|---|
+| [`SwipBubbleService.kt`](../app/android/app/src/main/kotlin/in/swip/app/SwipBubbleService.kt) | Physics, size, pop-in, goodbye grace |
+| [`swip_bubble_bg.xml`](../app/android/app/src/main/res/drawable/swip_bubble_bg.xml) | Radius 24 → 28 dp |
+| [`scan_page.dart`](../app/lib/features/capture_qr/scan_page.dart) | Header re-layout, torch state, adaptive reticle |
+| [`hover_scan.dart`](../app/lib/features/bubble/hover_scan.dart) | `HoverChrome`, close button, entrance, `removeTop` |
+| [`bootstrap.sh`](../app/tool/bootstrap.sh) | The physics dependency |
+| [`check_wiring.py`](../app/tool/check_wiring.py) | The radius check |
+
+### Open
+
+Nothing new. The bubble still has **no automated test at all** — there is no
+Kotlin test source set in this project, and adding one means Gradle
+configuration that `bootstrap.sh` regenerates. The gate's radius check and the
+APK job are what stand in for it, and that is worth saying out loud rather
+than leaving implied.
+
+---
+
 <!--
 Template for the next entry:
 

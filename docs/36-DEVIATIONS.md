@@ -137,10 +137,24 @@ Recorded because in three of five you overruled me and were right to.
 | 🟣 D-44 | *"`bootstrap.sh` regenerates `build.gradle`, so CameraX can't stick — your call"* | **Wrong, and mine.** That script is ours and had been re-injecting a `compileSdk` override for the same reason since the file_picker collision. `F-161` |
 | 🚫 D-45 | `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` | **Declined, on policy rather than taste.** Play prohibits a direct Doze exemption "unless the core function of the app is adversely affected"; the acceptable list is messaging, enterprise VOIP, safety, task automation and peripheral companions. A floating button is none of those |
 | ⏸ D-46 | An Accessibility Service, as Wispr Flow uses | **Offered, not taken.** It would buy precise foreground detection and cost the claim that SWIP *cannot* read another app's screen. Put to the owner in [`37` §3](37-OMNIPRESENCE-AND-THE-TWO-BLOCKERS.md) rather than decided alone |
+| 🟣 D-47 | *"The bubble's snap animation is fine"* — never argued out loud, which is the point | **Wrong, and the owner named it precisely.** *"Too much sticky type experience"* is an exact description of a fixed `duration`: 260 ms whether the bubble was flicked across the screen or nudged a centimetre. [`32` §4](32-FLOATING-BUBBLE.md) had specified *"velocity-aware edge snapping"* from the beginning and the build never read a velocity at all. `F-170` |
+| 🟣 D-48 | *"The close button needs to be bigger"* — my first reading of the owner's note | **Wrong diagnosis.** It was a contrast failure, not a size one: near-black at 80% on a 45% black scrim over a dark app composites to 1.03:1, and a bigger version would have been a bigger invisible button. `F-172`, and [`test/hover_chrome_test.dart`](../app/test/hover_chrome_test.dart) now asserts it |
+| 🟣 D-49 | The first fix for D-48: make the chrome follow the Paper/Foil palette | **Wrong, and caught by my own test rather than by the owner.** Foil's raised surface is `#141216`, so Foil got the invisible pill back. `CLAUDE.md`'s camera-overlay rule already covered the case — overlay chrome carries its own contrast — and I had not applied it here. `F-172` |
 
 The pattern in D-26, D-27 and D-28 is worth naming: **I was reasoning from
 what I already believed instead of going and checking.** The correction in each
 case came from you telling me to look. That is the useful thing on this page.
+
+**D-47 is a third variant, and the quietest one.** It was not a position I
+argued and not a decision I handed over — it was a spec on this project's own
+page that the implementation had drifted from, and nobody re-read the page. The
+two numbers `docs/32` §4 asked for (56 dp, velocity-aware) were both wrong in
+the build for four months, and the owner found them by feel. **Before
+declaring a feature finished, re-read what was written down for it.**
+
+D-49 is the encouraging one: a wrong turn caught by a test written in the same
+session, before the owner ever saw it. That is what the two new suites this
+round are for.
 
 **D-42, D-43 and D-44 are the same pattern again, in a worse form.** Those
 three were not positions I argued for — they were things I labelled "your

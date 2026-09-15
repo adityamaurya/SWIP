@@ -948,6 +948,116 @@ were perfectly fine, and a check that cries wolf is one you stop reading.
 
 ---
 
+## Prompt 40 — 15 Sep 2026 · Make it feel like Messenger
+
+**You asked:** for a bigger bubble, a header that stops fighting itself, the
+motion Messenger has, a close button you can actually find, both themes, and
+no breakage.
+
+**On the animations — I went and looked, as you said to.** The chat-head
+projects on GitHub all land on the same answer:
+[springy-heads](https://github.com/flipkart-incubator/springy-heads),
+[floaty_chatheads](https://github.com/Crdzbird/floaty_chatheads),
+[bubbles-for-android](https://github.com/txusballesteros/bubbles-for-android).
+Facebook wrote a physics library called Rebound specifically for chat heads;
+Android has since absorbed the same maths as `androidx.dynamicanimation`, so
+SWIP uses the first-party one — 50 KB, and no third-party animation runtime
+inside an app whose whole claim is that it does not phone home.
+
+**And it turned out "sticky" was a precise diagnosis.** The old code moved the
+bubble to the edge over exactly 260 milliseconds — *every time*. Throw it hard
+across the screen: 260 ms. Nudge it a centimetre: 260 ms. So what the bubble
+did had nothing to do with what your finger did, and that is what makes
+something feel like an animation being played at you instead of an object you
+are holding.
+
+A spring does not have a length. It has a place it wants to be and a speed it
+is already going, and the speed is read from your finger. So a flick lands
+hard and a nudge drifts, from the same four lines of code. It also means you
+can grab it mid-flight and it just comes with you.
+
+Three smaller things came from the same change: it **pops up** when it
+returns instead of blinking into existence, the press squashes and springs
+back rather than running two fixed animations that fight each other on a quick
+tap, and a hard flick now goes **the way you threw it** rather than to the
+nearer edge — the old rule sent a leftward flick from the right-hand side
+straight back to the right, which reads as the app refusing you.
+
+**The logo.** You were right that it could not be fixed with padding: the
+mark, the title and the torch were one row, and a row centres its children on
+each other, so "logo at the top" and "title beside it" cannot both be true.
+The title is now down with the line that explains it, which is where it
+belonged anyway — *"Scan a QR"* and *"Point at any payment QR…"* are a heading
+and its sentence, and they were separated by the whole screen with a camera in
+between.
+
+**And there was a second cause I found while doing it.** Inside the hovering
+card, the header was being pushed down by the height of your phone's status
+bar — which is a measurement of the top of the screen, and that card is at the
+bottom. Dead space above the logo, for no reason. Fixed.
+
+While in there: the torch button now **shows whether the torch is on**. It did
+not before, so the only way to tell was to look at the room.
+
+**The close button was not too small. It was invisible.** It was SWIP's
+near-black at 80% opacity, sitting on a 45%-black scrim, sitting on whatever
+app you were in. Three dark layers. Over a dark app it came out at about 5 on
+a scale of 255 against a black background — a contrast ratio of **1.03 where
+3.0 is the minimum.** Making it bigger would have made a bigger invisible
+button.
+
+So it is inverted: the pale ink is now the **fill** and the near-black is the
+text. Material 3 shape, still see-through, and it lifts off the scrim with a
+shadow because it really is floating.
+
+**On black and white mode, one honest complication.** My first fix made the
+button follow your Paper/Foil choice, and it looked lovely in Paper and broke
+in Foil in exactly the way the original had — Foil's raised surface is
+`#141216`, so the near-black pill came straight back. That window floats over
+an app SWIP did not draw, and the project already has a rule for that case:
+things drawn over something we do not control carry their own contrast instead
+of borrowing the theme's. So the button deliberately looks the same in both.
+What *does* follow the theme is the dimming behind it.
+
+**On testing — this is where I put the effort.** Two new suites, and neither
+is a screenshot:
+
+* the close button's colours are composited the way the GPU does it, over a
+  **white app and a black app**, in both themes, and the contrast ratios are
+  asserted. The old design fails it at 1.03. That test would have caught this
+  before you had to report it;
+* the aiming square is checked to leave room for the text at both ends, on a
+  phone and in the shortest possible card.
+
+The build gate also grows a check: the bubble's width and its corner radius
+have to stay in step, because if they drift nothing fails — the build is
+green, every test passes, and the bubble just quietly stops being round.
+
+**Two things were already broken and nobody could have known.**
+
+The first: when you hold the button to snooze it, it is supposed to tell you
+where it went. That message has **never been visible.** It was shown and the
+bubble was hidden on the same frame, so it existed for less than one frame.
+Every piece was written and correct. It waits now.
+
+The second: the aiming square was a fixed size that is bigger than the short
+version of the hovering card, so the logo and the copy were drawn on top of
+it. Nothing failed, because overlapping is a legal thing for that layout to
+do. It just looked wrong.
+
+That is four times now — a setting nobody read, a file nobody imported, a tap
+nobody wired, and now a message nobody could see. Every piece present and
+correct, and the join missing. It is the failure this project keeps having,
+which is why the build gate keeps growing a check for it.
+
+**Still open, and unchanged:** the bubble itself has no automated test,
+because there is no Kotlin test setup here and adding one means build
+configuration that gets regenerated on every machine. The APK job proves it
+compiles; nothing proves it behaves. I would rather say that than imply the
+new physics is covered.
+
+---
+
 <!--
 Template:
 

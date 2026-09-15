@@ -1655,7 +1655,7 @@ rather than assuming the new engine inherits the old one's wiring.
 
 ---
 
-## Prompt 39 — 14 Sep 2026 · Six things from three screenshots *(current)*
+## Prompt 39 — 14 Sep 2026 · Six things from three screenshots
 
 Attached: three screenshots — the bubble on the home screen with "Scanning…"
 cropped, the hovering scanner working over the launcher, and the bubble over a
@@ -1690,6 +1690,63 @@ present and correct and the wire was missing.
 preferences. It checks callbacks now, narrowly: only `name?.call(` with no
 supplier, because a never-passed callback with a `??` fallback is a working
 default and flagging it would make the gate noise.
+
+---
+
+## Prompt 40 — 15 Sep 2026 · Make it feel like Messenger *(current)*
+
+Attached: a long set of pasted technical notes about Wispr Flow's overlay.
+
+**Original prompt, verbatim:**
+
+> so basically the hover uh, uh, the floater icon is working seamlessly is working as of now uh, can you make sure that you increase the size a bit secondly the SWIP logo is not aligning it's aligning with the scan the QR thing maybe what you can do is uh, get the scan QR at the below tech, uh, near the below text lines that you have put uh, put SWIP keep the SWIP logo uh, in the top but take it to the more top region also the flashlight as well now can you make it as beautiful and as seamless as uh, the messenger bubble icon that comes and pops up so that the experience is very seamless can you inject go on some uh, github uh, open repositories and find some great animations for such floater tabs uh, uh, so it is becoming so so that it becomes very uh, it feels very native experience rather than too much uh, sticky type experience also uh, also um, yeah I mean the close button at the below should be a bit more prominent uh, keep it transparent or maybe use the system des uh, latest Android design system Uh, leverage it also yeah uh, make it compatible with black and white mode uh, make sure it doesn't break test and retest it as much as possible
+
+| # | ID | To-do | Status |
+|---|---|---|---|
+| 1 | `F-170` | Increase the bubble size | **Done** — 48 → 56 dp, radius 24 → 28 dp |
+| 2 | `F-171` | Logo and torch to the top, title down with the copy | **Done** — the `AppBar` had to go |
+| 3 | `F-170` | Messenger-like motion, from open repositories | **Done** — `androidx.dynamicanimation`, spring + fling |
+| 4 | `F-172` | Close button more prominent, transparent / Material 3 | **Done** — it was a colour bug, not a size one |
+| 5 | `F-172` | Compatible with black and white mode | **Done** — and the honest answer is "partly by not following it" |
+| 6 | — | Test and retest | **Done** — two new suites, a fifth gate check |
+
+### What the GitHub research actually changed
+
+Asked to go and look rather than reason from memory, which is the standing
+correction in `CLAUDE.md`. The open-source chat heads —
+[springy-heads](https://github.com/flipkart-incubator/springy-heads),
+[floaty_chatheads](https://github.com/Crdzbird/floaty_chatheads),
+[bubbles-for-android](https://github.com/txusballesteros/bubbles-for-android),
+[Android-ChatHead](https://github.com/henrychuangtw/Android-ChatHead) — all
+converge on one idea: **spring physics with a start velocity**, not
+interpolators with durations. Facebook wrote Rebound for exactly this, and
+Android absorbed it as `androidx.dynamicanimation`.
+
+That diagnosis is the whole answer to "too much sticky type experience". The
+old snap ran for 260 ms no matter how hard the bubble was thrown, so the
+motion was unrelated to the gesture. A spring has no duration at all.
+
+### The close button was never a size problem
+
+It was `Color(0xCC060507)` on a 45% black scrim over whatever app was
+underneath. Composite that over a dark app and the pill lands at about RGB 5
+on black — **a contrast ratio of 1.03:1.** Making it bigger would have made a
+bigger invisible button. `test/hover_chrome_test.dart` now does that
+arithmetic on every push.
+
+The first fix followed the palette, and Foil failed the same way the original
+had: Foil's raised surface is `#141216`. The rule was already written down in
+`CLAUDE.md` — overlay chrome carries its own contrast — and this window is
+that rule's case exactly.
+
+### Two dead features found on the way
+
+* The long-press snooze peeked a goodbye message and then hid the bubble on
+  the same frame. The string, the call and the handler all exist and **nobody
+  has ever seen it.** `F-169`'s shape for the fourth time.
+* The reticle was a fixed 260 px square, which overlaps the copy at both ends
+  inside the 320 px hovering card. A `Stack` is entitled to overlap its
+  children, so nothing failed — it just looked broken.
 
 ---
 

@@ -280,6 +280,33 @@ the live docs, then wire a key.
 | Cashback-arbitrage donation mechanism | 29 | 🚫 **declined** — [`27` §3](27-DONATIONS.md) |
 | A plan to avoid GST | 29 | 🚫 **declined**; the accurate position given instead |
 
+### 4.5b The floating bubble and the hovering scanner — prompts 36–40
+
+Kept together because they are one feature built over five rounds, and because
+four of the entries below are things that were **already built and not
+connected**. That count is the reason `check_wiring.py` exists and keeps
+growing.
+
+| Ask | Prompt | Status |
+|---|---|---|
+| A floating shortcut that works everywhere | 36 | ✅ `F-158` — it had never been built; the switch wrote a preference nothing read |
+| Omnipresent, surviving reboot and process death | 37 | ✅ `F-162` — `BOOT_COMPLETED` + `START_STICKY`, reversing my own earlier refusal |
+| A Wispr Flow style permission wizard | 37 | ✅ `F-159` — five screens, and the last one is the one that was missing |
+| Warn about clashes with other floating apps | 37 | ✅ and **corrected**: overlays stack by Z-order and never disable each other. The single-slot thing is the accessibility shortcut |
+| The scanner hovering over other apps | 38 | ✅ `F-163` — the real `ScanPage` in a transparent Activity, not a second CameraX implementation |
+| "Scanning…" cropped on the right edge | 39 | ✅ `F-165` |
+| Snooze, like Wispr Flow | 39 | ✅ `F-167` — hold, or an hour from the shade |
+| The MCC inside the card, not over the screen | 39 | ✅ `F-168` — the card gets its own `Navigator` |
+| Dashboard MCC opens details | 39 | ✅ `F-169` — **a callback nobody ever passed** |
+| Bigger bubble | 40 | ✅ `F-170` — 48 → 56 dp, which is what [`32` §4](32-FLOATING-BUBBLE.md) had asked for all along |
+| Messenger's motion, researched from open repositories | 40 | ✅ `F-170` — `androidx.dynamicanimation`; the old snap never read a velocity |
+| Logo and torch at the top, title down with the copy | 40 | ✅ `F-171` — the `AppBar` made the two asks contradictory |
+| Close button more prominent | 40 | ✅ `F-172` — it was invisible at 1.03:1, not small |
+| Compatible with Paper and Foil | 40 | ✅ `F-172` — the scrim follows the palette, the chrome deliberately does not |
+| The snooze goodbye message | 39, 40 | ✅ `F-170` — written in 39, **visible for the first time in 40** |
+| The reticle overlapping the copy in the short card | 40 | ✅ `F-171` — sized to its surface, and tested |
+| An automated test for the bubble itself | — | ❌ **none exists.** No Kotlin test source set, and adding one means Gradle configuration `bootstrap.sh` regenerates. The APK job proves it compiles; nothing proves it behaves |
+
 ### 4.6 Cannot be done
 
 | Ask | Why |
@@ -301,7 +328,10 @@ money, or is deliberately held.
 |---|---|---|
 | Display serif | Held as its own commit so a bad outcome is bisectable | Mine, next round |
 | ~~Bubble step 4 — the scanner over other apps~~ | **Done** (`F-163`), and deliberately **not** as a native CameraX overlay: that would be a second implementation of scanning, and SWIP's is several rounds of hard-won behaviour. The real `ScanPage` is hovered instead, in a transparent Activity. [`32` §10](32-FLOATING-BUBBLE.md) | — |
-| The result page inside the hovering card | After a scan it fills the screen rather than staying in the card, so dismissing it returns to the card rather than to the app underneath. Two dismissals where one would do | Mine, next round |
+| ~~The result page inside the hovering card~~ | **Done** (`F-168`) — the card carries its own `Navigator`, so the push is bounded to those pixels | — |
+| A behavioural test for the bubble | There is no Kotlin test source set, and creating one means Gradle configuration that `bootstrap.sh` regenerates on every machine. The gate's radius check and the APK job stand in for it; neither exercises a gesture | Mine — worth a round of its own |
+| The circle→camera shared-element morph, [`32` §4](32-FLOATING-BUBBLE.md) | Cannot be done as specified while the scanner is a separate Activity with its own Flutter engine — there is no shared element to morph across a process boundary | Mine — needs a different design, not more effort |
+| The drag-to-delete target, [`32` §4](32-FLOATING-BUBBLE.md) | Not built. Long-press snooze covers the "get rid of it" case; a delete target is the more discoverable version | Mine, next round |
 | iOS CI | macOS runners bill at 10× | **Yours** — budget |
 | `INTERNET` permission | Fix must be verified on a device | **Yours** — a device |
 | 02:00 auto-backup | Now unblocked by `F-147` | Mine, next round |
@@ -326,7 +356,11 @@ money, or is deliberately held.
 | `tool/check_balance.py` | ✅ |
 | `tool/check_const.py` | ✅ |
 | `flutter analyze` | ✅ clean (one expected warning: `assets/brand/` is gitignored and copied by `bootstrap.sh`) |
-| `flutter test` | ✅ **281 passing** |
+| `flutter test` | ✅ **281 passing** at prompt 35; **more since** — the count in each round's CI log is the authority, not this line |
+| `tool/check_wiring.py` | ✅ five checks as of `F-170` — files, channels, preferences, callbacks, and the bubble's radius against its diameter |
+| `tool/check_links.py`, `tool/check_secrets.sh` | ✅ |
+| Close button legible over a white app and a black app, both palettes | ✅ `test/hover_chrome_test.dart` — composited, not eyeballed |
+| Reticle leaves room on a phone and in the shortest card | ✅ `test/scan_layout_test.dart` |
 | CI — analyze and test job | ✅ |
 | CI — **debug APK job** | ✅ read directly, not just the rollup |
 | Dashboard lays out on both palettes, two sizes | ✅ |

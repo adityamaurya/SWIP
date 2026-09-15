@@ -121,6 +121,55 @@ Messenger's chat head is the drag model to copy: velocity-aware edge snapping,
 and a delete target that appears at the bottom on drag. Wispr Flow's bubble is
 the *presence* model: always there, never in the way, low opacity until touched.
 
+### What was actually built, and the gap `F-170` closed
+
+**This section was right and the implementation drifted from it, in the two
+places that mattered most.** Worth recording plainly, because the correction
+took a round of the owner's time that a re-read of this page would have saved.
+
+| §4 said | `F-158` shipped | `F-170` |
+|---|---|---|
+| 56 dp | **48 dp** | 56 dp |
+| "velocity-aware edge snapping" | `OvershootInterpolator`, `duration = 260` — **velocity was never read** | `VelocityTracker` → `SpringAnimation` |
+| Pressed: 0.92 over 120 ms | as written | a scale spring, because a tap shorter than 120 ms made the two fixed animations fight |
+
+The middle row is the one the owner felt. *"Too much sticky type
+experience"* is an exact description of a fixed duration: the bubble took
+260 ms to reach the edge whether it was flicked across the screen or nudged a
+centimetre, so the motion was unrelated to the gesture that caused it.
+
+A `SpringAnimation` has no duration to set — only a rest position, a stiffness,
+a damping ratio and a **start velocity**, which comes straight from the
+`VelocityTracker` watching the finger. That is the whole difference between an
+object you are holding and an animation being played at you.
+
+`androidx.dynamicanimation` is the library, chosen after reading what the
+open-source chat heads do:
+[springy-heads](https://github.com/flipkart-incubator/springy-heads) (Flipkart,
+spring physics), [floaty_chatheads](https://github.com/Crdzbird/floaty_chatheads)
+(Facebook Rebound — the library Facebook wrote *for* chat heads),
+[bubbles-for-android](https://github.com/txusballesteros/bubbles-for-android),
+[Android-ChatHead](https://github.com/henrychuangtw/Android-ChatHead). They all
+reach for the same idea; Android has since absorbed it first-party, which is
+~50 KB and no third-party animation runtime in an app that does not phone home.
+
+Three behaviours came with it that §4 had not asked for and Messenger has:
+
+* **Pop-in.** The bubble spends most of its life hidden — behind a payment,
+  behind SWIP, behind a snooze — so the moment it *returns* is the moment
+  anyone sees, and it was a hard cut. It springs up from 60 % now.
+* **Direction beats distance.** Above `scaledMinimumFlingVelocity` the throw
+  picks the edge. The old midpoint rule sent a leftward flick from the
+  right-hand half straight back to the right, which reads as the app refusing
+  the gesture.
+* **Interruptible.** Grab it mid-flight and the finger wins; the springs are
+  cancelled on touch-down and re-aimed rather than rebuilt, so they keep their
+  velocity.
+
+Still not built from §4: the **delete target**, and the circle→camera
+shared-element morph. The morph cannot be done as written while the scanner is
+a separate transparent Activity with its own Flutter engine — see §10.
+
 ---
 
 ## 5. Play policy, precisely
@@ -293,3 +342,36 @@ After a successful scan the result page fills the screen rather than staying
 inside the card, and dismissing it returns to the card rather than to the app
 underneath. Two dismissals where one would do. Worth tidying; not worth
 rushing into the round that first made the window work.
+
+---
+
+## 11. The goodbye that nobody had ever seen
+
+`F-167` gave the bubble a long-press snooze and, in the same commit, a promise:
+
+> *"Say so, in the bubble itself, in the moment before it goes. A button that
+> silently disappears when held reads as a bug."*
+
+The string exists (`swip_bubble_snoozed`), the `peek()` call is there, the
+handler runs. **It has never been visible.** The handler peeks the message and
+then calls `applyVisibility`, which finds the snooze in storage and sets the
+window `GONE` — on the same frame. The pill was shown and taken away before a
+single frame had been drawn with it in.
+
+Reordering the two calls does not fix it: `snooze()` also broadcasts, and the
+receiver arrives a few milliseconds later and hides the bubble anyway. The only
+place that can honour "say goodbye first" is the method that does the hiding,
+so `show()` now refuses to hide while a `goodbyeUntil` deadline is in the
+future and re-checks when it passes.
+
+**This is the same shape as `F-131`, `F-157` and `F-169` — the fourth time.**
+Every piece present, correct and tested; the join missing. `check_wiring.py`
+cannot see this one either: nothing is unimported, no channel is unhandled, no
+preference is unread, no callback is unsupplied. What is wrong is an ordering
+between two method calls in the same file, both of which do exactly what they
+say.
+
+The general lesson, which is the useful part: **whenever a feature's value is
+that the user *sees* something, ask what else runs on that frame.** Three of
+the four were caught by a gate written after the fact; this one was caught by
+reading the sequence out loud.
