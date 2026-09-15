@@ -1903,6 +1903,40 @@ both a white app and a black one, and the shadow was never what carried it.
 | `BubbleTraceTest` | The line format. **Escaping is the part that fails quietly and late** — a device name with a quote produces a line no JSON reader will parse, and the first anyone knows is an export that cannot be opened *after* the bug has been reproduced and lost. The dullest assertion is the important one: a line is exactly one line |
 | `bubble_settings_test` | The debug row is present on a debuggable build, **absent otherwise**, and absent when the platform never answers |
 
+### CI, read rather than assumed
+
+Commit [`f65d519`](https://github.com/adityamaurya/SWIP/commit/f65d519), run
+[34967206439](https://github.com/adityamaurya/SWIP/actions/runs/34967206439).
+
+| Job | Result |
+|---|---|
+| links / wiring / analyze / test | ✅ from the **Report** step, which reads `outcome` |
+| Build debug APK | ✅ artifact 94,497,296 bytes |
+| Run the Kotlin unit tests | ✅ |
+| Prove the Kotlin tests actually ran | ✅ `2 result file(s), 21 test(s), 0 failure(s), 0 error(s)` |
+
+Two result files is `ShakeDetectorTest` and `BubbleTraceTest`; 21 is their
+eleven and ten `@Test` methods. The count is the thing worth reading — the tick
+on the step above it would say the same if the source set had silently stopped
+compiling.
+
+### The failure on the way, which is the useful part
+
+The first run failed one test: *"the row is there on a debug build"* found
+nothing. The trace row sits at the bottom of a long `ListView`, which only
+builds what is near the viewport — recorded in `CLAUDE.md` since `F-159`.
+
+**The half CI could not catch is the one worth writing down.** The positive
+test failed loudly. The two *negative* tests beside it passed — and would have
+passed just as happily on a build where the row was present but below the fold.
+A pair of assertions had been written where only one could ever fail, and both
+were counted as coverage.
+
+Both directions now scroll to the end first, so they compare the same thing.
+The rule is its own entry in `CLAUDE.md` rather than a footnote: **when
+asserting that something is absent from a scroll view, scroll to where it would
+be.** A test that cannot fail is worse than no test, because it is counted.
+
 ### Open
 
 The trace stays on. **One plausible cause found by reading is not the same as
