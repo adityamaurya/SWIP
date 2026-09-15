@@ -305,7 +305,15 @@ growing.
 | Compatible with Paper and Foil | 40 | ✅ `F-172` — the scrim follows the palette, the chrome deliberately does not |
 | The snooze goodbye message | 39, 40 | ✅ `F-170` — written in 39, **visible for the first time in 40** |
 | The reticle overlapping the copy in the short card | 40 | ✅ `F-171` — sized to its surface, and tested |
-| An automated test for the bubble itself | — | ❌ **none exists.** No Kotlin test source set, and adding one means Gradle configuration `bootstrap.sh` regenerates. The APK job proves it compiles; nothing proves it behaves |
+| ~~An automated test for the bubble itself~~ | — | ✅ `F-173` — `ShakeDetector` is pure Kotlin with no Android imports and has a JUnit suite CI runs. **Its gestures are still untested**, and that is a different claim |
+| Snooze by dragging to a target | 41 | ✅ `F-173` — `docs/32` §4 asked for this target in round one |
+| Ten minutes, and shake to bring it back | 41 | ✅ `F-173` — the accelerometer is armed only while snoozed |
+| The long-press glitch | 41 | ✅ `F-173` — the gesture is deleted, not smoothed; see [`36`](36-DEVIATIONS.md) D-51 |
+| The striped bar at the bottom | 41 | ✅ `F-174` — a 28 px overflow, reachable only since `F-169` wired the dashboard tap |
+| Minimalise the capture screen | 41 | ✅ `F-174` — `CaptureLayout.brief`; nothing deleted, everything folded behind *View all* |
+| A non-intrusive result instead of full screen | 41 | ✅ `F-175` — for the two live vectors only |
+| Split the CTA into *View all* and *Tap POS* | 41 | ✅ `F-175` |
+| *Tap POS* reaches the in-app POS screen | 41 | ✅ `F-175` — a push in the app, and bringing the app forward from the hovering card |
 
 ### 4.6 Cannot be done
 
@@ -329,9 +337,9 @@ money, or is deliberately held.
 | Display serif | Held as its own commit so a bad outcome is bisectable | Mine, next round |
 | ~~Bubble step 4 — the scanner over other apps~~ | **Done** (`F-163`), and deliberately **not** as a native CameraX overlay: that would be a second implementation of scanning, and SWIP's is several rounds of hard-won behaviour. The real `ScanPage` is hovered instead, in a transparent Activity. [`32` §10](32-FLOATING-BUBBLE.md) | — |
 | ~~The result page inside the hovering card~~ | **Done** (`F-168`) — the card carries its own `Navigator`, so the push is bounded to those pixels | — |
-| A behavioural test for the bubble | There is no Kotlin test source set, and creating one means Gradle configuration that `bootstrap.sh` regenerates on every machine. The gate's radius check and the APK job stand in for it; neither exercises a gesture | Mine — worth a round of its own |
+| A behavioural test for the bubble's **gestures** | `F-173` built the Kotlin test source set and `ShakeDetector` is covered, so the blocker is gone — but a `WindowManager` overlay cannot be exercised on the JVM. The drag, the swallow and the target's window lifecycle need instrumentation and a device | Mine — and now it is a device problem, not a build-config one |
 | The circle→camera shared-element morph, [`32` §4](32-FLOATING-BUBBLE.md) | Cannot be done as specified while the scanner is a separate Activity with its own Flutter engine — there is no shared element to morph across a process boundary | Mine — needs a different design, not more effort |
-| The drag-to-delete target, [`32` §4](32-FLOATING-BUBBLE.md) | Not built. Long-press snooze covers the "get rid of it" case; a delete target is the more discoverable version | Mine, next round |
+| ~~The drag target, [`32` §4](32-FLOATING-BUBBLE.md)~~ | **Done** (`F-173`), as a **snooze** target rather than a delete one — SWIP's bubble is not a conversation you close, it is a tool you want back | — |
 | iOS CI | macOS runners bill at 10× | **Yours** — budget |
 | `INTERNET` permission | Fix must be verified on a device | **Yours** — a device |
 | 02:00 auto-backup | Now unblocked by `F-147` | Mine, next round |

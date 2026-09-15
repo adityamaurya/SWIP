@@ -168,6 +168,50 @@ jobs:
         working-directory: app/android
         run: ./gradlew :app:testDebugUnitTest --console=plain
 
+      # `F-173`. **A green test step that ran zero tests looks exactly like a
+      # green test step that ran twelve.**
+      #
+      # Gradle's `test` task prints nothing on success and succeeds happily
+      # with an empty source set — so if `src/test/kotlin` ever stops being
+      # registered (a bootstrap change, an AGP or Kotlin-plugin bump), the
+      # suite would silently stop running and the build would stay green. That
+      # is the exact shape of failure this project keeps finding, and it is
+      # worse here than usual because the thing it guards is the only
+      # automated test the floating bubble has.
+      #
+      # So the JUnit XML is counted, and zero is a failure.
+      - name: Prove the Kotlin tests actually ran
+        working-directory: app
+        run: |
+          python3 - <<'PY'
+          import glob, sys, xml.etree.ElementTree as ET
+
+          files = glob.glob(
+              "build/app/test-results/testDebugUnitTest/*.xml"
+          ) + glob.glob(
+              "android/app/build/test-results/testDebugUnitTest/*.xml")
+
+          total = failures = errors = 0
+          for f in files:
+              root = ET.parse(f).getroot()
+              total += int(root.get("tests", 0))
+              failures += int(root.get("failures", 0))
+              errors += int(root.get("errors", 0))
+
+          print(f"{len(files)} result file(s), {total} test(s), "
+                f"{failures} failure(s), {errors} error(s)")
+
+          if not files:
+              sys.exit("::error::No JUnit XML at all — the Kotlin test source "
+                       "set is not being compiled. The suite is not running.")
+          if total == 0:
+              sys.exit("::error::Gradle reported 0 tests. The suite is not "
+                       "running, and the step above passed anyway.")
+          if failures or errors:
+              sys.exit("::error::Kotlin unit tests failed.")
+          print(f"OK - {total} Kotlin test(s) ran and passed")
+          PY
+
       - name: Upload the APK
         uses: actions/upload-artifact@v4
         with:

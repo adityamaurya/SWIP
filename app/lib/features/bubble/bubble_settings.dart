@@ -484,11 +484,26 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
                       'sooner. Sleeping is not the same as off: it comes back '
                       'on its own either way.',
                 ),
+                // `F-173`. **This line said the opposite of what the app
+                // does**, and had done since `F-162`.
+                //
+                // It was written in `F-159`, when declining to ask for
+                // `RECEIVE_BOOT_COMPLETED` was the right call and the sentence
+                // was true. The owner then asked for omnipresence explicitly,
+                // `F-162` added the receiver, and this promise was not
+                // revisited — so the one screen whose entire job is to tell
+                // the truth about a permission has been telling people SWIP
+                // does not hold one that it does.
+                //
+                // Found while updating the snooze copy beside it. Worth its
+                // own note: a screen full of promises needs re-reading in full
+                // whenever any of them stops being true, because nothing fails
+                // when a sentence quietly goes stale.
                 const _Promise(
                   icon: Icons.restart_alt_rounded,
-                  text: 'After you restart your phone it stays away until you '
-                      'next open SWIP. Coming back on its own would need a '
-                      'start-on-boot permission, and this is not worth one.',
+                  text: 'It comes back on its own after you restart your '
+                      'phone. That needs a start-on-boot permission, which '
+                      'SWIP asks for and uses for nothing else.',
                 ),
 
                 const SizedBox(height: SwipSpace.xxl),

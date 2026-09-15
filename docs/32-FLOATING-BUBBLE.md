@@ -166,8 +166,8 @@ Three behaviours came with it that §4 had not asked for and Messenger has:
   cancelled on touch-down and re-aimed rather than rebuilt, so they keep their
   velocity.
 
-Still not built from §4: the **delete target**, and the circle→camera
-shared-element morph. The morph cannot be done as written while the scanner is
+`F-173` built the target from §4, as a **snooze** target rather than a delete
+one — see §12. Still not built: the circle→camera shared-element morph. The morph cannot be done as written while the scanner is
 a separate transparent Activity with its own Flutter engine — see §10.
 
 ---
@@ -375,3 +375,97 @@ The general lesson, which is the useful part: **whenever a feature's value is
 that the user *sees* something, ask what else runs on that frame.** Three of
 the four were caught by a gate written after the fact; this one was caught by
 reading the sequence out loud.
+
+---
+
+## 12. Snooze, rebuilt — `F-173`
+
+> *"the snooze button ux is unfurnished, on holding the launcher icon it
+> gltiches and is not smooth animating… we need snoozing mechanism where in i
+> drag and drop the launcher icon to the center… it should snooze for 10mins by
+> default and if I shake the phone it should be back"*
+
+### The glitch had a cause, and it was the gesture
+
+A long-press timer fires **under a finger that may still be about to drag**, so
+it has to guess what the gesture will become. When it guessed wrong the handler
+ran a text peek, a re-anchor spring and a scale kick — on a view whose press
+spring was still settling. Four animations, one view, one frame.
+
+So the long-press is **deleted rather than smoothed**. A drag onto a target
+cannot be mistaken for anything else, because by the time the target appears
+the gesture has already declared itself. §11's goodbye machinery survives
+intact; it now protects the swallow animation rather than a line of text.
+
+### The shape
+
+| | |
+|---|---|
+| **Appears** | when a drag is recognised — not on touch-down, or a tap would flash it for a frame every time the scanner opened |
+| **Where** | horizontally centred, above the bottom edge |
+| **Armed** | when the bubble's **centre** is within 64 dp of the target's centre; the target grows to 1.3, the bubble shrinks to 0.7, and the phone buzzes once |
+| **Dropped** | the bubble is sprung into the target and scaled to nothing |
+| **Says** | a system toast: how long, and how to end it early |
+
+**Distance between centres, not rectangle intersection.** A 56 dp bubble and a
+72 dp target touch corners long before the gesture looks like a drop, so
+intersection arms far too eagerly and the bubble cannot be dragged past the
+bottom of the screen without snoozing.
+
+### Why not the true centre of the screen
+
+The prompt says *"to the center"*, and horizontally that is exactly what this
+is. Vertically it sits above the bottom edge, and that is a correction worth
+stating rather than making quietly:
+
+**The middle of the screen is where the bubble passes through on almost every
+ordinary drag.** Moving it from one side to the other — the most common thing
+anyone does with it — goes straight through the centre. A target there would
+swallow it constantly by accident. Every chat-head implementation puts the
+target near the bottom for this reason, and it is also where a thumb already
+is.
+
+### A crescent, not Messenger's X
+
+Messenger's target carries an X because dropping a chat head there **closes the
+conversation**. SWIP's closes nothing — the button hides for ten minutes and
+comes back on its own. An X would promise a destruction that does not happen,
+and the first person to drop the bubble expecting it gone for good would have
+been told something untrue by an icon.
+
+### Ten minutes, and the way back
+
+*"Until tomorrow"* is replaced, and the length is the smaller half of that
+change. **A snooze until tomorrow had to be undone** — there was no gesture
+meaning *actually, come back*, so the only way out was to open SWIP and find a
+switch. Ten minutes ends by itself, which is what makes it safe to offer as a
+one-handed drag rather than something to be sure about.
+
+Shake to end it early is `SensorManager`, registered **only while snoozed**. A
+floating button that listens to the accelerometer all day is a battery
+complaint; one that listens for the ten minutes it is deliberately hiding is
+not. `applyVisibility` arms and disarms it, because that method already reads
+the snooze from storage on every broadcast and nudge — anywhere else would be a
+second source of truth for the same fact.
+
+### The first thing about this bubble that is tested
+
+[`ShakeDetector`](../app/android/app/src/main/kotlin/in/swip/app/ShakeDetector.kt)
+has **no Android imports at all**, which is what lets it run on the JVM in CI.
+Every round before this one ended by admitting the APK job proved the bubble
+compiled and nothing proved it behaved.
+
+It is aimed where being wrong is invisible. Too sensitive and the bubble
+returns while the user is walking — undoing something they deliberately asked
+for. Too dull and shaking does nothing, and they cannot tell whether they shook
+it wrong or the feature is broken. Neither throws, logs or fails a build.
+
+The algorithm is deliberately not *"is the phone moving"*: a single spike
+cannot be told from a drop or a jog. A sample over 2.3 g is a **hit**; three
+hits inside 1,200 ms is a shake; and a 150 ms debounce stops one swing counting
+several times, which is the bug that makes naive detectors fire when you set
+the phone on a table.
+
+**Still not tested:** the drag, the swallow, the target's window lifecycle.
+`ShakeDetector` was extractable because it is arithmetic; a `WindowManager`
+overlay is not, without instrumentation and a device.

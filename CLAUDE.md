@@ -42,6 +42,11 @@ python3 tool/check_links.py     # doc links that point at nothing
 bash    tool/check_secrets.sh   # a key that must never reach the repository
 ```
 
+There is a **Kotlin unit suite** as of `F-173`, run by CI and locally with
+`cd app/android && ./gradlew :app:testDebugUnitTest`. It covers
+`ShakeDetector` and nothing else yet; anything touching `WindowManager` still
+cannot be tested without a device.
+
 `check_wiring.py` exists because **four times** a feature was built, tested and
 never connected — the floating bubble's switch wrote a preference nothing read
 (`F-131`), and `merchant_directory.dart` is imported by its test and nothing
@@ -155,6 +160,14 @@ Each of these cost a broken build or a broken screen. Do not re-derive them.
 | A **`Stack` is entitled to overlap its children**, so a layout that is wrong throws nothing | A fixed 260 px reticle inside a 320 px card was drawn under the copy at both ends. Nothing failed and no test could see it. Size to the surface with a `LayoutBuilder`, and assert the arithmetic. `F-171` |
 | **"Not prominent enough" is usually a contrast failure, not a size one** | Near-black at 80% on a 45% black scrim over a dark app composites to **1.03:1**. A bigger version is a bigger invisible button. Composite the layers and check the WCAG ratio — `test/hover_chrome_test.dart`. `F-172` |
 | Chrome over an arbitrary app must **not** follow the palette | Same rule as the camera overlays, and it bites the same way: `SwipColors.surfaceRaised` is paper-white in Paper and `#141216` in Foil, so following the theme puts the invisible pill back in one ground. `F-172` |
+| A **long-press timer fires under a finger that may still become a drag** | So it has to guess, and when it guesses wrong its handler runs on top of whatever the press animation was doing. Four animations on one view in one frame is what "glitchy" looks like. A drag onto a target cannot be mistaken for anything else. `F-173` |
+| A **drag target at the centre of the screen fires constantly by accident** | The centre is where the bubble passes through on every ordinary reposition drag. Bottom-centre, and arm on **distance between centres** — rectangle intersection arms long before the gesture looks like a drop. `F-173` |
+| `TYPE_ACCELEROMETER` **includes gravity**, so a still phone reads 1 g | Divide the magnitude by 9.80665 and the threshold reads as "how many times harder than gravity". Do not reach for `TYPE_LINEAR_ACCELERATION`: it is a composite sensor not every device has, so the feature would silently not exist on some phones. `F-173` |
+| One spike is not a shake, and a **naive detector fires when you put the phone down** | A hit is one sample over threshold; a *shake* is three hits inside 1,200 ms with a 150 ms debounce, because the sensor reports far faster than a wrist reverses. `F-173` |
+| **A `Column` in a `showModalBottomSheet` has nowhere to put overflow** | `isScrollControlled: true` lets the sheet reach the screen height and stop. `BOTTOM OVERFLOWED BY N PIXELS` is **debug-only** — release clips silently and the content is simply gone. Wrap in a scroll view, and use `Flexible` not `Expanded` or every sheet fills its cap. `F-174` |
+| **Repairing a dead wire exposes everything behind it for the first time** | `F-169` connected the dashboard's MCC tap; the 28 px overflow on the screen it opened had been there for months, unreachable. Connecting something is not only delivering the feature. `F-174` |
+| A capture **with** a category renders `_FoilCode`, whose sweep is `repeat(count: 4)` | So a single `pump` leaves a timer running and the test dies on *"A Timer is still pending"* rather than on its assertion. `pumpAndSettle` is safe here **because the repeat is bounded**; an unbounded one hangs instead. `F-173` |
+| **The GitHub jobs API reports `conclusion: success` for every `continue-on-error` step** | Whatever actually happened. Reading step conclusions says a run is green when it is not — the same trap as the APK job, in a new disguise. The workflow's own Report step reads `outcome`, and it is the only thing in that job worth believing. `F-175` |
 | **CRED does not need a PSP licence to show a merchant name** | Resolving a VPA is a commercial API (Razorpay, Cashfree, Decentro, Juspay) sold to any business with KYC. No API returns the **MCC** — that lives in the acquirer's switch, which is why CRED writes *"may not"*. `F-157` |
 
 **The recurring mistake, twice over: checking the source instead of the
@@ -180,6 +193,14 @@ from, that nobody re-read.** `docs/32` §4 asked for a 56 dp bubble with
 interpolator that never read a velocity, and stayed that way for four months
 until the owner felt it. **Before calling a feature finished, re-read the page
 that specified it.** `docs/36` D-47.
+
+**And the one that has now happened twice in two rounds: taking a description
+of how something *feels* literally.** *"Not prominent enough"* was a contrast
+failure, not a size one. *"Not smooth"* was a gesture that had to guess, not an
+easing curve. Both times the literal reading pointed at a polish job that would
+have produced a better-looking version of the same defect. **When the report is
+about how something feels, find the mechanism before touching the easing or the
+padding.** `docs/36` D-51.
 
 ---
 
@@ -211,7 +232,7 @@ that specified it.** `docs/36` D-47.
 | Why the QRs would not scan | [`docs/29-QR-DETECTION-FORENSICS.md`](docs/29-QR-DETECTION-FORENSICS.md) |
 | The build gate | [`docs/30-PRE-LAUNCH-PARAMETERS.md`](docs/30-PRE-LAUNCH-PARAMETERS.md) |
 | iOS and `.ipa` | [`docs/31-IOS-AND-IPA.md`](docs/31-IOS-AND-IPA.md) |
-| The floating bubble, its physics and the goodbye nobody saw | [`docs/32-FLOATING-BUBBLE.md`](docs/32-FLOATING-BUBBLE.md) |
+| The floating bubble — physics, the goodbye nobody saw, and the snooze target | [`docs/32-FLOATING-BUBBLE.md`](docs/32-FLOATING-BUBBLE.md) |
 | Visual direction | [`docs/33-VISUAL-DIRECTION-PAPER.md`](docs/33-VISUAL-DIRECTION-PAPER.md) |
 | Account recovery | [`docs/25-CONTINUITY.md`](docs/25-CONTINUITY.md) |
 | The round-34 checklist, PPSE forensics, CRED vs SWIP | [`docs/34-ROUND-34-CHECKLIST.md`](docs/34-ROUND-34-CHECKLIST.md) |

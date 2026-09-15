@@ -1690,6 +1690,8 @@ not reaching through a window floating over somebody else's app.
 | [`capture_sheet.dart`](../app/lib/widgets/capture_sheet.dart) | `CaptureLayout.brief`, `showFurniture` |
 | [`bootstrap.sh`](../app/tool/bootstrap.sh) | JUnit, and the DSL-rewrite fix |
 | [`check_wiring.py`](../app/tool/check_wiring.py) | Both engines' channels; the radius rule anchored |
+| [`bubble_settings.dart`](../app/lib/features/bubble/bubble_settings.dart) | The snooze copy, and a boot-permission promise that had been false since `F-162` |
+| [`flutter.yml`](../.github/workflows/flutter.yml) | Runs the Kotlin suite, and proves it ran |
 
 ### Tests
 
@@ -1697,6 +1699,26 @@ not reaching through a window floating over somebody else's app.
 |---|---|
 | [`ShakeDetectorTest.kt`](../app/android/app/src/test/kotlin/in/swip/app/ShakeDetectorTest.kt) | The table above. **The first test the bubble has ever had** |
 | [`capture_result_sheet_test.dart`](../app/test/capture_result_sheet_test.dart) | No overflow on a 320 px surface or at 1.8× text; a short capture makes a short sheet; the CTA pair, its emphasis, and that *Tap POS* reaches its callback |
+
+### Two things found while writing the above
+
+**A promise on the Settings screen had been false since `F-162`.** It read
+*"After you restart your phone it stays away until you next open SWIP. Coming
+back on its own would need a start-on-boot permission, and this is not worth
+one."* True when `F-159` wrote it, and then the owner asked for omnipresence,
+`F-162` added the `BOOT_COMPLETED` receiver, and this line was not revisited.
+So the one screen whose entire job is to tell the truth about permissions had
+been telling people SWIP does not hold one that it does.
+
+Nothing fails when a sentence goes stale. A screen of promises needs re-reading
+in full whenever any one of them stops being true.
+
+**A green test step that ran zero tests looks exactly like one that ran
+twelve.** Gradle's `test` task prints nothing on success and succeeds happily
+against an empty source set — so if `src/test/kotlin` ever stopped being
+registered (a bootstrap change, an AGP bump), the bubble's only suite would
+silently stop running and CI would stay green. The workflow now counts the
+JUnit XML and **fails on zero**.
 
 ### Open
 
