@@ -1258,6 +1258,65 @@ and that is when the recorder comes out.
 
 ---
 
+## Prompts 43–44 — 15 Sep 2026 · The APK, and who else has built a floater
+
+**You asked:** for the latest APK, then for the open-source floating-icon
+projects other developers have built — and whether I am keeping the markdown
+ritual up.
+
+**On the ritual — yes, and I was two prompts behind.** Everything was current
+through prompt 42; the APK question and this one are now written in too. The
+APK question counts as a prompt, same as *"apk?"* did in round 38. Nothing gets
+skipped for being short.
+
+**On the APK — I could not hand you the file, and I checked rather than
+assuming.** This environment's outbound proxy refuses the host GitHub stores
+artifacts on. So the link is the delivery. Everything about that build was read
+step by step rather than off the green tick.
+
+**On the survey — going and looking changed two things I had written down as
+settled.**
+
+**The two libraries our own code cites as the prior art are dead.**
+`springy-heads` is unmaintained, and its own README points at Google's Hover —
+which Google archived in January 2023. I had cited both in round 40 as the
+evidence for how chat heads are built.
+
+That is awkward and it is also good news. In round 40 I chose Android's own
+animation library over adopting one of those, on the argument that a 50 KB
+first-party dependency beats a third-party animation runtime in an app whose
+whole claim is that it does not phone home. **The argument turns out to have
+been right for a better reason than the one I gave**: either library would have
+been abandoned code inherited into your app. Both citations now say so, so
+nobody reads the old ones as a recommendation.
+
+**And the official way to do this is closed to us.** Android has a blessed
+floating UI — notification bubbles. No overlay permission, no foreground
+service, no permission wizard; the system draws and manages it. I went to check
+whether SWIP could switch to it and drop the whole permission flow.
+
+It cannot. From Android 11 a bubble has to be attached to a **conversation** —
+a sharing shortcut and a person. SWIP has a shop code, not a person. Faking a
+conversation to borrow the API would be lying to the system and to Play review.
+
+That is worth knowing in a specific way: the overlay permission your users have
+to grant is **not** a shortcut I took around a nicer API. It is the only route
+open to an app of this shape, and that is now the honest line to use whenever
+the permission screen has to defend itself.
+
+**What is actually worth stealing**, in [`docs/39`](39-FLOATING-OVERLAY-PRIOR-ART.md)
+with the reasoning, is short: one library merges the bubble and its expanded
+panel into a single service with two states — which is the design that would
+remove the half-second wait before your camera appears. Another has a nicer
+version of our snooze target. And nothing at all on the physics, because we are
+already using the thing the dead libraries were imitating.
+
+**One caveat I put at the top of that page:** star counts drift and do not
+matter much. **Maintenance status is what to re-check**, and two of the
+best-known projects on the list were already dead when I looked.
+
+---
+
 <!--
 Template:
 

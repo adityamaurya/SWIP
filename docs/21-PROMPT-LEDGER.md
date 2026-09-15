@@ -1815,7 +1815,7 @@ deliver the feature, it exposes everything downstream of it for the first time.
 
 ---
 
-## Prompt 42 — 15 Sep 2026 · A flight recorder, and a launch that stops announcing itself *(current)*
+## Prompt 42 — 15 Sep 2026 · A flight recorder, and a launch that stops announcing itself
 
 **Original prompt, verbatim:**
 
@@ -1898,6 +1898,62 @@ Our own entrance was making it worse. `F-170` had the card rise 6% from below
 on the reasoning that motion from the bottom edge reads as the bubble sending
 it up. Wrong, and worth keeping: **entering from the bottom edge is Android's
 grammar for a new activity**, however small the distance.
+
+---
+
+## Prompt 43 — 15 Sep 2026 · The APK
+
+**Original prompt, verbatim:**
+
+> latest apk?
+
+Answered with the link rather than the file: **the artifact host is blocked by
+this environment's egress proxy** — `productionresultssa7.blob.core.windows.net`
+answers `403 to CONNECT`, a policy denial, confirmed by trying rather than
+assumed. So a download here is impossible and the run page is the delivery
+mechanism.
+
+Run [34968076505](https://github.com/adityamaurya/SWIP/actions/runs/34968076505),
+commit `dedf7b5`. Both jobs green, read step by step: analyze, test, the
+**Report** step, the APK build, the Kotlin suite, and the guard that proves it
+ran — `21 test(s), 0 failure(s)`.
+
+Also said, because it is the part that bites: the debug APK is signed with the
+debug key, so replacing a build signed with another key needs an uninstall, and
+**an uninstall wipes the local ledger** — there is no server. Export the
+encrypted backup first.
+
+---
+
+## Prompt 44 — 15 Sep 2026 · Who else has built a floater *(current)*
+
+**Original prompt, verbatim:**
+
+> can you go on internet and find the floater idea opersourced projects just surrounding the floating icon idea by dev people made make a list of it and dhare the links for me to you. asking here since you have the whole project context, also as ritual i hope you are updating the md files ritual based of our promots and replies
+
+| # | To-do | Status |
+|---|---|---|
+| 1 | Find the open-source floating-icon projects, with links | **Done** — [`docs/39`](39-FLOATING-OVERLAY-PRIOR-ART.md), every entry opened and verified |
+| 2 | Confirm the markdown ritual is being kept | **Kept, and two prompts behind** — 43 and 44 are this entry |
+
+### What the search changed
+
+**The two best-known chat-head libraries are dead.** `springy-heads`, cited in
+our own code and in [`32` §4](32-FLOATING-BUBBLE.md), is unmaintained and its
+README points at [google/hover](https://github.com/google/hover) — which Google
+archived in January 2023.
+
+`F-170` chose `androidx.dynamicanimation` over adopting a library on
+dependency-weight grounds. That turns out to have been right for a second
+reason nobody knew at the time: **either library would have been inherited
+abandoned code.** The code comment and `docs/32` now say so.
+
+**And the official route is closed to SWIP.** Android's notification Bubbles
+API needs no overlay permission — but from API 30 a bubble must reference a
+sharing shortcut and is scoped to a conversation and a `Person`. SWIP has a
+shop code, not a person. `SYSTEM_ALERT_WINDOW` is therefore not a shortcut
+around a nicer API; it is the only route open, which is worth knowing whenever
+the permission screen has to justify itself.
 
 ---
 

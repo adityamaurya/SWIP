@@ -1946,6 +1946,75 @@ recorder then, not before.
 
 ---
 
+## Prompts 43–44 — 15 Sep 2026 · The APK, and who else has built a floater
+
+> *"latest apk?"* · *"can you go on internet and find the floater idea
+> opensourced projects just surrounding the floating icon idea by dev people
+> made, make a list of it and share the links… also as ritual i hope you are
+> updating the md files"*
+
+### The APK
+
+No code change. Delivered as a link, because **the artifact host is blocked by
+this environment's egress proxy** — `productionresultssa7.blob.core.windows.net`
+answers `403 to CONNECT`. Established by trying, not assumed.
+
+Run [34968076505](https://github.com/adityamaurya/SWIP/actions/runs/34968076505)
+(`dedf7b5`), green on every step including the Kotlin suite and its
+`21 test(s), 0 failure(s)` guard.
+
+### The survey — [`docs/39`](39-FLOATING-OVERLAY-PRIOR-ART.md)
+
+Every project opened and read on 15 Sep 2026: star count, licence and
+maintenance status off the page rather than from memory. Grouped by what SWIP
+could actually take from each — native Android, the Flutter overlay plugins
+SWIP did *not* take, and the official Bubbles API.
+
+**Two findings changed what our own code says.**
+
+**1. The two best-known chat-head libraries are dead.**
+[springy-heads](https://github.com/flipkart-incubator/springy-heads) — cited in
+`SwipBubbleService.kt` and [`32` §4](32-FLOATING-BUBBLE.md) — is unmaintained,
+and its README points at [google/hover](https://github.com/google/hover), which
+Google **archived on 10 January 2023**.
+
+`F-170` took `androidx.dynamicanimation` rather than adopting one of them, on
+the grounds that a first-party 50 KB dependency beats a third-party animation
+runtime in an app that does not phone home. That was right for a second reason
+nobody knew at the time: **adopting either would have been inheriting abandoned
+code.** Both citations now say so.
+
+**2. Android's own Bubbles API is closed to SWIP.** It needs no overlay
+permission and the system manages the window — but from API 30 a bubble's
+notification must reference a **sharing shortcut**, and bubbles are scoped to
+conversations and a `Person`. SWIP has a shop code, not a person, and declaring
+a fake conversation to borrow the API would misrepresent the app to the system
+and to Play review.
+
+So `SYSTEM_ALERT_WINDOW` is **not** a shortcut taken around a nicer API — it is
+the only route open to this kind of app. Worth having written down for the next
+time the permission screen has to justify itself.
+
+### What is worth stealing, ranked
+
+| | From | |
+|---|---|---|
+| 1 | [dofire/Floating-Bubble-View](https://github.com/dofire/Floating-Bubble-View) | `ExpandableBubbleService` — one service with two states, where SWIP has two windows and an Activity boundary. The shape that would remove the half-second engine start |
+| 2 | [luiisca/floating-views](https://github.com/luiisca/floating-views) | A `closeBehavior` that can snap the *close float to the main float* rather than the other way round |
+| 3 | [google/hover](https://github.com/google/hover) | Its state pattern, if SWIP's visibility logic ever needs a fifth boolean |
+| 4 | — | **Nothing about the physics.** `androidx.dynamicanimation` is what the abandoned libraries were approximating with Facebook Rebound |
+
+### Files
+
+| File | |
+|---|---|
+| [`docs/39`](39-FLOATING-OVERLAY-PRIOR-ART.md) | **New.** The survey |
+| [`SwipBubbleService.kt`](../app/android/app/src/main/kotlin/in/swip/app/SwipBubbleService.kt) | The springy-heads citation, corrected |
+| [`docs/32`](32-FLOATING-BUBBLE.md) | §4's argument, re-checked and strengthened |
+| `CLAUDE.md` | Two facts: the Bubbles API constraint, and re-check maintenance not stars |
+
+---
+
 <!--
 Template for the next entry:
 

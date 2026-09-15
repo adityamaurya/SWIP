@@ -153,6 +153,17 @@ spring physics), [floaty_chatheads](https://github.com/Crdzbird/floaty_chatheads
 reach for the same idea; Android has since absorbed it first-party, which is
 ~50 KB and no third-party animation runtime in an app that does not phone home.
 
+**Re-checked in prompt 44, and the check changed the argument.**
+`springy-heads` is unmaintained and its README points at
+[google/hover](https://github.com/google/hover), which Google **archived in
+January 2023**. The two best-known chat-head libraries are both dead. Taking
+either would have meant inheriting abandoned code, so a decision made on
+dependency-weight grounds turns out to have been the right one for a second
+reason nobody knew at the time. The full survey — including the living
+alternatives, the Flutter overlay plugins SWIP did *not* take, and why the
+official Bubbles API is closed to this app — is
+[`docs/39`](39-FLOATING-OVERLAY-PRIOR-ART.md).
+
 Three behaviours came with it that §4 had not asked for and Messenger has:
 
 * **Pop-in.** The bubble spends most of its life hidden — behind a payment,

@@ -503,7 +503,13 @@ class SwipBubbleService : Service() {
     // Asked to go and look at how other people do this. The open-source chat
     // heads all reach for the same idea:
     //
-    //   * flipkart-incubator/springy-heads — spring physics per head
+    //   * flipkart-incubator/springy-heads — spring physics per head.
+    //     **Checked again in prompt 44: unmaintained, and its README points at
+    //     google/hover, which Google archived in January 2023.** Both of the
+    //     best-known chat-head libraries are dead, which retrospectively
+    //     justifies taking Android's own animators rather than one of them —
+    //     adopting either would have been inheriting abandoned code. See
+    //     `docs/39-FLOATING-OVERLAY-PRIOR-ART.md`
     //   * Crdzbird/floaty_chatheads — Facebook Rebound, the library Facebook
     //     wrote for chat heads before Android had its own
     //   * txusballesteros/bubbles-for-android, henrychuangtw/Android-ChatHead
