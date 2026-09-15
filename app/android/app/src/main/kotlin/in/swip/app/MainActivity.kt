@@ -49,6 +49,20 @@ class MainActivity : FlutterFragmentActivity() {
          * Activity is the thing that sets it.
          */
         const val EXTRA_OPEN_TAP = "in.swip.app.OPEN_TAP"
+
+        /**
+         * `F-180`. Set by [SwipHoverActivity] when *View all* is pressed.
+         *
+         * > *"the view all shouldn't open in the same view it should open the
+         * > app and the ledger screen"*
+         *
+         * Same shape as [EXTRA_OPEN_TAP] and for a related reason: the answer
+         * to the button is a screen that lives in the real app, so the honest
+         * thing is to bring the real app forward at it rather than to build a
+         * second copy inside a window that cannot reach the database provider
+         * the first one is watching.
+         */
+        const val EXTRA_OPEN_LEDGER = "in.swip.app.OPEN_LEDGER"
         const val EVENT_CHANNEL = "in.swip.app/nfc/captures"
 
         /** `F-159`. Request code for the POST_NOTIFICATIONS dialog. */
@@ -62,6 +76,9 @@ class MainActivity : FlutterFragmentActivity() {
          */
         const val OPEN_QR = "qr"
         const val OPEN_NFC = "nfc"
+
+        /** `F-180`. Not a capture vector — the ledger tab. See `main.dart`. */
+        const val OPEN_LEDGER = "ledger"
     }
 
     private var cardEmulation: CardEmulation? = null
@@ -149,6 +166,12 @@ class MainActivity : FlutterFragmentActivity() {
         // been pressed a moment earlier.
         if (intent.getBooleanExtra(EXTRA_OPEN_TAP, false)) {
             pendingOpenCapture = OPEN_NFC
+        }
+        // `F-180`. Last, so it wins over both — and like the tap extra it is
+        // only ever set by a deliberate button press, never by a tile that may
+        // have been pressed a moment earlier.
+        if (intent.getBooleanExtra(EXTRA_OPEN_LEDGER, false)) {
+            pendingOpenCapture = OPEN_LEDGER
         }
     }
 

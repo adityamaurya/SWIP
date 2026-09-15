@@ -225,6 +225,15 @@ class _TapPageState extends ConsumerState<TapPage> with WidgetsBindingObserver {
       // a second — see `_Footer`.
       await CaptureResultSheet.open(
         context,
+        // `F-180`. The same exit as the QR path, for the same reason — and it
+        // matters more here, because this screen holds an armed NFC reader
+        // rather than a camera.
+        onViewAll: () {
+          openLedgerScreen(context, () {
+            Navigator.of(context).pop();
+            Navigator.of(context).pop(CaptureExit.ledger);
+          });
+        },
         event: event,
         mcc: repo.lookup(event.mcc),
         sourceLabel: 'POS terminal',

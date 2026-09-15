@@ -51,8 +51,13 @@ be tested without a device.
 the floating button's lifecycle so a disappearance can be read rather than
 guessed at. It is gated on `FLAG_DEBUGGABLE`, so it cannot reach a Play Store
 build, and `check_wiring.py` fails if that gate is ever weakened.
-[`docs/38`](docs/38-BUBBLE-TRACE.md) has the ten-step removal list — **delete it
-once the cause is confirmed**, including its own gate check.
+[`docs/38`](docs/38-BUBBLE-TRACE.md) has the eleven-step removal list.
+**`F-178` is now confirmed by a real export** ([`docs/38`](docs/38-BUBBLE-TRACE.md) §6),
+so the condition for deleting it is met — it is held for one more round only
+because the same export found `F-180`, whose fix cannot be verified without it.
+[`docs/38` §8](docs/38-BUBBLE-TRACE.md) records that as a decision rather than
+an oversight. **Delete it, including its own gate check, once `F-180` is
+confirmed in a second export.**
 
 `check_wiring.py` exists because **four times** a feature was built, tested and
 never connected — the floating bubble's switch wrote a preference nothing read
@@ -176,6 +181,9 @@ Each of these cost a broken build or a broken screen. Do not re-derive them.
 | **A `Column` in a `showModalBottomSheet` has nowhere to put overflow** | `isScrollControlled: true` lets the sheet reach the screen height and stop. `BOTTOM OVERFLOWED BY N PIXELS` is **debug-only** — release clips silently and the content is simply gone. Wrap in a scroll view, and use `Flexible` not `Expanded` or every sheet fills its cap. `F-174` |
 | **Repairing a dead wire exposes everything behind it for the first time** | `F-169` connected the dashboard's MCC tap; the 28 px overflow on the screen it opened had been there for months, unreachable. Connecting something is not only delivering the feature. `F-174` |
 | A capture **with** a category renders `_FoilCode`, whose sweep is `repeat(count: 4)` | So a single `pump` leaves a timer running and the test dies on *"A Timer is still pending"* rather than on its assertion. `pumpAndSettle` is safe here **because the repeat is bounded**; an unbounded one hangs instead. `F-173` |
+| **A position written while a window is hidden is a position nobody can see is wrong** | `swallow` drove the bubble into the snooze target and hid it there; nothing put it back, so ten minutes later it reappeared at bottom-centre. The fault existed the whole time it was invisible, which is why it read as *"it moves to the centre"* rather than as *"it never left"*. Anything changed during a transition **out** has its next appearance as the first chance to notice. `F-180` |
+| **Three copies of one bound is how a bound drifts** | `snapToEdge`, `reanchor` and `restorePark` each computed where the bubble may rest. Two running back to back stay honest; the third runs ten minutes later and nobody sees it disagree. One `BubblePark`, tested on the JVM. `F-180` |
+| A **theme-level `showDragHandle: true` applies to every modal sheet in the app** | So a sheet widget that also draws its own grabber draws two, and both look right in isolation. Keep Flutter's — it carries the drag semantics a screen reader announces, where a hand-rolled one is a decorative `Container`. `F-180` |
 | **Two Activities reporting the same fact through different lifecycle hooks will disagree** | `MainActivity` used `onResume`/`onPause`, `SwipHoverActivity` used `onCreate`/`onDestroy`. Press Home with the hovering card open and it is *stopped*, not destroyed — so `appInForeground` stayed true and the bubble was hidden indefinitely, by a window `excludeFromRecents` makes unreachable. Pair a claim with its release in the **same** pair of hooks. `F-178` |
 | **A window that cannot be navigated back to must not survive backgrounding** | `singleInstance` + `excludeFromRecents` means once it is off screen the user has no route to it, so keeping it alive holds a camera and a second Flutter engine for a window nobody will ever see again. `finish()` in `onStop` — not `onPause`, which a permission dialog also triggers. `F-178` |
 | **`windowAnimationStyle: @null` is advisory, not an instruction** | OEM skins substitute their own and it is honoured inconsistently across versions, so the system's bottom-up activity slide still played over a window meant to feel like it was already there. `overrideActivityTransition(…, 0, 0)` on 34+, `overridePendingTransition(0, 0)` below. `F-177` |

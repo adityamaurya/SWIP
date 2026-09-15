@@ -87,6 +87,8 @@ recording**, so the format has to survive never being finished.
 | `foreground` | with `from`, naming which Activity and which lifecycle hook |
 | `hover.create` / `hover.finishOnStop` / `hover.destroy` | the hovering card |
 | `snooze.set` / `snooze.end` | with `from`: `dragTarget`, `shade`, `shake` |
+| **`bubble.restored`** | `F-180`. Where the bubble was put back after a snooze, with `x` and `y`. Loud because the bug it records was a position nobody could see being wrong — the window was hidden the whole time it was astray |
+| `hover.openTapScreen` / `hover.openLedger` | the two buttons in the card that hand off to the real app |
 | `drag.start` / `drag.snoozed` | the gesture |
 | `broadcast` | screen on, screen off, user present |
 | `boot.received`, `tile.pressed`, `tap.openScanner`, `start.wanted`, `stop.requested`, `restore.check` | |
@@ -174,7 +176,69 @@ the button vanished, and its `why`.
 
 ---
 
-## 6. What it was built to catch, and what it caught first
+## 6. The first real export, and what it said
+
+**15 Sep 2026, 369 events over 3 h 45 m, Nothing AIN065, SDK 34.** The first
+file the owner sent back, and it settled one question and opened two.
+
+### `F-178` is fixed, and the trace is how we know
+
+At **19:18:12** the exact sequence that used to kill the bubble:
+
+```
+19:18:04  tap.openScanner
+19:18:04  SWIP in front = True   (hover.onResume)
+19:18:05  HIDDEN — SWIP itself was in front
+19:18:12  SWIP in front = False  (hover.onPause)
+19:18:12  SHOWN  (hidden for 7 s)
+19:18:12  hover.finishOnStop
+```
+
+The card was opened, Home was pressed, `onPause` released the foreground claim
+and `onStop` finished the card. Before `F-178` that release never happened and
+the bubble stayed hidden indefinitely, behind a window `excludeFromRecents`
+makes unreachable.
+
+Seven cards were opened in this file and `hover.finishOnStop` fired once — the
+other six were closed with the Close button, where `isFinishing` is already
+true and the line is correctly not written. **One firing, in the one case that
+needed it.**
+
+### What it found that was still broken
+
+`F-180`, and the trace is what confirmed it rather than the screenshot. Six
+snoozes, all from `dragTarget`, all exactly 600,000 ms, all expiring on time —
+so the snooze itself was correct and the complaint was purely about *where* the
+bubble came back. [`docs/32` §14](32-FLOATING-BUBBLE.md).
+
+### One thing that looks wrong and is not
+
+`HIDDEN — the screen was off` appears 60-odd times, sometimes for **under a
+second**:
+
+```
+21:14:48  HIDDEN — the screen was off
+21:14:49  SHOWN  (hidden for 850 ms)
+```
+
+That is the always-on display and lift-to-wake toggling the real screen state,
+and `ACTION_SCREEN_OFF` / `ACTION_SCREEN_ON` are reporting it accurately. The
+bubble hides and pops back, which is what it is supposed to do. Noise in the
+log, not a fault — and worth writing down here so the next person reading a
+trace does not spend an hour on it.
+
+### And one gap in the recorder itself
+
+A snooze that **expires** writes no line. Only the one ended by hand
+(`snooze.end`, `from: settings`) is recorded; the other five are visible solely
+as a `visibility` change ten minutes later. `read_trace.py` prints the duration
+so the expiry is legible — *`SHOWN (hidden for 10.0 min)`* — but a trace read
+by eye will not show it. Known, and left as it is: a line that always follows a
+timer nobody is watching is a line that adds length without adding evidence.
+
+---
+
+## 7. What it was built to catch, and what it caught first
 
 The reported symptom was *"sometimes the launcher icon disappears — either when
 you open the SWIP app, or randomly while using certain other apps."*
@@ -199,6 +263,30 @@ Which is the report, exactly. The fix is `onResume`/`onPause` like the other
 Activity, plus finishing the card when it stops — a window nobody can navigate
 back to should not survive backgrounding while holding a camera.
 
-**The trace stays on anyway.** One plausible cause found by reading is not the
-same as the cause confirmed by watching, and the honest way to close this is an
-exported file showing the bubble surviving the sequence that used to kill it.
+**The trace stayed on anyway**, because one plausible cause found by reading is
+not the same as the cause confirmed by watching. The export in §6 is that
+confirmation, and it arrived carrying a second bug (`F-180`) that nothing else
+would have pinned down.
+
+---
+
+## 8. It has done its job. Why it is still here.
+
+`F-178` is confirmed by §6, which is the condition §4 names for deleting all of
+this. **It has not been deleted, and that is a decision rather than an
+oversight.**
+
+The same export found `F-180` — the bubble returning to the snooze target — and
+the fix for it is three days of somebody's ordinary phone use away from being
+provable. Snoozing, backgrounding, rebooting and screen-off all touch it, and
+none of them can be tested on a CI machine with no screen. Removing the only
+instrument that can read the result, in the same round as the fix, would mean
+the next report is a description again.
+
+So: **the trace comes out once `F-180` is confirmed in a second export**, on
+the same terms — a file showing `bubble.restored` landing at the edge the
+bubble was dragged to, not at bottom-centre. §4's eleven steps are unchanged
+and this section goes with them.
+
+Nothing is at risk in the meantime: it cannot reach a Play Store build (§2),
+and `check_wiring.py` fails if that gate is weakened.

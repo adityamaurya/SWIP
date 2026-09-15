@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../core/theme/swip_tokens.dart';
-
 /// `F-174` — the container every capture popup sits in, and **the fix for the
 /// striped bar at the bottom of the screen.**
 ///
@@ -85,7 +83,21 @@ class CaptureSheetShell extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const _Grabber(),
+          // `F-180`. **No grabber here.** There used to be one and it was the
+          // second of two.
+          //
+          // `SwipTheme`'s `bottomSheetTheme` sets `showDragHandle: true`, so
+          // Flutter draws a handle above this widget on every modal sheet in
+          // the app — and this widget only ever appears inside one. Drawing
+          // another produced the two stacked pills in the owner's screenshot.
+          //
+          // The theme's is the one kept, for a reason beyond "pick one": it
+          // carries the drag-handle semantics a screen reader announces and
+          // the tap-to-dismiss behaviour Material wires to it, where this file
+          // had a decorative `Container`. Deleting the decorative one is the
+          // fix; deleting the real one would have been the same number of
+          // pixels and less of a sheet.
+          //
           // The overflow fix, in one word: Flexible.
           Flexible(child: SingleChildScrollView(child: child)),
           if (footer != null)
@@ -101,26 +113,4 @@ class CaptureSheetShell extends StatelessWidget {
       ),
     );
   }
-}
-
-/// The handle every Android sheet has.
-///
-/// Not decoration: this sheet arrives unannounced a fraction of a second after
-/// a code is read, and the grabber is the only thing on screen that says it is
-/// a panel which can be pushed away rather than a screen that has taken over.
-class _Grabber extends StatelessWidget {
-  const _Grabber();
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(top: SwipSpace.md, bottom: SwipSpace.xs),
-        child: Container(
-          width: 40,
-          height: 4,
-          decoration: BoxDecoration(
-            color: SwipColors.textTertiary.withValues(alpha: 0.45),
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-      );
 }

@@ -12,6 +12,17 @@ import '../data/sources/rupay_outlook.dart';
 import 'capture_sheet.dart';
 import 'capture_sheet_shell.dart';
 
+/// `F-180`. How a capture page ended, handed back through `Navigator.pop`.
+///
+/// The shell `await`s the push in `_openCapture`, so a result travelling back
+/// up that existing `Future` is the whole wire — no notifier, no provider, no
+/// static. A page that pops with nothing returns null and the shell does what
+/// it always did.
+enum CaptureExit {
+  /// *View all* was pressed. Show the ledger tab.
+  ledger,
+}
+
 /// `F-175` — **the result of a live capture, without taking the screen.**
 ///
 /// > *"the output screen shown in a full screen format — can we have a non
@@ -42,10 +53,21 @@ import 'capture_sheet_shell.dart';
 ///
 /// ## The split CTA, and why the second one is Tap POS
 ///
-/// *View all* expands this same sheet into the full breakdown — the reason the
-/// category is missing, the routes to getting it, the detection line, the
-/// field table. In place, not as a second screen, so there is never more than
-/// one thing to dismiss.
+/// *View all* opens **the app, at the ledger.**
+///
+/// `F-175` had it expand this same sheet in place, on the argument that a
+/// second screen is a second thing to dismiss. `F-180` reversed that on the
+/// owner's instruction — *"the view all shouldn't open in the same view it
+/// should open the app and the ledger screen"* — and the instruction is right
+/// for a reason the first design missed: **expanding in place answered a
+/// question nobody had asked yet.** The breakdown of a capture taken two
+/// seconds ago is not urgent; the capture has just been saved, and the useful
+/// destination is the place all of them live, where this one is the top row.
+///
+/// It also removes a state. The sheet had a collapsed and an expanded form,
+/// two heights, and a button whose label flipped between *View all* and
+/// *Show less* — all of it in front of a live camera. Now the sheet has one
+/// shape and one job.
 ///
 /// *Tap POS* is the owner's idea and it is the better half of this change. On
 /// a capture with no category the old screen printed a list headed **HOW TO
@@ -53,7 +75,7 @@ import 'capture_sheet_shell.dart';
 /// thing SWIP can do, printed next to no way to do it. Promoting it to a
 /// button turns the most common failure of this product into a single tap
 /// towards the one vector that resolves it.
-class CaptureResultSheet extends StatefulWidget {
+class CaptureResultSheet extends StatelessWidget {
   const CaptureResultSheet({
     super.key,
     required this.event,
@@ -69,6 +91,7 @@ class CaptureResultSheet extends StatefulWidget {
     this.rupay,
     this.absence,
     this.onPos,
+    this.onViewAll,
   });
 
   final CaptureEvent event;
@@ -92,6 +115,19 @@ class CaptureResultSheet extends StatefulWidget {
   /// app, and bringing the app forward from the hovering card, where
   /// `MainActivity`'s NFC channel does not exist. See `SwipSurface`.
   final VoidCallback? onPos;
+
+  /// `F-180`. Open the app at the ledger.
+  ///
+  /// Supplied by the caller for the same reason as [onPos]: the route out
+  /// depends on which of SWIP's two windows this sheet is in, and the sheet
+  /// does not get to know. In the app it is a pop back to the shell carrying a
+  /// result; from the hovering card it is a platform call and a goodbye. Both
+  /// are wrapped in [openLedgerScreen], which is the only thing a caller needs
+  /// to reach for.
+  ///
+  /// Null renders the button disabled rather than absent — a footer whose
+  /// button count changes between captures is a row that has to be re-read.
+  final VoidCallback? onViewAll;
 
   /// Show it over whatever opened it, and return when it is dismissed.
   ///
@@ -118,6 +154,7 @@ class CaptureResultSheet extends StatefulWidget {
     RupayVerdict? rupay,
     MccAbsence? absence,
     VoidCallback? onPos,
+    VoidCallback? onViewAll,
   }) =>
       showModalBottomSheet<void>(
         context: context,
@@ -140,54 +177,45 @@ class CaptureResultSheet extends StatefulWidget {
           rupay: rupay,
           absence: absence,
           onPos: onPos,
+          onViewAll: onViewAll,
         ),
       );
 
   @override
-  State<CaptureResultSheet> createState() => _CaptureResultSheetState();
-}
-
-class _CaptureResultSheetState extends State<CaptureResultSheet> {
-  /// Whether *View all* has been pressed.
-  ///
-  /// A field rather than a second route. Pushing the full breakdown would mean
-  /// two things to dismiss to get back to the camera, which is the exact
-  /// complaint that started this change.
-  bool _all = false;
-
-  @override
   Widget build(BuildContext context) {
-    final known = widget.event.hasMcc;
+    final known = event.hasMcc;
 
     return CaptureSheetShell(
-      // Expanded, this is the ledger's own full breakdown and can be long, so
-      // it is allowed more of the screen. Collapsed it is four short blocks
-      // and will not come near the cap.
-      maxHeightFraction: _all ? 0.86 : 0.62,
+      // One height now. `F-175` had two — 0.62 collapsed and 0.86 expanded —
+      // because *View all* grew the sheet in place. It does not any more, so
+      // the second number went with the state that chose between them.
+      maxHeightFraction: 0.62,
       footer: _Footer(
         known: known,
-        expanded: _all,
-        onViewAll: () => setState(() => _all = !_all),
-        posLabel: widget.onPos == null ? null : 'Tap POS',
-        onPos: widget.onPos,
+        onViewAll: onViewAll,
+        posLabel: onPos == null ? null : 'Tap POS',
+        onPos: onPos,
       ),
       child: CaptureSheet(
-        event: widget.event,
-        mcc: widget.mcc,
-        sourceLabel: widget.sourceLabel,
-        // Only handed over once expanded. In the brief layout the sheet does
-        // not render a field table at all, and passing one would be a silent
-        // claim that it does.
-        details: _all ? widget.details : const {},
-        rawPayload: widget.rawPayload,
-        noCategoryTitle: widget.noCategoryTitle,
-        noCategoryBody: widget.noCategoryBody,
-        verdict: widget.verdict,
-        payeeKind: widget.payeeKind,
-        tier: widget.tier,
-        rupay: widget.rupay,
-        absence: widget.absence,
-        layout: _all ? CaptureLayout.sheet : CaptureLayout.brief,
+        event: event,
+        mcc: mcc,
+        sourceLabel: sourceLabel,
+        // `F-180`. Never handed over. The brief layout does not render a field
+        // table, and passing one would be a silent claim that it does — the
+        // full breakdown is the ledger's job now, which is the whole point of
+        // the change. `details` stays on the constructor because the two
+        // callers build it and the ledger's own detail sheet reads the same
+        // map from the stored event.
+        details: const {},
+        rawPayload: rawPayload,
+        noCategoryTitle: noCategoryTitle,
+        noCategoryBody: noCategoryBody,
+        verdict: verdict,
+        payeeKind: payeeKind,
+        tier: tier,
+        rupay: rupay,
+        absence: absence,
+        layout: CaptureLayout.brief,
         // The sheet layout draws its own primary button at the end of its
         // content; this one is pinned in the footer, so that is suppressed.
         showFurniture: false,
@@ -216,25 +244,25 @@ class _CaptureResultSheetState extends State<CaptureResultSheet> {
 class _Footer extends StatelessWidget {
   const _Footer({
     required this.known,
-    required this.expanded,
     required this.onViewAll,
     required this.posLabel,
     required this.onPos,
   });
 
   final bool known;
-  final bool expanded;
-  final VoidCallback onViewAll;
+  final VoidCallback? onViewAll;
   final String? posLabel;
   final VoidCallback? onPos;
 
   @override
   Widget build(BuildContext context) {
     final viewAll = _Action(
-      label: expanded ? 'Show less' : 'View all',
-      icon: expanded
-          ? Icons.keyboard_arrow_up_rounded
-          : Icons.keyboard_arrow_down_rounded,
+      label: 'View all',
+      // `F-180`. An arrow that leaves, not a chevron that unfolds. The label
+      // is the same two words it always was and the button now does something
+      // else entirely, so the icon is the only thing on the row that can say
+      // so before it is pressed.
+      icon: Icons.north_east_rounded,
       filled: known,
       onPressed: onViewAll,
     );
@@ -357,5 +385,45 @@ Future<void> openPosCapture(BuildContext context, VoidCallback inApp) async {
 
   // Close the hovering card. The app is coming forward behind it, and leaving
   // this on top would put a scrim over the screen the user was just sent to.
+  SystemNavigator.pop();
+}
+
+/// `F-180` — send the user to the ledger, from either window.
+///
+/// > *"the view all shouldn't open in the same view it should open the app and
+/// > the ledger screen"*
+///
+/// ## Why this is not simply a `Navigator.push`
+///
+/// Because in one of the two windows there is no ledger to push to. The
+/// hovering card runs its **own Flutter engine** with its own
+/// `ProviderContainer`, so a `LedgerPage` built there would open a second
+/// sqflite handle on the same file as the one the app holds. `CLAUDE.md`
+/// records what that costs: sqflite caches open databases **by path**, and two
+/// handles to one path is a bug this project has already paid for once.
+///
+/// So the card asks the platform to bring `MainActivity` forward with
+/// `EXTRA_OPEN_LEDGER`, which `consumeTileLaunch` reports to `main.dart` as
+/// `'ledger'`, and the shell switches tabs. The same handshake the quick
+/// settings tile and *Tap POS* already use — a third destination on a road
+/// that exists, rather than a second road.
+///
+/// **In the app** [inApp] runs instead, and what it does is pop: the sheet,
+/// then the capture page, carrying a result the shell acts on. A push would
+/// have left a live camera underneath the ledger.
+Future<void> openLedgerScreen(BuildContext context, VoidCallback inApp) async {
+  if (!SwipSurface.isHoverWindow) {
+    inApp();
+    return;
+  }
+
+  // Timed out like every other platform read in this project: a channel call
+  // that never completes would leave the user on a card whose button has
+  // stopped responding, with no way to tell it apart from a slow phone.
+  await const MethodChannel('in.swip.app/nfc')
+      .invokeMethod<bool>('openLedger')
+      .timeout(const Duration(seconds: 3))
+      .catchError((_) => false);
+
   SystemNavigator.pop();
 }

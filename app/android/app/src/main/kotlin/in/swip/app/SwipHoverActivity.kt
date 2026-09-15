@@ -140,6 +140,36 @@ class SwipHoverActivity : FlutterFragmentActivity() {
                         result.success(ok)
                     }
 
+                    /**
+                     * `F-180`. *View all*, pressed inside the hovering card.
+                     *
+                     * > *"the view all shouldn't open in the same view it
+                     * > should open the app and the ledger screen"*
+                     *
+                     * The ledger is a Riverpod tree over the SQLite repository
+                     * that `MainActivity`'s engine owns. This window runs a
+                     * second engine with a second provider container, so
+                     * rendering the ledger here would open a **different**
+                     * database handle over the same file — `CLAUDE.md` records
+                     * what two handles to one sqflite path costs. Bringing the
+                     * real app forward is the correct answer, not the lazy one.
+                     */
+                    "openLedger" -> {
+                        BubbleTrace.log(this, "hover.openLedger")
+                        val ok = runCatching {
+                            startActivity(
+                                Intent(this, MainActivity::class.java).apply {
+                                    addFlags(
+                                        Intent.FLAG_ACTIVITY_NEW_TASK or
+                                            Intent.FLAG_ACTIVITY_SINGLE_TOP
+                                    )
+                                    putExtra(MainActivity.EXTRA_OPEN_LEDGER, true)
+                                }
+                            )
+                        }.isSuccess
+                        result.success(ok)
+                    }
+
                     else -> result.notImplemented()
                 }
             }

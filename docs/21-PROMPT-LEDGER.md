@@ -2075,6 +2075,74 @@ Ours, checked rather than assumed —
 [`SwipBubbleService.kt:1545`](../app/android/app/src/main/kotlin/in/swip/app/SwipBubbleService.kt):
 `abs(dx) > slop || abs(dy) > slop`, with `slop` from `ViewConfiguration`.
 
+## Prompt 47 — 15 Sep 2026 · 23:05 IST · The first real trace, and three fixes
+
+**Original prompt, verbatim:**
+
+> @"SWIP_BubbleTrace_2026-09-15_22-36-41.jsonl" check these logs for any
+> unusual behaviour and fix in the build also I noticed that the floater icon
+> on when it is snoozed once it gets snoozed but again after opening recent app
+> launcher it reappears into the center of the screen check the screenshot
+> attached, also the view all shouldn't open in the same view it should open
+> the app and the ledger screen
+>
+> check the screenshot two or more dragger is appearing on the pop up it
+> redundant check and  FIX ALL
+
+Three screenshots: a job listing with the bubble circled in the middle of it, and
+the capture sheet twice with two grabbers circled.
+
+| # | ID | Did | Why |
+|---|---|---|---|
+| 1 | — | Read the 369-event trace | **It confirms `F-178`** and it found the next bug |
+| 2 | `F-180` | The bubble comes back where it was left | `swallow` parked it on the snooze target and nothing put it back |
+| 3 | `F-180` | One grabber, not two | A theme-level `showDragHandle` plus the shell's own |
+| 4 | `F-180` | *View all* opens the app at the ledger | It expanded in place before |
+| 5 | `F-180` | [`BubblePark.kt`](../app/android/app/src/main/kotlin/in/swip/app/BubblePark.kt) + 10 JVM tests | The arithmetic had never been checked by anything |
+
+### What the trace said
+
+**`F-178` is fixed, and this is the proof** — [`docs/38` §6](38-BUBBLE-TRACE.md).
+At 19:18:12 the card was opened, Home was pressed, `hover.onPause` released the
+foreground claim and `hover.finishOnStop` finished the window. The bubble came
+back after 7 s. Seven cards were opened in the file and that line fired once, in
+the one case that needed it.
+
+Also in it: six snoozes, all exactly 600,000 ms, all expiring on time. So the
+snooze worked and the complaint was purely about **where** it came back.
+
+And one thing that looks alarming and is not — `HIDDEN — the screen was off`
+sixty-odd times, once for 850 ms. That is the always-on display toggling the
+real screen state, reported accurately.
+
+### The centre-of-the-screen bug
+
+**The bubble did not move to the middle of the screen. It had been parked there,
+invisibly, since it was snoozed.** `swallow` aims the position springs at the
+snooze target — bottom-centre — and then the window is hidden *there*. Ten
+minutes later it was shown at the last coordinates anything had written.
+
+Which is why the report was about reappearing rather than about the gesture: the
+fault existed the entire time it could not be seen. [`docs/32` §14](32-FLOATING-BUBBLE.md).
+
+### The two grabbers
+
+`SwipTheme`'s `bottomSheetTheme` sets `showDragHandle: true`, so Flutter draws a
+handle on **every** modal sheet in the app — and `CaptureSheetShell` drew its
+own as well. Both looked correct in isolation. Flutter's is the one kept,
+because it carries the drag semantics a screen reader announces where ours was a
+decorative `Container`.
+
+### *View all*
+
+Reversed a decision `F-175` made two rounds ago, on instruction, and the
+instruction is right for a reason the first design missed: **expanding in place
+answered a question nobody had asked yet.** The breakdown of a capture taken two
+seconds ago is not urgent; the capture has just been saved, and the useful
+destination is the place all of them live. It also deletes a state — a collapsed
+form, an expanded form, two heights and a label that flipped, all in front of a
+live camera.
+
 ---
 
 <!--

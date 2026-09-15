@@ -307,6 +307,10 @@ growing.
 | The reticle overlapping the copy in the short card | 40 | ✅ `F-171` — sized to its surface, and tested |
 | A reader for the exported bubble trace | 45 | ✅ `F-179` — [`tool/read_trace.py`](../app/tool/read_trace.py), verified against a synthetic trace of the bug before being trusted |
 | Judge a floating-icon tutorial, and log it | 46 | ✅ [`39` §7](39-FLOATING-OVERLAY-PRIOR-ART.md) — nothing in it SWIP lacks, four things in it illegal or dead in 2026, and one live bug; **and it prompted a read of our own tap-versus-drag test**, which is correct |
+| Read the exported trace for anything unusual | 47 | ✅ [`38` §6](38-BUBBLE-TRACE.md) — **it confirms `F-178`**, and the 850 ms screen-off cycles are the always-on display, not a fault |
+| The snoozed bubble reappearing in the centre | 47 | ✅ `F-180` — it never moved there; `swallow` parked it there and nothing put it back |
+| One drag handle on the popup, not two | 47 | ✅ `F-180` — a theme-level `showDragHandle` plus the shell's own |
+| *View all* opens the app at the ledger | 47 | ✅ `F-180` — reverses `F-175`'s in-place expansion, on instruction, and the instruction was right |
 | The latest APK | 43 | ✅ link, not file — the artifact host is blocked by this environment's egress proxy, established by trying |
 | A survey of open-source floating-icon projects | 44 | ✅ [`39`](39-FLOATING-OVERLAY-PRIOR-ART.md) — every entry opened and verified, not recalled |
 | Why the bubble disappears | 42 | ✅ `F-178` — a lifecycle asymmetry, found by reading; **and half the report was by design**, said plainly rather than fixed |

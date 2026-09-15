@@ -1364,6 +1364,117 @@ number; the code was readable from the Drive link on its own.
 **Still open:** unchanged. The bubble trace stays on until you can send me an
 export showing the button surviving the press-Home-with-the-card-open sequence.
 
+## Prompt 47 — 15 Sep 2026 · The first real trace, and three fixes
+
+**You asked:** read the exported log for anything unusual and fix it; the
+snoozed floater comes back in the middle of the screen; *View all* should open
+the app at the ledger; there are two draggers on the popup.
+
+**All four are done.** Taking them in the order that matters.
+
+### The trace, first — because it settles something
+
+**`F-178` is fixed, and your file is how we know.** I said last round that a
+cause found by reading is not the same as a cause confirmed by watching. Here is
+the watching, at 19:18:12:
+
+```
+19:18:04  tap.openScanner
+19:18:04  SWIP in front = True   (hover.onResume)
+19:18:05  HIDDEN — SWIP itself was in front
+19:18:12  SWIP in front = False  (hover.onPause)
+19:18:12  SHOWN  (hidden for 7 s)
+19:18:12  hover.finishOnStop
+```
+
+You opened the hovering card and pressed Home. That is the exact sequence that
+used to leave the button hidden forever. It came back in seven seconds. You
+opened seven cards in that file and `hover.finishOnStop` fired once — the other
+six you closed with the button, where it correctly writes nothing.
+
+Also in the file: **six snoozes, every one of them exactly ten minutes, every
+one expiring on time.** So the snooze mechanism was never the problem.
+
+**One thing in it looks alarming and is not.** *"HIDDEN — the screen was off"*
+appears about sixty times, once for 850 milliseconds. That is your phone's
+always-on display toggling the real screen state, and SWIP is reporting it
+accurately rather than misbehaving. Written into
+[`docs/38` §6](38-BUBBLE-TRACE.md) so nobody loses an hour on it later.
+
+### Why the bubble was in the middle of the screen
+
+**It did not move there. It had been sitting there, invisible, since the moment
+you snoozed it.**
+
+The snooze animation pulls the bubble into the target at the bottom-centre of
+the screen and shrinks it away. That animation moves the *window*, not just the
+picture — and then the window is hidden where the animation left it. Nothing
+ever put it back. Ten minutes later it was shown again at the last place
+anything had written, which was the target.
+
+So it was wrong the whole time it was hidden, and hidden is exactly when nobody
+can see that it is wrong. Your screenshot has it at centre-x a little above the
+bottom third, which is the target's own coordinates.
+
+**The fix remembers where you left it** rather than snapping to a corner,
+because snapping to a corner would be the same complaint with a different
+coordinate. It is your button; it goes back where you put it.
+[`docs/32` §14](32-FLOATING-BUBBLE.md).
+
+I also pulled the arithmetic out into
+[`BubblePark.kt`](../app/android/app/src/main/kotlin/in/swip/app/BubblePark.kt),
+which has no Android in it and ten tests CI runs. Every other line about the
+bubble's position needs a real phone to exercise, so those numbers had never
+been checked by anything — and they are the numbers that were wrong.
+
+### The two draggers
+
+One is the app's theme, which tells Flutter to draw a handle on every sheet. The
+other was the sheet container drawing its own. Both looked right on their own,
+which is how they survived.
+
+**Flutter's is the one I kept**, and not by coin-toss: it carries the drag
+handle's accessibility semantics and its tap-to-dismiss, where ours was a
+decorative rounded box. Deleting the decorative one is the fix; deleting the
+real one would have been the same number of pixels and less of a sheet.
+
+### *View all*
+
+Done as asked — it now opens the app at the ledger, from the full-screen scanner
+and from the hovering card alike.
+
+**You reversed a decision I made two rounds ago and you were right.** `F-175`
+had it unfold the breakdown in place, arguing that a second screen is a second
+thing to dismiss. What that missed is that **it was answering a question nobody
+had asked yet.** The full breakdown of a capture taken two seconds ago is not
+urgent; the capture has just been saved, and the useful destination is where all
+of them live — this one is the top row.
+
+It also removes a whole state from the sheet: a collapsed form, an expanded
+form, two heights, and a button whose label flipped between *View all* and
+*Show less*, all of it in front of a running camera. One shape, one job.
+
+From the hovering card it cannot simply draw the ledger — that window runs a
+second Flutter engine, so it would open a **second SQLite handle on the same
+file**, which is a bug this project has already paid for once. It brings the
+real app forward instead, on the same handshake the quick-settings tile and
+*Tap POS* already use.
+
+### What I did not do
+
+**I have not deleted the trace**, even though `F-178` is now confirmed and
+that was the stated condition. The same export found the snooze-position bug,
+and the fix for that one needs a few days of ordinary use to prove — snoozing,
+backgrounding, rebooting and the screen going off all touch it, and none of
+that can be tested on a machine with no screen. Taking out the only instrument
+that can read the result, in the same round as the fix, means the next report
+is a description again.
+
+**So: one more export.** If `bubble.restored` lands at the edge you dragged it
+to rather than at bottom-centre, the trace comes out next round —
+[`docs/38` §8](38-BUBBLE-TRACE.md) records that as a decision rather than an
+oversight, with the eleven-step removal list unchanged.
+
 ---
 
 <!--

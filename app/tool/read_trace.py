@@ -129,6 +129,10 @@ def timeline(events: list[dict]) -> None:
         "bubble.added", "bubble.removed", "bubble.addFailed",
         "snooze.set", "snooze.end", "drag.snoozed", "tap.openScanner",
         "boot.received", "hover.finishOnStop", "start.refused",
+        # `F-180`. Where the bubble was put back after a snooze. Loud because
+        # the bug it records was a position nobody could see being wrong — the
+        # window was hidden at the time it went astray.
+        "bubble.restored", "hover.openLedger", "hover.openTapScreen",
     }
 
     for e in events:
@@ -162,6 +166,8 @@ def timeline(events: list[dict]) -> None:
                 extra = "  ← restarted by Android, not by the user"
             elif name == "bubble.addFailed":
                 extra = f"  {v.get('error')}"
+            elif name == "bubble.restored":
+                extra = f"  to x={v.get('x')}, y={v.get('y')}"
             print(f"  {clock(e)}  {name}{extra}")
 
     if shown_at is not None:

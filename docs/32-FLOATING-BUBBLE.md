@@ -544,3 +544,77 @@ export showing the bubble surviving the sequence that used to kill it.
 
 It is gated on `FLAG_DEBUGGABLE` and cannot reach a Play Store build, and it
 gets deleted once the cause is confirmed.
+
+---
+
+## 14. Where it comes back to — `F-180`
+
+> *"once it gets snoozed but again after opening recent app launcher it
+> reappears into the center of the screen"* — prompt 47, with a screenshot of
+> the bubble sitting in the middle of a web page
+
+### What was actually happening
+
+**The bubble did not travel to the middle of the screen. It had been parked
+there, invisibly, since the moment it was snoozed.**
+
+[`swallow`](../app/android/app/src/main/kotlin/in/swip/app/SwipBubbleService.kt)
+is the animation that makes the snooze gesture feel like a gesture: the bubble
+is pulled into the target and shrinks to nothing. It does that by aiming the
+same two springs every other move uses at the target's centre — and the target
+sits at `heightPixels - targetSize - 132dp`, horizontally centred.
+
+Then the window is hidden. **Nothing ever moved it back.** Ten minutes later
+`applyVisibility` showed the window at the last coordinates anything had
+written, which were the target's.
+
+So the position was wrong the entire time it was hidden, and hidden is exactly
+when nobody can see that it is wrong. The owner's screenshot puts the bubble at
+centre-x, a little above the bottom third — which is the snooze target's own
+coordinates, read off the screenshot and matched to the arithmetic.
+
+### Why the fix is a remembered position and not a default one
+
+Snapping to a fixed corner would have been one line and would have been the
+same complaint with a different coordinate. This is a button the user drags to
+where they want it; coming back from a snooze somewhere else is the bug either
+way.
+
+So `restY` records where the bubble settles — written from `windowY`'s setter,
+which every settle, fling and re-anchor passes through — and `swallowed` gates
+that recorder off for the duration of the swallow, because otherwise the
+swallow's own frames would overwrite the place the bubble is meant to be
+rescued from. X needs no memory: it is always one of two edges and
+`parkedRight` already knows which.
+
+`restorePark` runs from `show(true)` **while the window is still `GONE`**, and
+assigns rather than springs. A spring there would start at bottom-centre and
+fly across the screen in full view — a more elaborate version of the same bug.
+
+### The arithmetic is now testable
+
+[`BubblePark.kt`](../app/android/app/src/main/kotlin/in/swip/app/BubblePark.kt)
+— pure Kotlin, no Android imports, same split as `ShakeDetector` and for the
+same reason. Everything else about the bubble's position runs through
+`WindowManager` and cannot be exercised without a device, so these numbers had
+never been checked by anything.
+
+`coerceIn(min, max)` **throws when `max < min`**, and every maximum here comes
+from a live screen measurement. A freeform window or a foldable read while
+closed can be shorter than the bubble plus its two gaps, and that exception
+would be thrown from a touch handler on a window the user cannot dismiss.
+`BubbleParkTest` has the degenerate screen as a test rather than a comment
+claiming it was considered, plus a sweep over five screen heights and seven
+remembered positions asserting the result is always inside the legal strip.
+
+`snapToEdge`, `reanchor` and `restorePark` now share `edgeX` and `lowestY`.
+They used to compute the bounds separately, which is survivable while two of
+them run one after the other and invisible when the third runs ten minutes
+later.
+
+### The general shape
+
+**A position written while a window is hidden is a position nobody can see is
+wrong.** The same is true of any state changed during a transition out: the
+next appearance is the first chance anyone has to notice, and by then the cause
+is long gone from the screen and from memory.

@@ -2121,6 +2121,63 @@ And one live bug: `if (Xdiff < 10 && Ydiff < 10)` decides tap versus drag on
 
 Unchanged. The bubble trace stays until an exported file confirms `F-178`.
 
+## Prompt 47 — 15 Sep 2026 · The first real trace, and three fixes
+
+### Screens changed
+
+| ID | Screen | Change | Serves |
+|---|---|---|---|
+| `S-02` | Scan QR | *View all* leaves for the ledger instead of unfolding in place | prompt 47 |
+| `S-03` | Tap POS | same | prompt 47 |
+| — | Capture result sheet | one drag handle, not two; one height, not two | prompt 47 |
+
+### Element changes
+
+| Where | Before | After | Why |
+|---|---|---|---|
+| Floating bubble, after a snooze | Reappeared at the snooze target, bottom-centre | Reappears where it was dragged to | `swallow` moved the window and nothing moved it back |
+| `CaptureSheetShell` | Drew a grabber | Draws none | `SwipTheme` already tells Flutter to draw one on every sheet |
+| *View all* | Toggled `brief` ↔ `sheet` in place, label flipped to *Show less* | Opens the app at the ledger; icon is a leaving arrow | The breakdown of a two-second-old capture is not urgent |
+| Result sheet height | 0.62 collapsed, 0.86 expanded | 0.62 | The second number went with the state that chose between them |
+
+### Code
+
+| File | Change |
+|---|---|
+| `SwipBubbleService.kt` | `restY` + `swallowed` + `restorePark`; `edgeX`/`lowestY` shared with `snapToEdge` and `reanchor` |
+| **`BubblePark.kt`** | **New.** The parking arithmetic, pure Kotlin, no Android |
+| **`BubbleParkTest.kt`** | **New.** 10 JVM tests including a degenerate screen and a sweep |
+| `SwipHoverActivity.kt` | `openLedger` channel method |
+| `MainActivity.kt` | `EXTRA_OPEN_LEDGER`, `OPEN_LEDGER` |
+| `main.dart` | `'ledger'` launch destination; `CaptureExit` carried back on the push's own Future |
+| `capture_result_sheet.dart` | Stateless now; `onViewAll`; `openLedgerScreen`; the expand state deleted |
+| `capture_sheet_shell.dart` | `_Grabber` deleted |
+| `scan_page.dart`, `tap_page.dart` | Supply `onViewAll` |
+| `tool/read_trace.py` | Knows `bubble.restored`, `hover.openLedger`, `hover.openTapScreen` |
+
+### Docs
+
+| File | Added |
+|---|---|
+| [`32`](32-FLOATING-BUBBLE.md) | **§14** — where it comes back to |
+| [`38`](38-BUBBLE-TRACE.md) | **§6** the first real export; **§8** why the trace is held one more round |
+| [`CLAUDE.md`](../CLAUDE.md) | Three rows |
+
+### What the trace settled
+
+**`F-178` is confirmed fixed.** 19:18:12: card open, Home pressed,
+`hover.onPause` released the claim, `hover.finishOnStop` finished the window,
+bubble back after 7 s. Seven cards opened in the file, that line fired once —
+in the one case that needed it.
+
+Six snoozes, all exactly 600,000 ms, all expiring on time. So the snooze was
+correct and the complaint was purely about where the bubble came back.
+
+### Open
+
+`F-180` needs a second export to confirm — `bubble.restored` landing at an edge
+rather than at bottom-centre. The trace comes out after that.
+
 ---
 
 <!--

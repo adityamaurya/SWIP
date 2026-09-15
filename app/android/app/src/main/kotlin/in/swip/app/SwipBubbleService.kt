@@ -471,6 +471,51 @@ class SwipBubbleService : Service() {
      */
     private var parkedRight = false
 
+    /**
+     * `F-180`. Where the bubble idles, so a snooze can put it back.
+     *
+     * ## The bug this exists for
+     *
+     * > *"once it gets snoozed but again after opening recent app launcher it
+     * > reappears into the center of the screen"*
+     *
+     * [swallow] drives the window into the snooze target — bottom-centre — and
+     * then hides it **there**. Nothing ever moved it back, so ten minutes
+     * later `applyVisibility` showed the window at the last coordinates
+     * anything had written, which were the target's. The bubble did not
+     * *travel* to the middle of the screen; it had been parked in the middle
+     * of the screen, invisibly, since the moment it was snoozed.
+     *
+     * Confirmed against the owner's trace: the target sits at
+     * `heightPixels - targetSize - 132dp`, horizontally centred, which is
+     * exactly where the screenshot shows the bubble sitting over a web page.
+     *
+     * ## Why a remembered Y rather than a default one
+     *
+     * Because snapping to a fixed position would be a second bug wearing the
+     * first one's clothes. The user drags this button to where they want it;
+     * coming back from a snooze somewhere else is the same complaint with a
+     * different coordinate. X does not need remembering — it is always one of
+     * two edges and [parkedRight] already says which — but Y is wherever the
+     * finger left it.
+     *
+     * Null until the bubble has settled once, which is only true before the
+     * first drag; [restorePark] falls back to the same third-of-the-screen
+     * that [addBubble] starts at.
+     */
+    private var restY: Int? = null
+
+    /**
+     * True from the moment a snooze drag is swallowed until the bubble is next
+     * shown, and the reason [restY] survives the swallow.
+     *
+     * The swallow is driven by the same two springs as every other move, so
+     * without this flag its frames would overwrite the resting position with
+     * the target's on the way in — and the fix would restore the bubble to
+     * precisely the place it is meant to be rescued from.
+     */
+    private var swallowed = false
+
     /** Re-show the bubble the moment a payment's quiet window expires. */
     private val unquiet = Runnable { applyVisibility() }
 
@@ -553,6 +598,11 @@ class SwipBubbleService : Service() {
         override fun setValue(view: View, value: Float) {
             val lp = params ?: return
             lp.y = value.toInt()
+            // `F-180`. Every settle, fling and re-anchor passes through here,
+            // so this is the one place that sees the bubble come to rest —
+            // except during a swallow, which is heading somewhere the bubble
+            // is not meant to stay. See [restY].
+            if (!swallowed) restY = lp.y
             runCatching { windows.updateViewLayout(view, lp) }
         }
     }
@@ -837,6 +887,11 @@ class SwipBubbleService : Service() {
      */
     private fun swallow(bubble: View, centre: Pair<Int, Int>?) {
         goodbyeUntil = System.currentTimeMillis() + SWALLOW_MS
+        // `F-180`. Claimed **before** the springs below are aimed, because
+        // they drive the same property the resting position is recorded from.
+        // Set it after, and the first frame of the swallow would already have
+        // overwritten the place the bubble is supposed to come back to.
+        swallowed = true
 
         // [centre] is passed in rather than read from `targetParams`, and that
         // is a bug fix rather than a style. The touch handler hides the target
@@ -1313,6 +1368,20 @@ class SwipBubbleService : Service() {
             return
         }
 
+        // `F-180`. Put it back before it is drawn, not after.
+        //
+        // The only way the window can be somewhere it should not be is a
+        // swallow, which parks it over the snooze target and hides it there.
+        // Restoring while `visibility` is still `GONE` means the bubble is
+        // simply *at* its old place on the frame it reappears, with nothing to
+        // animate — a spring here would start at bottom-centre and fly across
+        // the screen in full view, which is a more elaborate version of the
+        // same bug.
+        if (swallowed) {
+            swallowed = false
+            restorePark(view)
+        }
+
         view.visibility = View.VISIBLE
         // Set directly, not sprung: this is the *start* of the pop, and a
         // spring cannot be told where to begin — only where to end. Cancelling
@@ -1554,6 +1623,13 @@ class SwipBubbleService : Service() {
                     if (dragging) {
                         lp.x = startX + dx.toInt()
                         lp.y = startY + dy.toInt()
+                        // `F-180`. The drag writes the params directly rather
+                        // than through [windowY], so the recorder there never
+                        // sees it. Without this line a drag that ends exactly
+                        // where it started animates nothing, so no spring
+                        // frame runs, and the remembered position is the one
+                        // from before the drag.
+                        if (!swallowed) restY = lp.y
                         runCatching { windows.updateViewLayout(view, lp) }
                         updateTarget(view, lp)
                     }
@@ -1667,23 +1743,12 @@ class SwipBubbleService : Service() {
             } else {
                 lp.x + view.width / 2 >= screenWidth / 2
             }
-            val target = if (parkedRight) {
-                (screenWidth - view.width - margin).toFloat()
-            } else {
-                margin.toFloat()
-            }
+            val target = edgeX(view).toFloat()
 
             // Keep it on screen vertically too — a bubble dragged off the top
-            // is a bubble the user has to reboot to get back.
-            val screenHeight = resources.displayMetrics.heightPixels
-            // `coerceIn(min, max)` THROWS if max < min, and max here is a
-            // computed screen measurement. On a short display - or a foldable
-            // read while closed - `screenHeight - height - 72dp` can land
-            // under the 8 dp margin, and the exception would be thrown inside
-            // a touch handler on a window the user has no way to dismiss.
-            // `coerceAtLeast` first makes the range provably non-empty.
-            val lowest = (screenHeight - view.height - dp(72f))
-                .coerceAtLeast(margin)
+            // is a bubble the user has to reboot to get back. Both bounds come
+            // from [lowestY] so this and [restorePark] cannot disagree.
+            val lowest = lowestY(view)
 
             slideX?.apply {
                 cancel()
@@ -1820,17 +1885,71 @@ class SwipBubbleService : Service() {
      * `view.width` on the same frame as the visibility change returns the
      * *old* width, and compensating by that is the same bug with extra steps.
      */
+    /**
+     * `F-180`. The three numbers that define a legal resting place, in one
+     * place, because three copies of them is how they drift.
+     *
+     * [snapToEdge], [reanchor] and [restorePark] all have to agree on where
+     * the bubble is allowed to sit, and they used to compute it separately.
+     * That is survivable while two of them run one after the other and
+     * invisible when the third runs ten minutes later — which is exactly the
+     * shape of the bug this round fixed.
+     */
+    private fun edgeX(view: View): Int = BubblePark.edgeX(
+        parkedRight,
+        resources.displayMetrics.widthPixels,
+        view.width,
+        dp(8f),
+    )
+
+    /**
+     * The lowest Y the bubble may rest at.
+     *
+     * `coerceAtLeast` before any range is built from it: on a short display
+     * this subtraction can land under the margin, and `coerceIn` **throws**
+     * when its maximum is below its minimum — inside a touch handler, on a
+     * window the user has no way to dismiss.
+     */
+    private fun lowestY(view: View): Int = BubblePark.lowestY(
+        resources.displayMetrics.heightPixels,
+        view.height,
+        dp(8f),
+        dp(72f),
+    )
+
+    /**
+     * `F-180`. Put the window back where the user left it.
+     *
+     * Assigned rather than sprung, and called only from [show] while the
+     * window is still `GONE` — see the comment there. [restY] is null only
+     * before the bubble has ever settled, in which case the fallback is the
+     * same third-of-the-screen [addBubble] starts at, so a snooze taken before
+     * the first drag returns it to where it began rather than to zero.
+     */
+    private fun restorePark(view: View) {
+        val lp = params ?: return
+        lp.x = edgeX(view)
+        lp.y = BubblePark.restY(
+            restY,
+            resources.displayMetrics.heightPixels,
+            view.height,
+            dp(8f),
+            dp(72f),
+        )
+        // Any spring still holding the swallow's end position would overwrite
+        // this on its next frame. They are already cancelled by `show(false)`
+        // via `cancelMotion`, but this method must be correct on its own —
+        // it is the last thing between a fixed bug and a returning one.
+        runCatching { slideX?.cancel(); settleY?.cancel(); glideY?.cancel() }
+        runCatching { windows.updateViewLayout(view, lp) }
+        BubbleTrace.log(this, "bubble.restored", "x" to lp.x, "y" to lp.y)
+    }
+
     private fun reanchor() {
         val view = bubble ?: return
         view.post {
             if (bubble !== view) return@post
-            val margin = dp(8f)
-            val screenWidth = resources.displayMetrics.widthPixels
-            val target = if (parkedRight) {
-                (screenWidth - view.width - margin).toFloat()
-            } else {
-                margin.toFloat()
-            }
+            val target = edgeX(view).toFloat()
 
             // `F-170`. Sprung, not assigned.
             //

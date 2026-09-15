@@ -58,8 +58,10 @@ Future<void> showCaptureDetail(
     // callback nobody ever passed. Connecting something unreachable exposes
     // everything behind it for the first time.
     //
-    // [CaptureSheetShell] caps the height, scrolls the content and adds the
-    // grabber. See its own notes for why `Flexible` is the operative word.
+    // [CaptureSheetShell] caps the height and scrolls the content. It does
+    // **not** draw a grabber — `F-180`; the theme's `showDragHandle` supplies
+    // the one handle every sheet in the app gets. See its own notes for why
+    // `Flexible` is the operative word.
     builder: (_) => CaptureSheetShell(
       child: CaptureSheet(
         event: event,

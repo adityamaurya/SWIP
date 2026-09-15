@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:swip/core/theme/swip_theme.dart';
 import 'package:swip/data/models/capture_event.dart';
 import 'package:swip/data/models/mcc.dart';
 import 'package:swip/features/paywall/raw_data_entitlement.dart';
@@ -247,10 +248,18 @@ void main() {
   });
 
   group('View all', () {
-    testWidgets('folds the detail away until it is asked for', (t) async {
-      // The brief layout is the whole point of the change: at a counter, with
+    testWidgets('never renders the field table — the ledger does that now',
+        (t) async {
+      // `F-180`. The brief layout is the whole point: at a counter, with
       // somebody waiting to be paid, the reason paragraph and the four routes
-      // are the screen the owner called "so messed up".
+      // are the screen the owner called "so messed up". `F-175` unfolded them
+      // in place; this round sends them to the ledger instead, so there is no
+      // state in which this sheet shows them.
+      //
+      // **A tall surface, deliberately.** `CLAUDE.md`: a `findsNothing` below
+      // the fold passes for the wrong reason, and this suite has shipped that
+      // mistake before. 800 px with a `manyDetails` map that measures well
+      // under it means the table would be built if it existed.
       await surfaced(t, const Size(400, 800));
       await t.pumpWidget(harness(
         CaptureResultSheet(
@@ -259,24 +268,22 @@ void main() {
           sourceLabel: 'UPI QR',
           details: manyDetails,
           onPos: () {},
+          onViewAll: () {},
         ),
         surface: const Size(400, 800),
       ));
       await t.pump();
 
-      // Collapsed: no field table.
       expect(find.text('Payment company'), findsNothing);
-
-      await t.tap(find.text('View all'));
-      await t.pumpAndSettle();
-
-      // Expanded: the same content the ledger has always shown.
-      expect(find.text('Payment company'), findsOneWidget);
-      expect(find.text('Show less'), findsOneWidget);
+      expect(find.text('Terminal'), findsNothing);
+      // The positive half of the same pump, so the negatives above cannot be
+      // passing because nothing rendered at all.
+      expect(find.text('View all'), findsOneWidget);
       expect(t.takeException(), isNull);
     });
 
-    testWidgets('and folds back', (t) async {
+    testWidgets('calls back rather than expanding in place', (t) async {
+      var asked = 0;
       await surfaced(t, const Size(400, 800));
       await t.pumpWidget(harness(
         CaptureResultSheet(
@@ -284,6 +291,7 @@ void main() {
           mcc: null,
           sourceLabel: 'UPI QR',
           details: manyDetails,
+          onViewAll: () => asked++,
         ),
         surface: const Size(400, 800),
       ));
@@ -291,15 +299,39 @@ void main() {
 
       await t.tap(find.text('View all'));
       await t.pumpAndSettle();
-      await t.tap(find.text('Show less'));
-      await t.pumpAndSettle();
 
+      expect(asked, 1);
+      // The label does not flip, the table does not appear, and the sheet is
+      // still the sheet. Everything that used to happen here now happens on
+      // the screen this button opens.
+      expect(find.text('Show less'), findsNothing);
       expect(find.text('Payment company'), findsNothing);
       expect(find.text('View all'), findsOneWidget);
     });
 
-    testWidgets('the expanded sheet does not draw a second primary button',
+    testWidgets('is disabled, not hidden, when there is nowhere to go',
         (t) async {
+      // A footer whose button count changes between captures is a row that has
+      // to be re-read every time. Both buttons keep their places.
+      await surfaced(t, const Size(400, 800));
+      await t.pumpWidget(harness(
+        CaptureResultSheet(
+          event: withMcc,
+          mcc: mcc,
+          sourceLabel: 'UPI QR',
+          onPos: () {},
+        ),
+        surface: const Size(400, 800),
+      ));
+      await t.pump();
+
+      expect(find.text('View all'), findsOneWidget);
+      final button = t.widget<FilledButton>(
+          find.widgetWithText(FilledButton, 'View all'));
+      expect(button.onPressed, isNull);
+    });
+
+    testWidgets('draws no second primary button', (t) async {
       // `showFurniture: false`. The ledger's sheet layout ends its content
       // with its own button; this one pins a footer. Both at once would be two
       // primary buttons on one sheet, one of which scrolls away.
@@ -311,15 +343,60 @@ void main() {
           sourceLabel: 'UPI QR',
           details: manyDetails,
           onPos: () {},
+          onViewAll: () {},
         ),
         surface: const Size(400, 800),
       ));
-      await t.pump();
-      await t.tap(find.text('View all'));
       await t.pumpAndSettle();
 
       expect(find.text('Capture another'), findsNothing);
       expect(find.text('Try another'), findsNothing);
+    });
+  });
+
+  group('the grabber, of which there must be exactly one', () {
+    /// A 4 px tall rounded bar — the shape both handles had.
+    ///
+    /// Matched by geometry rather than by type because Flutter's own handle is
+    /// a private widget. That makes this test a little blunt and entirely
+    /// honest: it finds anything shaped like a grabber, which is exactly the
+    /// thing there was one too many of.
+    Finder grabbers() => find.byWidgetPredicate((w) {
+          if (w is! Container) return false;
+          final c = w.constraints;
+          return c != null && c.maxHeight == 4 && c.maxWidth > 8;
+        });
+
+    testWidgets('the shell draws none of its own', (t) async {
+      // `F-180`. `SwipTheme` sets `showDragHandle: true`, so Flutter draws one
+      // above this widget on every modal sheet — and this widget only ever
+      // appears inside one. The shell used to draw a second, which is the two
+      // stacked pills in the owner's screenshot.
+      //
+      // Rendered bare on a tall surface with a short child, so everything the
+      // shell builds is in the tree and a `findsNothing` here cannot be
+      // passing because it was never laid out.
+      await surfaced(t, const Size(400, 800));
+      await t.pumpWidget(harness(
+        const CaptureSheetShell(
+          child: SizedBox(height: 80, width: double.infinity),
+        ),
+        surface: const Size(400, 800),
+      ));
+      await t.pump();
+
+      expect(grabbers(), findsNothing);
+      // The positive half: the shell did build, so the line above is a real
+      // absence rather than an empty tree.
+      expect(find.byType(CaptureSheetShell), findsOneWidget);
+      expect(find.byType(SingleChildScrollView), findsOneWidget);
+    });
+
+    testWidgets('and the theme still asks Flutter for one', (t) async {
+      // The other half of "exactly one". If this ever goes false the sheets
+      // lose their handle entirely and the test above would happily agree.
+      expect(SwipTheme.dark().bottomSheetTheme.showDragHandle, isTrue);
+      expect(SwipTheme.light().bottomSheetTheme.showDragHandle, isTrue);
     });
   });
 }

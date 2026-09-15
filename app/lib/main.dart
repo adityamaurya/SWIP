@@ -24,6 +24,7 @@ import 'features/ledger/ledger_page.dart';
 import 'features/onboarding/home_market_page.dart';
 import 'features/settings/settings_page.dart';
 import 'widgets/capture_detail.dart';
+import 'widgets/capture_result_sheet.dart';
 import 'widgets/scan_stack.dart';
 
 /// `F-163`. **Two Activities, one entrypoint.**
@@ -218,6 +219,13 @@ class _SwipShellState extends ConsumerState<SwipShell>
     try {
       final open = await const MethodChannel('in.swip.app/nfc')
           .invokeMethod<String>('consumeTileLaunch');
+      // `F-180`. Not a capture vector — *View all*, pressed in the hovering
+      // card, which cannot render the ledger itself. Handled before the switch
+      // because it is the one answer that opens a tab rather than a scanner.
+      if (open == 'ledger') {
+        if (mounted) _openLedger();
+        return;
+      }
       final vector = switch (open) {
         'qr' => CaptureVector.qr,
         'nfc' => CaptureVector.nfc,
@@ -265,7 +273,18 @@ class _SwipShellState extends ConsumerState<SwipShell>
     }
 
     if (!mounted) return;
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+    // `F-180`. The push already returns a Future the shell awaits, so *View
+    // all* travels back up it as a result rather than through a notifier or a
+    // provider. The capture page pops itself with [CaptureExit.ledger] and the
+    // camera is released on the way out, which is the whole reason this is a
+    // pop and not a push of the ledger on top of a live scanner.
+    final exit = await Navigator.of(context)
+        .push<CaptureExit>(MaterialPageRoute<CaptureExit>(builder: (_) => page));
+
+    // Before the camera handover below, not after: those delays exist to let
+    // the platform settle and add up to half a second, and a tab switch that
+    // lands half a second after the button was pressed reads as a stutter.
+    if (mounted && exit == CaptureExit.ledger) _openLedger();
 
     // And take it back only once the scanner has let go. `ScanPage.dispose()`
     // releases the camera asynchronously and the Navigator does not wait for

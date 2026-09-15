@@ -76,6 +76,21 @@ class _ScanPageState extends ConsumerState<ScanPage> {
       );
 
   bool _handling = false;
+
+  /// `F-180`. True once a button in the result sheet has started taking the
+  /// user off this page.
+  ///
+  /// `mounted` is not enough and never was. `Navigator.pop` removes the route
+  /// from the stack immediately but disposes the widget only when the exit
+  /// animation finishes, so for about 300 ms this page is leaving and still
+  /// reports itself as mounted. The code after the sheet's `await` would
+  /// therefore restart the camera on a page on its way out — and the shell
+  /// re-acquires that same camera 320 ms after the pop, which is the exact
+  /// race `_openCapture` was written to avoid.
+  ///
+  /// Latent since `F-175` gave the sheet its first leaving button; reachable
+  /// now that both of them leave.
+  bool _leaving = false;
   bool _refused = false;
   bool _running = false;
 
@@ -238,7 +253,22 @@ class _ScanPageState extends ConsumerState<ScanPage> {
       // rather than as item one of a printed list. From the hovering card this
       // brings the real app forward instead of pushing — the hover engine has
       // no NFC channel. See `openPosCapture`.
+      // `F-180`. *View all* leaves this screen for the ledger.
+      //
+      // Popping twice rather than pushing: the sheet, then this page with a
+      // result the shell reads. Pushing the ledger on top would leave a live
+      // camera running underneath a list the user may read for a minute, and
+      // `_openCapture` would never get its `await` back to hand the viewfinder
+      // its camera return.
+      onViewAll: () {
+        _leaving = true;
+        openLedgerScreen(context, () {
+          Navigator.of(context).pop();
+          Navigator.of(context).pop(CaptureExit.ledger);
+        });
+      },
       onPos: () {
+        _leaving = true;
         openPosCapture(context, () {
           // Pop the sheet, then REPLACE this page rather than stacking on it.
           // Leaving the scanner underneath would keep a camera open behind a
@@ -273,7 +303,9 @@ class _ScanPageState extends ConsumerState<ScanPage> {
       },
     );
 
-    if (!mounted) return;
+    // `F-180`. `_leaving` as well as `mounted` — see its declaration. Without
+    // it the camera is restarted on a page that is already popping.
+    if (!mounted || _leaving) return;
     setState(() => _handling = false);
     await _start();
   }
