@@ -397,9 +397,126 @@ def check_trace_gate() -> list[str]:
     return []
 
 
+# ── 7. a widget test that renders a category, and never lets it finish ───────
+#
+# `F-180`. This is the third time the same test has been written wrong, and the
+# rule it breaks has been in `CLAUDE.md` since `F-159`. So it stops being a
+# reading habit and becomes a check.
+#
+# A capture **with** a category renders `_FoilCode`, whose gold sweep is
+# `.animate(onPlay: (c) => c.repeat(count: 4))`. A single `t.pump()` starts that
+# and never finishes it, so the test dies on *"A Timer is still pending even
+# after the widget tree was disposed"* — pointing at the widget tree rather than
+# at the assertion, which is why it reads as a mystery every time.
+#
+# `pumpAndSettle` is safe here precisely **because the repeat is bounded**. An
+# unbounded one would hang instead, which is why this cannot be a blanket
+# "always settle".
+#
+# ## Why the animated widgets are discovered rather than listed
+#
+# The first version of this check flagged any test mentioning `withMcc`, and it
+# fired on eight tests in `capture_result_page_test.dart` that pass perfectly
+# well — `CaptureResultPage` does not contain `_FoilCode`. A check that flags
+# passing tests is worse than the bug it replaces, because the first thing
+# anyone does with it is switch it off.
+#
+# So the set is computed: files whose source contains a bounded `repeat(count:`
+# are the animated ones, their public widget classes are collected, and one hop
+# outward catches the widgets that embed them. Two hops is enough for this tree
+# and the set is printed in the failure so a wrong answer is visible rather than
+# mysterious.
+#
+# ## What it cannot see, said plainly
+#
+# The test has to name the widget. A suite whose `harness()` builds it and whose
+# tests only pass an event — which is exactly how `capture_result_page_test`
+# is written — slips through. That is a **miss**, not a false positive, and it
+# is the right way round for a check like this: a miss costs one CI round, and
+# a check that flags passing tests gets switched off, which costs all of them.
+SETTLE_EXCEPTIONS: dict[str, str] = {
+    # "test name": "why this one genuinely does not need to settle"
+}
+
+
+def _bounded_repeat_widgets() -> set[str]:
+    """Public widget classes whose tree contains a bounded `repeat(count:)`."""
+    lib = ROOT / "lib"
+    direct: dict[pathlib.Path, set[str]] = {}
+    for path in lib.rglob("*.dart"):
+        text = path.read_text(encoding="utf-8")
+        if "repeat(count:" not in text:
+            continue
+        direct[path] = {
+            m.group(1)
+            for m in re.finditer(r"^class ([A-Z]\w+)", text, re.M)
+            if not m.group(1).startswith("_")
+        }
+
+    names: set[str] = set()
+    for found in direct.values():
+        names |= found
+
+    # One hop: a widget that builds an animated one animates too.
+    for path in lib.rglob("*.dart"):
+        if path in direct:
+            continue
+        text = path.read_text(encoding="utf-8")
+        if not any(f"{n}(" in text for n in names):
+            continue
+        names |= {
+            m.group(1)
+            for m in re.finditer(r"^class ([A-Z]\w+)", text, re.M)
+            if not m.group(1).startswith("_")
+        }
+    return names
+
+
+def check_test_settles() -> list[str]:
+    problems: list[str] = []
+    tests = ROOT / "test"
+    if not tests.is_dir():
+        return problems
+
+    animated = _bounded_repeat_widgets()
+    if not animated:
+        return problems
+
+    for path in sorted(tests.glob("*.dart")):
+        text = path.read_text(encoding="utf-8")
+        if "withMcc" not in text:
+            continue
+
+        # Split on `testWidgets(` so each block is one test. Crude, and it does
+        # not need to be more than that: the final block runs to end of file,
+        # which can only produce a false positive, never a miss.
+        for block in text.split("testWidgets(")[1:]:
+            name = re.match(r"\s*['\"](.*?)['\"]", block)
+            title = name.group(1) if name else "(unnamed)"
+            if title in SETTLE_EXCEPTIONS:
+                continue
+            if "withMcc" not in block:
+                continue
+            if not any(f"{n}(" in block for n in animated):
+                continue
+            if "pumpAndSettle" in block or "elapse(" in block:
+                continue
+            problems.append(
+                f"{path.name}: the test {title!r} builds a capture with a "
+                f"category and never settles. `_FoilCode`'s sweep is "
+                f"`repeat(count: 4)`, so a bare `pump()` leaves a timer "
+                f"pending and the test dies on the widget tree rather than on "
+                f"its assertion. Use `await t.pumpAndSettle()` — safe because "
+                f"the repeat is bounded. See CLAUDE.md. "
+                f"(Animated widgets found: {', '.join(sorted(animated))}.)"
+            )
+    return problems
+
+
 def main() -> int:
     problems = (check_unimported() + check_channel() + check_prefs()
-                + check_callbacks() + check_bubble_radius() + check_trace_gate())
+                + check_callbacks() + check_bubble_radius() + check_trace_gate()
+                + check_test_settles())
     if problems:
         print("WIRING PROBLEMS\n")
         for p in problems:

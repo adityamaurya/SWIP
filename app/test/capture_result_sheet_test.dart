@@ -323,7 +323,12 @@ void main() {
         ),
         surface: const Size(400, 800),
       ));
-      await t.pump();
+      // `pumpAndSettle`, not `pump`: `withMcc` renders `_FoilCode`, whose gold
+      // sweep is `repeat(count: 4)`, and a single pump leaves that timer
+      // running so the test dies on the widget tree rather than on the
+      // assertion below. Safe because the repeat is bounded. `check_wiring.py`
+      // now fails on this shape — it has caught me three times.
+      await t.pumpAndSettle();
 
       expect(find.text('View all'), findsOneWidget);
       final button = t.widget<FilledButton>(

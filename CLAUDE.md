@@ -74,12 +74,17 @@ unhandled, unread or unsupplied; the fault is the *ordering* of two correct
 calls. So it is a reading habit rather than a check: **when a feature's whole
 value is that the user sees something, ask what else runs on that frame.**
 
-It checks five shapes — unimported files, method-channel names against
-`MainActivity.kt` in both directions, preference keys written but never read,
-widget callbacks that a widget invokes as `name?.call(` while no caller
-supplies one, and the bubble's diameter against `swip_bubble_bg.xml`'s corner
-radius (which must stay exactly half, or the circle becomes a rounded square
-with nothing failing). That last rule is narrow on purpose: a never-passed callback
+It checks seven shapes — unimported files, method-channel names against
+`MainActivity.kt` and `SwipHoverActivity.kt` in both directions, preference keys
+written but never read, widget callbacks that a widget invokes as `name?.call(`
+while no caller supplies one, the bubble's diameter against
+`swip_bubble_bg.xml`'s corner radius (which must stay exactly half, or the
+circle becomes a rounded square with nothing failing), `BubbleTrace.enabled()`
+still testing `FLAG_DEBUGGABLE`, and **a widget test that builds a capture with
+a category and never settles** — `F-180`, after the `_FoilCode` timer cost a
+third CI round. That last one discovers the animated widgets from the source
+rather than listing them, because its first version flagged eight passing tests
+and a check that does that gets switched off. That last rule is narrow on purpose: a never-passed callback
 with a `??` fallback, or one handed to an `InkWell`, is a working default and
 is **not** flagged. Exceptions live in the file and each needs a written
 reason.
@@ -180,7 +185,7 @@ Each of these cost a broken build or a broken screen. Do not re-derive them.
 | One spike is not a shake, and a **naive detector fires when you put the phone down** | A hit is one sample over threshold; a *shake* is three hits inside 1,200 ms with a 150 ms debounce, because the sensor reports far faster than a wrist reverses. `F-173` |
 | **A `Column` in a `showModalBottomSheet` has nowhere to put overflow** | `isScrollControlled: true` lets the sheet reach the screen height and stop. `BOTTOM OVERFLOWED BY N PIXELS` is **debug-only** — release clips silently and the content is simply gone. Wrap in a scroll view, and use `Flexible` not `Expanded` or every sheet fills its cap. `F-174` |
 | **Repairing a dead wire exposes everything behind it for the first time** | `F-169` connected the dashboard's MCC tap; the 28 px overflow on the screen it opened had been there for months, unreachable. Connecting something is not only delivering the feature. `F-174` |
-| A capture **with** a category renders `_FoilCode`, whose sweep is `repeat(count: 4)` | So a single `pump` leaves a timer running and the test dies on *"A Timer is still pending"* rather than on its assertion. `pumpAndSettle` is safe here **because the repeat is bounded**; an unbounded one hangs instead. `F-173` |
+| A capture **with** a category renders `_FoilCode`, whose sweep is `repeat(count: 4)`. **This has now cost three CI rounds, so `check_wiring.py` fails on it** | So a single `pump` leaves a timer running and the test dies on *"A Timer is still pending"* rather than on its assertion. `pumpAndSettle` is safe here **because the repeat is bounded**; an unbounded one hangs instead. `F-173` |
 | **A position written while a window is hidden is a position nobody can see is wrong** | `swallow` drove the bubble into the snooze target and hid it there; nothing put it back, so ten minutes later it reappeared at bottom-centre. The fault existed the whole time it was invisible, which is why it read as *"it moves to the centre"* rather than as *"it never left"*. Anything changed during a transition **out** has its next appearance as the first chance to notice. `F-180` |
 | **Three copies of one bound is how a bound drifts** | `snapToEdge`, `reanchor` and `restorePark` each computed where the bubble may rest. Two running back to back stay honest; the third runs ten minutes later and nobody sees it disagree. One `BubblePark`, tested on the JVM. `F-180` |
 | A **theme-level `showDragHandle: true` applies to every modal sheet in the app** | So a sheet widget that also draws its own grabber draws two, and both look right in isolation. Keep Flutter's — it carries the drag semantics a screen reader announces, where a hand-rolled one is a decorative `Container`. `F-180` |
