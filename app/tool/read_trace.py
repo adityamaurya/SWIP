@@ -184,14 +184,13 @@ def unreleased_foreground(events: list[dict]) -> None:
               "flag was set before this trace started.\n")
         return
 
+    # The last claim that no later line released. Walking the whole list rather
+    # than stopping at the first unmatched one, because a claim released and
+    # re-claimed is ordinary — the only interesting claim is the final one.
     open_claim = None
-    dangling = []
     for e in claims:
         v = e.get("v", {}) or {}
-        if v.get("inFront"):
-            open_claim = e
-        elif open_claim is not None:
-            open_claim = None
+        open_claim = e if v.get("inFront") else None
 
     for e in claims:
         v = e.get("v", {}) or {}
@@ -199,7 +198,6 @@ def unreleased_foreground(events: list[dict]) -> None:
               f"  by {v.get('from', '?')}")
 
     if open_claim is not None:
-        dangling.append(open_claim)
         v = open_claim.get("v", {}) or {}
         print()
         print(f"  ⚠ The last claim ({clock(open_claim)}, from "
