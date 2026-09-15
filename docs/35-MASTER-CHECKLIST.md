@@ -379,6 +379,7 @@ money, or is deliberately held.
 | `flutter analyze` | ✅ clean (one expected warning: `assets/brand/` is gitignored and copied by `bootstrap.sh`) |
 | `flutter test` | ✅ **281 passing** at prompt 35; **more since** — the count in each round's CI log is the authority, not this line |
 | `tool/check_wiring.py` | ✅ five checks as of `F-170` — files, channels, preferences, callbacks, and the bubble's radius against its diameter |
+| `tool/check_wiring.py` — a capture test that never settles | ✅ `F-180`, after the `_FoilCode` timer cost a third CI round |
 | `tool/check_links.py`, `tool/check_secrets.sh` | ✅ |
 | Close button legible over a white app and a black app, both palettes | ✅ `test/hover_chrome_test.dart` — composited, not eyeballed |
 | Reticle leaves room on a phone and in the shortest card | ✅ `test/scan_layout_test.dart` |

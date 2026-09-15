@@ -2154,6 +2154,30 @@ Unchanged. The bubble trace stays until an exported file confirms `F-178`.
 | `capture_sheet_shell.dart` | `_Grabber` deleted |
 | `scan_page.dart`, `tap_page.dart` | Supply `onViewAll` |
 | `tool/read_trace.py` | Knows `bubble.restored`, `hover.openLedger`, `hover.openTapScreen` |
+| `tool/check_wiring.py` | **A seventh check** — a widget test that builds a capture with a category and never settles |
+
+### The CI round it cost, recorded rather than quietly fixed
+
+The first push went red on one test: *"View all is disabled, not hidden, when
+there is nowhere to go"*. Not on its assertion — on the widget tree:
+
+```
+Pending timers:
+#6  _AnimateState._restart (package:flutter_animate/src/animate.dart:318)
+```
+
+`withMcc` renders `_FoilCode`, whose sweep is `repeat(count: 4)`, and a single
+`pump()` starts it and never finishes it. **`CLAUDE.md` has carried that exact
+trap since `F-159` and this is the third round it has cost**, twice in my own
+hands. So it stopped being a reading habit and became `check_test_settles`.
+
+The first version of that check flagged eight tests in
+`capture_result_page_test.dart` that pass perfectly well — `CaptureResultPage`
+does not contain `_FoilCode`. **A check that flags passing tests is worse than
+the bug it replaces**, because the first thing anyone does with it is switch it
+off. The animated widgets are now discovered from the source instead, and its
+blind spot is written into the file rather than left to be found.
+
 
 ### Docs
 
