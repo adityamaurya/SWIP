@@ -44,7 +44,7 @@ bash    tool/check_secrets.sh   # a key that must never reach the repository
 
 There is a **Kotlin unit suite** as of `F-173`, run by CI with
 `cd app/android && ./gradlew :app:testDebugUnitTest`. It covers `ShakeDetector`,
-`BubblePark`, both flight recorders' line format and — as of `F-187` —
+`BubblePark`, `FanArc`, both flight recorders' line format and — as of `F-187` —
 `TapTrace`'s privacy rule; anything touching `WindowManager` still cannot be
 tested without a device. **It cannot be run in this environment**: `gradlew` and
 `build.gradle` do not exist until `bootstrap.sh` generates them, and there is no
@@ -81,15 +81,17 @@ unhandled, unread or unsupplied; the fault is the *ordering* of two correct
 calls. So it is a reading habit rather than a check: **when a feature's whole
 value is that the user sees something, ask what else runs on that frame.**
 
-It checks seven shapes — unimported files, method-channel names against
+It checks eight shapes — unimported files, method-channel names against
 `MainActivity.kt` and `SwipHoverActivity.kt` in both directions, preference keys
 written but never read, widget callbacks that a widget invokes as `name?.call(`
 while no caller supplies one, `swip_bubble_bg.xml` still declaring
 `android:shape="oval"` and no `<corners>` (`F-185` — this was a radius-versus-
 diameter comparison, and a shape cannot drift out of step with a number the way
-a radius can), `BubbleTrace.enabled()`
-still testing `FLAG_DEBUGGABLE`, and **a widget test that builds a capture with
-a category and never settles** — `F-180`, after the `_FoilCode` timer cost a
+a radius can), `BubbleTrace.enabled()` **and
+`Blackbox.enabled()`** still testing `FLAG_DEBUGGABLE` — two separate checks on
+purpose, because `docs/38` §4 step 9 deletes the first and the second must
+outlive it — and **a widget test that builds a capture with a category and
+never settles** — `F-180`, after the `_FoilCode` timer cost a
 third CI round. That last one discovers the animated widgets from the source
 rather than listing them, because its first version flagged eight passing tests
 and a check that does that gets switched off. That last rule is narrow on purpose: a never-passed callback
@@ -222,6 +224,16 @@ Each of these cost a broken build or a broken screen. Do not re-derive them.
 | **No app can measure its own milliamps** | Android exposes no per-app current draw, so a "battery black box" that claims one is fabricating. What a phone can honestly measure about itself is **duration** — which span was awake, for how long, and the battery level at each end. A sensor registered for six hours is a finding whether or not anyone can price it. `F-188` |
 | **iOS HCE is EEA-anchored, and that is a licence problem rather than an entitlement one** | Apple's NFC & SE Platform entitlement requires an agreement with Apple **and** a payment-services licence in the EEA. India is not in the EEA and SWIP deliberately does not touch money. Not a harder version of the Android work — a door with no handle on our side. [`docs/44` §3](docs/44-CAN-THIS-SHIP-TO-THE-APP-STORE.md) |
 | **iOS has no overlay API at all** | Not a permission to request, not a review to pass — the thing is absent. Widgets are on the home screen, Live Activities cannot open a camera, and Picture-in-Picture is a 2.5.1 rejection. Two of SWIP's three ways in are Android-only. [`docs/44` §4](docs/44-CAN-THIS-SHIP-TO-THE-APP-STORE.md) |
+| **Two symmetric angles share a cosine**, so a ±a arc is a column | The first radial fan put its items at +30° and −30° and they landed on the same `x` — in front of the bubble instead of above it, and still a list. Tilt the whole arc so every item has a different angle. Found by **printing the numbers**, not by reading the code. `F-189` |
+| **An overlay window has no parent, so two windows on one pixel is not an error anywhere** | Worse than the `Stack` case: no layout, no assertion, no warning — just one disc on screen and an unreachable choice underneath. Placement arithmetic for windows belongs in a pure file with a JVM test, like `BubblePark`. `FanArc`, `F-189` |
+| **Clamping each item of a set to the screen collapses the set** | Near an edge the leading item stops and the rest keep coming, so an arc closes up and at the extreme every item lands on one point. Shift the **whole group** by the overflow instead; the shape survives. `F-189` |
+| **A no-op guard written against a view's own state fires on the normal case** | `if (visible == wasVisible && view.visibility != View.GONE) return` was meant to catch *state says shown, view is hidden*. A hidden view **is** `GONE`, so it also fired on *already hidden, still hidden* and re-ran the entire hide path on every broadcast. Found only because `PowerTrace` logged six unmatched closes. `F-189` |
+| **An unmatched release is a finding once and noise forever after** | The first says *this subsystem was running before the recorder was*; the hundredth says somebody is calling a release in a loop, which is already legal. Report once per name, and let a clean open earn the right back. A file nobody can bear to read is not a flight recorder. `F-189` |
+| **There is no public Android intent for the per-app battery screen** | It is `com.android.settings.fuelgauge.AdvancedPowerUsageDetail`, an unexported fragment, and every OEM moves it. The honest ceiling is `ACTION_APPLICATION_DETAILS_SETTINGS` plus AOSP's `:settings:fragment_args_key` highlight extras, which picks the row out. **Not** `ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS` — public, but it is the Doze list `docs/36` D-45 declined on Play policy. `F-189` |
+| **`showFurniture`-style flags bundle things that do not belong together** | One flag hid the primary button, the confirmation line **and** the route to the raw payload. Only the first was the reason it existed; the other two rode along, and nothing showed it because no caller had ever wanted the difference. `F-189` |
+| **One presentation for two windows is one rule too few** | `F-180` argued the capture result should never show its field table. Right for the hovering card, over somebody else's app; wrong for the full-screen scanner, which is SWIP's own screen with a viewfinder behind it. **Ask what is behind a surface before deciding how much it may say.** `F-189`, `docs/36` D-61 |
+| **The QR the owner said "couldn't get the MCC" is 39 bytes long** | `upi://pay?pa=paytm.s27l8o9@pty&pn=Paytm` — decoded from the photograph, byte-identical to corpus entry 6, which SWIP had already read correctly twice. **Decode the artifact and show it in full**; it ends the question in a way any amount of explanation does not. `docs/46` |
+| **"Razorpay is not working" and "no MCC" cannot be the same fault** | The lookup returns a **name**, never a category. A working key would have changed the word *Paytm* on that screen into the shop's name and left the headline identical. When two complaints arrive in one sentence, check whether one of them is even capable of causing the other. `docs/46` §3 |
 
 **The recurring mistake, twice over: checking the source instead of the
 artifact.** Read the built thing, not the code that should have built it.
@@ -302,6 +314,7 @@ padding.** `docs/36` D-51.
 | **The Razorpay key with the vocabulary removed** | [`docs/43-RAZORPAY-IN-PLAIN-WORDS.md`](docs/43-RAZORPAY-IN-PLAIN-WORDS.md) |
 | **Whether SWIP can ship to the App Store, and what dies there** | [`docs/44-CAN-THIS-SHIP-TO-THE-APP-STORE.md`](docs/44-CAN-THIS-SHIP-TO-THE-APP-STORE.md) |
 | **The seven ways a POS tap fails, and how to read the black box** | [`docs/45-WHY-A-POS-TAP-FAILS.md`](docs/45-WHY-A-POS-TAP-FAILS.md) |
+| **The Paytm QR that carries no category, decoded in full** | [`docs/46-THE-CODE-YOU-SENT.md`](docs/46-THE-CODE-YOU-SENT.md) |
 
 ---
 

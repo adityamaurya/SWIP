@@ -390,20 +390,64 @@ class MainActivity : FlutterFragmentActivity() {
                         }
                     }
 
-                    // `F-159`. Android's own per-app settings page. Used by
-                    // the wizard's battery step, because SWIP must NOT ask for
-                    // a Doze exemption directly — Play prohibits it for an app
-                    // whose core function is not messaging, VOIP, safety, task
-                    // automation or a peripheral companion. Walking the user
-                    // there to do it themselves is allowed and honest.
-                    "openThisAppSettings" -> {
+                    /*
+                     * `F-189`. **As close to "App battery usage" as Android
+                     * lets a third party get.**
+                     *
+                     * > *"we need direct redirections to the SWIPs app battery
+                     * > usage in the onboarding wizard"*
+                     *
+                     * There is **no public intent for that screen.** It is
+                     * `com.android.settings.fuelgauge.AdvancedPowerUsageDetail`,
+                     * an unexported fragment inside Settings, and every OEM
+                     * moves it — Samsung keeps its own copy in
+                     * `com.samsung.android.lool`. Firing a hard component name
+                     * at it gets a `SecurityException` on a stock phone and
+                     * nothing at all on half the others, so this does not try.
+                     *
+                     * What it does instead is real and documented behaviour:
+                     * App info, with AOSP's **highlight-a-setting** extras
+                     * pointing at the battery row. That is the mechanism
+                     * Settings search itself uses to deep-link a row, so the
+                     * user lands on SWIP's App info page with *App battery
+                     * usage* picked out and pulsing, one tap from
+                     * Unrestricted.
+                     *
+                     * On a build that ignores the extras it is still App info,
+                     * which is where the button went before and is never
+                     * wrong. Both outcomes return true; there is nothing
+                     * useful to tell Dart apart, and the wizard's copy names
+                     * the row either way rather than assuming the highlight
+                     * landed.
+                     *
+                     * Deliberately NOT `ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS`,
+                     * which is public and would open the Doze exemption list.
+                     * `docs/36` D-45 declined that on Play policy: the
+                     * exemption is for messaging, VOIP, safety, task
+                     * automation and peripheral companions, and a floating
+                     * button is none of them. Walking somebody to the list is
+                     * inviting the grant.
+                     */
+                    "openBatterySettings" -> {
                         val ok = runCatching {
+                            val key = "battery"
                             startActivity(
                                 Intent(
                                     android.provider.Settings
                                         .ACTION_APPLICATION_DETAILS_SETTINGS,
                                     android.net.Uri.parse("package:$packageName")
-                                ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    .putExtra(":settings:fragment_args_key", key)
+                                    .putExtra(
+                                        ":settings:show_fragment_args",
+                                        android.os.Bundle().apply {
+                                            putString(
+                                                ":settings:fragment_args_key",
+                                                key,
+                                            )
+                                        },
+                                    )
                             )
                         }.isSuccess
                         result.success(ok)

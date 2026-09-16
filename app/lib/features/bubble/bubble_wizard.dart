@@ -169,8 +169,18 @@ class _BubbleWizardState extends State<BubbleWizard>
     _go(_step + 1);
   }
 
-  Future<void> _openAppSettings() async {
-    await _ask(() => _channel.invokeMethod<bool>('openThisAppSettings'));
+  /// `F-189` — straight to the row the step is actually about.
+  ///
+  /// > *"we need direct redirections to the SWIPs app battery usage in the
+  /// > onboarding wizard"*
+  ///
+  /// Android has no public intent for the per-app battery screen, so the
+  /// platform side opens App info with the battery row **highlighted** — see
+  /// `MainActivity.openBatterySettings` for why that is the honest ceiling and
+  /// why the obvious alternative is a Play policy problem. The copy on the
+  /// button names the row rather than claiming to land on it.
+  Future<void> _openBatterySettings() async {
+    await _ask(() => _channel.invokeMethod<bool>('openBatterySettings'));
   }
 
   /// `F-164` — end the wizard by **showing** them the button.
@@ -228,14 +238,19 @@ class _BubbleWizardState extends State<BubbleWizard>
             onSkip: () => _go(3),
           ),
           _KeepItRunningStep(
+            // `F-189`. The battery row, highlighted, rather than App info
+            // and a hope. Replaces `openThisAppSettings`, which landed on the
+            // same page with nothing picked out — App info is still where you
+            // arrive, so nothing is lost and one guess is.
+            //
             // Opens Android's settings AND advances, so returning to SWIP
             // lands on "You're all set" rather than back on this screen with
             // a "Skip for now" button that now reads like a question they
             // have already answered. The overlay step deliberately does NOT
             // do this — there, coming back is how the screen learns whether
             // the permission was actually granted.
-            onOpen: () async {
-              await _openAppSettings();
+            onOpenBattery: () async {
+              await _openBatterySettings();
               if (mounted) _go(4);
             },
             onNext: () => _go(4),
@@ -600,9 +615,14 @@ class _NotificationStep extends StatelessWidget {
 // ── 4 ────────────────────────────────────────────────────────────────────
 
 class _KeepItRunningStep extends StatelessWidget {
-  const _KeepItRunningStep({required this.onOpen, required this.onNext});
+  const _KeepItRunningStep({
+    required this.onOpenBattery,
+    required this.onNext,
+  });
 
-  final Future<void> Function() onOpen;
+  /// `F-189`. App info **with the battery row highlighted**, rather than App
+  /// info and a sentence hoping the user finds it.
+  final Future<void> Function() onOpenBattery;
   final VoidCallback onNext;
 
   @override
@@ -620,9 +640,10 @@ class _KeepItRunningStep extends StatelessWidget {
           const WizardStep(
             n: 1,
             text: 'Battery saving. Some phones — Xiaomi, Oppo, Vivo, '
-                'realme, Samsung — stop background apps hard. Find SWIP '
-                'below and set battery to Unrestricted, and turn Autostart '
-                'on if your phone has it.',
+                'realme, Samsung — stop background apps hard. The button '
+                'below opens SWIP\'s own App info page: tap App battery '
+                'usage, choose Unrestricted, and turn Autostart on if your '
+                'phone has it.',
             mock: _SettingsRowMock(
                 label: 'Battery', value: 'Unrestricted'),
           ),
@@ -680,9 +701,13 @@ class _KeepItRunningStep extends StatelessWidget {
           ),
         ],
         action: FilledButton(
-            onPressed: onOpen, child: const Text('Open SWIP\'s app settings')),
-        secondary:
-            TextButton(onPressed: onNext, child: const Text('Skip for now')),
+          onPressed: onOpenBattery,
+          child: const Text('Open SWIP\'s battery setting'),
+        ),
+        secondary: TextButton(
+          onPressed: onNext,
+          child: const Text('Skip for now'),
+        ),
       );
 }
 

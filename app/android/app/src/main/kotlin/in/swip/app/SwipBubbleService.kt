@@ -101,8 +101,30 @@ class SwipBubbleService : Service() {
         // `companion object` of their own — a Kotlin class may only have one,
         // and two is a compile error rather than a style opinion.
 
-        /** Gap between the bubble's centre and the first item's centre. */
-        private const val FAN_GAP_DP = 68f
+        /**
+         * `F-189`. Distance from the bubble's centre to each item's centre.
+         *
+         * Was `FAN_GAP_DP`, the vertical step of a stack. It is a **radius**
+         * now, and slightly larger: 84 dp puts a 56 dp disc's near edge
+         * roughly 28 dp clear of the bubble's, which is the gap that makes two
+         * circles read as separate things rather than as a blob.
+         */
+        private const val FAN_RADIUS_DP = 84f
+
+        /** `F-189`. Total angle the items are spread over. */
+        private const val FAN_SPREAD_DEG = 60.0
+
+        /**
+         * `F-189`. Where the middle of that spread points, above horizontal.
+         *
+         * Without it the two items sit at +30° and -30°, which share a cosine
+         * and therefore an `x` — a column in front of the bubble rather than
+         * an arc. 25° puts them at **55° and -5°**: one up and forward, one
+         * straight out and a little below, each a different distance along
+         * both axes. That is the branch shape, and it is why this number
+         * exists rather than being folded into the spread.
+         */
+        private const val FAN_TILT_DEG = 25.0
 
         /** Each item lands this much later than the one before it. */
         private const val FAN_STAGGER_MS = 45L
@@ -790,12 +812,22 @@ class SwipBubbleService : Service() {
     }
 
     /**
-     * Spring two discs out of the bubble.
+     * Spring two discs out of the bubble, **on an arc in front of it**.
      *
-     * Upwards when there is room, downwards when the bubble is parked near the
-     * top. The check is against the **items' own extent**, not the bubble's:
-     * a fan that opens off the top of the screen is a menu with no items in
-     * it, and on a window with `FLAG_LAYOUT_NO_LIMITS` nothing stops it.
+     * `F-189`, replacing `F-185`'s vertical stack.
+     *
+     * > *"it should be placed in circular way in front rather than top
+     * > positioned reveal it should be in front like tree branches in miro"*
+     *
+     * *In front* means away from the edge the bubble is parked on:
+     * [parkedRight] already knows which, and it is the same field
+     * `BubblePark` uses, so the fan and the bubble can never disagree about
+     * which side they are on.
+     *
+     * The arithmetic is [FanArc], which has no Android in it and is tested on
+     * the JVM. That is not ceremony — an overlay window has no parent to
+     * complain, so two items placed on one pixel is not an error anywhere, and
+     * the choice underneath would simply be unreachable.
      */
     private fun openFan() {
         val host = bubble ?: return
@@ -803,17 +835,32 @@ class SwipBubbleService : Service() {
         if (fanOpen) return
         fanOpen = true
 
-        val gap = dp(FAN_GAP_DP)
         val size = dp(56f)
-        val screenHeight = resources.displayMetrics.heightPixels
-        // Room for two items plus a margin, measured from the bubble's top.
-        val up = lp.y - 2 * gap >= dp(8f)
-        val step = if (up) -gap else gap
-        val originY = if (up) lp.y else lp.y + (host.height - size)
+        val metrics = resources.displayMetrics
 
         val items = listOf(
             R.drawable.swip_fan_qr to getString(R.string.swip_fan_qr),
             R.drawable.swip_fan_pos to getString(R.string.swip_fan_pos),
+        )
+
+        val slots = FanArc.place(
+            bubbleX = lp.x,
+            bubbleY = lp.y,
+            // The host's measured size, not the 56 dp constant: a bubble whose
+            // measure pass has not run yet reports zero, and centring on zero
+            // would swing the arc off the corner of the window.
+            bubbleSize = if (host.width > 0) host.width else size,
+            itemSize = size,
+            count = items.size,
+            // Away from the parked edge. The bubble is always on one of two
+            // edges, so this is always the direction with room in it.
+            toRight = !parkedRight,
+            radius = dp(FAN_RADIUS_DP),
+            spreadDegrees = FAN_SPREAD_DEG,
+            tiltDegrees = FAN_TILT_DEG,
+            screenWidth = metrics.widthPixels,
+            screenHeight = metrics.heightPixels,
+            margin = dp(8f),
         )
 
         val built = mutableListOf<View>()
@@ -838,15 +885,10 @@ class SwipBubbleService : Service() {
                 PixelFormat.TRANSLUCENT,
             ).apply {
                 gravity = Gravity.TOP or Gravity.START
-                x = lp.x + (host.width - size) / 2
-                // `coerceIn` throws when its maximum is below its minimum,
-                // and both bounds here come from a live screen measurement —
-                // the hazard `BubblePark` exists to contain. `coerceAtLeast`
-                // first makes the range provably non-empty.
-                y = (originY + step * (i + 1)).coerceIn(
-                    dp(8f),
-                    (screenHeight - size - dp(8f)).coerceAtLeast(dp(8f)),
-                )
+                // Already clamped, and clamped as a **group** so the arc
+                // slides rather than collapsing near an edge. See `FanArc`.
+                x = slots[i].x
+                y = slots[i].y
             }
 
             runCatching { windows.addView(view, itemLp) }
@@ -889,7 +931,17 @@ class SwipBubbleService : Service() {
         }
         main.removeCallbacks(fanTimeout)
         main.postDelayed(fanTimeout, FAN_TIMEOUT_MS)
-        BubbleTrace.log(this, "fan.open", "up" to up, "items" to built.size)
+        BubbleTrace.log(
+            this, "fan.open",
+            // `F-189`. Which way the arc swung, which is the thing to check
+            // against a screenshot when it looks wrong.
+            "toRight" to !parkedRight,
+            "items" to built.size,
+            "at" to built.joinToString(" ") { v ->
+                val p = v.layoutParams as? WindowManager.LayoutParams
+                if (p == null) "?" else "${p.x},${p.y}"
+            },
+        )
     }
 
     /** Take the fan away. Safe to call when there is no fan. */
@@ -922,13 +974,14 @@ class SwipBubbleService : Service() {
         onTap: () -> Unit,
     ): View {
         val size = dp(56f)
-        val disc = dp(38f)
+        val disc = dp(44f)
         val pad = (size - disc) / 2
 
         val mark = ImageView(this).apply {
-            setBackgroundResource(R.drawable.swip_bubble_disc)
+            // `F-189`. Same ground as the bubble, same reason: these are two
+            // more SWIP marks, and a disc inside a gold circle is not a disc.
             setImageResource(icon)
-            setPadding(dp(7f), dp(7f), dp(7f), dp(7f))
+            setPadding(dp(9f), dp(9f), dp(9f), dp(9f))
             layoutParams = LinearLayout.LayoutParams(disc, disc)
         }
 
@@ -1644,7 +1697,23 @@ class SwipBubbleService : Service() {
             }
         }
 
-        if (visible == wasVisible && view.visibility != View.GONE) return
+        // `F-189`. **The second clause only applies when we want it SHOWN.**
+        //
+        // It is here to catch a desync — state says visible, view is `GONE` —
+        // and force a re-show. Written as `view.visibility != View.GONE` it
+        // also fired on the entirely normal *already hidden, still hidden*
+        // case, because a hidden view **is** `GONE`. So every broadcast that
+        // changed nothing ran the whole hide path again: `cancelMotion`,
+        // `closeFan`, and a `PowerTrace.asleep` for a span that was already
+        // closed.
+        //
+        // Found in the owner's first battery export, as six
+        // `asleep overlay unmatched:true` lines. Nothing was broken on screen,
+        // which is why four months of this would have gone unnoticed — the
+        // recorder is the only thing that could see it.
+        if (visible == wasVisible &&
+            !(visible && view.visibility == View.GONE)
+        ) return
         wasVisible = visible
 
         if (!visible) {
@@ -1739,20 +1808,28 @@ class SwipBubbleService : Service() {
     @SuppressLint("ClickableViewAccessibility")
     private fun buildBubble(): View {
         val size = dp(56f)
-        val disc = dp(38f)
+        // `F-189`. 38 → 44 dp. It used to be a filled disc, where its size was
+        // the visible circle; it is a transparent box now, so the same number
+        // would draw a smaller mark on a larger gold field than the launcher
+        // icon does.
+        val disc = dp(44f)
         val pad = (size - disc) / 2
 
         val glyph = ImageView(this).apply {
-            // Page 23: the mark is not painted onto the pill, it sits in its
-            // own contrasting disc at the leading end. That is what keeps it
-            // readable while the pill is widening, and what stops the
-            // collapsed circle reading as a glyph lost in empty space.
-            setBackgroundResource(R.drawable.swip_bubble_disc)
+            // `F-189`. **No disc behind it any more.**
+            //
+            // Page 23 of the owner's PDF puts the glyph in its own contrasting
+            // disc, and that was right while the bubble could widen into a
+            // pill: the disc is what kept the mark readable while text arrived
+            // beside it. `F-185` deleted the pill, so the disc was holding a
+            // gold circle inside an ink one for no remaining reason — and the
+            // ink between them is exactly what the owner saw as a black
+            // border. The ground is gold now and the mark is drawn on it.
             setImageResource(R.drawable.swip_bubble_mark)
-            // Inset within the disc. `ImageView` fits the drawable into the
-            // padded content box, so this is what sizes the slash rather than
-            // a second dimension to keep in sync.
-            setPadding(dp(7f), dp(7f), dp(7f), dp(7f))
+            // `ImageView` fits the drawable into the padded content box, so
+            // this is what sizes the slash rather than a second dimension to
+            // keep in sync.
+            setPadding(dp(9f), dp(9f), dp(9f), dp(9f))
             layoutParams = LinearLayout.LayoutParams(disc, disc)
         }
         this.glyph = glyph

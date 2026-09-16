@@ -11,6 +11,7 @@ import '../data/sources/merchant_identity.dart';
 import '../data/sources/rupay_outlook.dart';
 import 'capture_sheet.dart';
 import 'capture_sheet_shell.dart';
+import 'ledger_row.dart';
 
 /// `F-180`. How a capture page ended, handed back through `Navigator.pop`.
 ///
@@ -92,6 +93,7 @@ class CaptureResultSheet extends StatelessWidget {
     this.absence,
     this.onPos,
     this.onViewAll,
+    this.condensed = false,
   });
 
   final CaptureEvent event;
@@ -129,6 +131,35 @@ class CaptureResultSheet extends StatelessWidget {
   /// button count changes between captures is a row that has to be re-read.
   final VoidCallback? onViewAll;
 
+  /// `F-189` — **the same capture, at two sizes, because it arrives in two
+  /// very different places.**
+  ///
+  /// > *"the card that is being shown on the scanning via the launcher is not
+  /// > supposed to be that view it is supposed to be a condensed card view
+  /// > that is shown on the dashboard"*
+  ///
+  /// > *"in the full screen scanner view the output card will not be the one
+  /// > [crossed out] but instead the card will be as same as marked"* — the
+  /// > ledger's own detail sheet
+  ///
+  /// `F-175` gave both vectors one presentation, and both complaints are the
+  /// same mistake seen from either end: **the right amount of result depends
+  /// on what is underneath it, and the two windows have opposite answers.**
+  ///
+  ///   * The hovering card is 62% of a screen belonging to **somebody else's
+  ///     app**, opened mid-checkout. Everything past the verdict is something
+  ///     the user did not stop to read, covering something they did. One row —
+  ///     the same row the dashboard has always used — is the whole finding.
+  ///   * The full-screen scanner is **SWIP's own screen**, opened on purpose,
+  ///     with nothing behind it but a viewfinder. There is no cost to the
+  ///     detail here and it was being withheld for a reason that only ever
+  ///     applied to the other window.
+  ///
+  /// So this is not a preference about density. It is the sheet asking which
+  /// of SWIP's two windows it is in, which `SwipSurface` already answers for
+  /// the *Tap POS* button three fields up, for the same underlying reason.
+  final bool condensed;
+
   /// Show it over whatever opened it, and return when it is dismissed.
   ///
   /// `showModalBottomSheet` rather than a route, and the difference is the
@@ -155,6 +186,7 @@ class CaptureResultSheet extends StatelessWidget {
     MccAbsence? absence,
     VoidCallback? onPos,
     VoidCallback? onViewAll,
+    bool? condensed,
   }) =>
       showModalBottomSheet<void>(
         context: context,
@@ -178,6 +210,10 @@ class CaptureResultSheet extends StatelessWidget {
           absence: absence,
           onPos: onPos,
           onViewAll: onViewAll,
+          // Defaulted rather than read inside `build`: a widget that consults
+          // a global cannot be rendered both ways in a test, and both ways is
+          // exactly what needs asserting.
+          condensed: condensed ?? SwipSurface.isHoverWindow,
         ),
       );
 
@@ -186,42 +222,79 @@ class CaptureResultSheet extends StatelessWidget {
     final known = event.hasMcc;
 
     return CaptureSheetShell(
-      // One height now. `F-175` had two — 0.62 collapsed and 0.86 expanded —
-      // because *View all* grew the sheet in place. It does not any more, so
-      // the second number went with the state that chose between them.
-      maxHeightFraction: 0.62,
+      // `F-189`. Two heights again, and for a better reason than `F-175`'s.
+      // That round's pair was a collapsed and an expanded state of one sheet;
+      // this pair is two different sheets, and the number follows the content
+      // rather than a toggle the user has to find.
+      maxHeightFraction: condensed ? 0.40 : 0.86,
       footer: _Footer(
         known: known,
         onViewAll: onViewAll,
         posLabel: onPos == null ? null : 'Tap POS',
         onPos: onPos,
       ),
-      child: CaptureSheet(
-        event: event,
-        mcc: mcc,
-        sourceLabel: sourceLabel,
-        // `F-180`. Never handed over. The brief layout does not render a field
-        // table, and passing one would be a silent claim that it does — the
-        // full breakdown is the ledger's job now, which is the whole point of
-        // the change. `details` stays on the constructor because the two
-        // callers build it and the ledger's own detail sheet reads the same
-        // map from the stored event.
-        details: const {},
-        rawPayload: rawPayload,
-        noCategoryTitle: noCategoryTitle,
-        noCategoryBody: noCategoryBody,
-        verdict: verdict,
-        payeeKind: payeeKind,
-        tier: tier,
-        rupay: rupay,
-        absence: absence,
-        layout: CaptureLayout.brief,
-        // The sheet layout draws its own primary button at the end of its
-        // content; this one is pinned in the footer, so that is suppressed.
-        showFurniture: false,
-      ),
+      child: condensed
+          ? _CondensedResult(event: event, mcc: mcc)
+          : CaptureSheet(
+              event: event,
+              mcc: mcc,
+              sourceLabel: sourceLabel,
+              // `F-189`. Handed over now. `F-180` passed an empty map because
+              // the brief layout does not render a field table and supplying
+              // one would have been a silent claim that it does. The full
+              // screen uses the ledger's layout, which does render it, and
+              // withholding it there was the thing the owner crossed out.
+              details: details,
+              rawPayload: rawPayload,
+              noCategoryTitle: noCategoryTitle,
+              noCategoryBody: noCategoryBody,
+              verdict: verdict,
+              payeeKind: payeeKind,
+              tier: tier,
+              rupay: rupay,
+              absence: absence,
+              // The ledger's own layout — which is what the owner pointed at.
+              layout: CaptureLayout.sheet,
+              // Its primary button and "saved to your ledger" line are the
+              // footer's job here. *View technical details* is no longer
+              // bundled with them; see `capture_sheet.dart`.
+              showFurniture: false,
+            ),
     );
   }
+}
+
+/// `F-189` — the capture as **one dashboard row**, for the hovering card.
+///
+/// Literally [LedgerRow]: the same widget the dashboard's RECENT list and the
+/// ledger both draw, not a copy of it that looks the same today. The owner
+/// pointed at a row on the dashboard and said *that one*, and a second
+/// implementation of it would answer the request on the day it was written and
+/// drift by the round after — the same argument `docs/32` §10 makes for
+/// hovering the real scanner rather than writing a native twin.
+///
+/// It is not tappable. Every route out of this sheet is in the footer, and a
+/// row that highlights under a finger and then does nothing is worse than a
+/// row that does not react.
+class _CondensedResult extends StatelessWidget {
+  const _CondensedResult({required this.event, required this.mcc});
+
+  final CaptureEvent event;
+  final Mcc? mcc;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(
+            SwipSpace.gutter, SwipSpace.md, SwipSpace.gutter, 0),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: SwipRadius.cardAll,
+            border: SwipElevation.e1,
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: LedgerRow(event: event, mcc: mcc),
+        ),
+      );
 }
 
 /// `F-175` — two buttons and one line of confirmation.

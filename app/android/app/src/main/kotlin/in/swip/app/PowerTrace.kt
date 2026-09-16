@@ -62,6 +62,28 @@ object PowerTrace {
     private val started = mutableMapOf<String, Long>()
 
     /**
+     * `F-189`. Names whose unmatched close has already been reported.
+     *
+     * The owner's first battery export carried six
+     * `asleep overlay unmatched:true` lines. One of those was worth having —
+     * the service starts with the bubble's window already attached and hides
+     * it immediately, so the very first close has no open to match. The other
+     * five were `show()` re-running its whole hide path on a bubble that was
+     * already hidden, which `F-189` fixes at the call site.
+     *
+     * This is the second half of that fix, and it belongs here rather than
+     * there because there will be more call sites. **An unmatched close is a
+     * finding the first time and noise every time after**: the first says
+     * *"this subsystem was running before the recorder was"*, and the
+     * hundredth says only that somebody is calling a release in a loop, which
+     * is already legal — [awake] has been idempotent from the start and this
+     * is simply its mirror.
+     *
+     * A file nobody can bear to read is not a flight recorder.
+     */
+    private val reportedUnmatched = mutableSetOf<String>()
+
+    /**
      * A subsystem has started costing something.
      *
      * Idempotent: a second `awake` for a name already open is ignored rather
@@ -75,6 +97,10 @@ object PowerTrace {
         if (!Blackbox.enabled(context)) return
         if (started.containsKey(what)) return
         started[what] = SystemClock.elapsedRealtime()
+        // `F-189`. A name that has since opened cleanly has earned the right
+        // to report an unmatched close again: that one would be a *new* fault
+        // rather than the startup one already written down.
+        reportedUnmatched.remove(what)
         Blackbox.power.log(
             context, "awake",
             "what" to what,
@@ -95,8 +121,11 @@ object PowerTrace {
         if (!Blackbox.enabled(context)) return
         val from = started.remove(what)
         if (from == null) {
-            Blackbox.power.log(context, "asleep", "what" to what,
-                "unmatched" to true)
+            // `F-189`. Once per name, for the reason above.
+            if (reportedUnmatched.add(what)) {
+                Blackbox.power.log(context, "asleep", "what" to what,
+                    "unmatched" to true)
+            }
             return
         }
         Blackbox.power.log(

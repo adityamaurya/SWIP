@@ -2323,6 +2323,68 @@ bubble trace — [`38` §8](38-BUBBLE-TRACE.md).
 
 ---
 
+## Prompt 50 — 16 Sep 2026 · Two cards, an arc, and the 39 bytes
+
+### Screens changed
+
+| ID | Screen | Change | Serves |
+|---|---|---|---|
+| — | Hovering scanner result | **One dashboard row** (`LedgerRow`) instead of the brief sheet. Sheet cap 0.62 → 0.40 | prompt 50 |
+| `S-02` | Full-screen scanner result | The **ledger's detail view** — field table and *View technical details*. Cap 0.62 → 0.86 | prompt 50 |
+| — | Floating bubble | Gold ground, ink mark, no inner disc — the app icon rather than its negative | prompt 50 |
+| — | Floating bubble fan | An **arc in front**, tilted 25°, swung away from the parked edge | prompt 50 |
+| — | Bubble wizard, step 4 | Button opens App info with the **battery row highlighted** | prompt 50 |
+
+### Code
+
+| File | Change |
+|---|---|
+| **`FanArc.kt`** | **New.** Pure Kotlin arc placement — radius, spread, tilt, group-shift to stay on screen. No Android imports |
+| **`FanArcTest.kt`** | **New.** Eight cases. The one that matters asserts **no two items ever overlap**, at every corner of a tall phone and a short one |
+| `SwipBubbleService.kt` | `openFan` uses `FanArc`; `FAN_GAP_DP` → `FAN_RADIUS_DP` + `FAN_SPREAD_DEG` + `FAN_TILT_DEG`; glyph disc removed; `disc` 38 → 44 dp |
+| `SwipBubbleService.kt` | **`show()`'s no-op guard fixed** — `view.visibility != View.GONE` is false precisely when already hidden, so the whole hide path re-ran on every broadcast |
+| `PowerTrace.kt` | An unmatched close is reported **once per name**, and the name earns the right again after a clean open |
+| `MainActivity.kt` | **New** `openBatterySettings` (App info + AOSP highlight extras). **Removed** `openThisAppSettings`, whose only caller is gone |
+| `swip_bubble_bg.xml` · `colors.xml` | Ground gold `#C9A227`, hairline ink at 25% |
+| **`swip_bubble_disc.xml`** | **Deleted.** A gold disc on a gold ground is not a disc |
+| `capture_result_sheet.dart` | New `condensed` flag, defaulted from `SwipSurface.isHoverWindow` at `open()`; `_CondensedResult`; `details` now passed through to the full layout |
+| `capture_sheet.dart` | *View technical details* moved **out** of the `showFurniture` block — that flag replaces the primary button, not the route to the payload |
+| `scan_page.dart` | Comment only: one call, two sheets, and the sheet decides |
+| `bubble_wizard.dart` | `_KeepItRunningStep` takes `onOpenBattery`; `_openAppSettings` deleted; step-1 copy names the row |
+| `capture_result_sheet_test.dart` | The field-table assertion splits in two — condensed must not draw it, full must |
+
+### Docs
+
+| File | |
+|---|---|
+| **[`46-THE-CODE-YOU-SENT.md`](46-THE-CODE-YOU-SENT.md)** | **New.** The photographed QR decoded in full, why there is no MCC in it, and why Razorpay is a different question |
+
+### What the exports found
+
+**`show()` was re-running its hide path on every broadcast while already
+hidden** — six `asleep overlay unmatched` lines in the battery export. The
+guard's second clause was written for a desync and also fired on the normal
+already-hidden case. Nothing was wrong on screen.
+
+**`F-184` is still unconfirmed.** No `bubble.restored` line and no snooze in
+the trace — the gesture was never performed.
+
+**The fan was opened five times in ten seconds at 17:37 with nothing picked**,
+which is the layout complaint visible in the log before it was written down.
+
+### The QR
+
+`upi://pay?pa=paytm.s27l8o9@pty&pn=Paytm` — 39 bytes, byte-identical to corpus
+entry 6. No `mc`. Razorpay returns a **name**, never a category, so the two
+reported faults cannot be the same one.
+
+### Open
+
+*"the doc link are not getting detected"* — which links is not clear from the
+prompt, and guessing would build the wrong thing. Asked rather than assumed.
+
+---
+
 <!--
 Template for the next entry:
 

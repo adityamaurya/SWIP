@@ -8,6 +8,7 @@ import 'package:swip/features/paywall/raw_data_entitlement.dart';
 import 'package:swip/widgets/capture_result_sheet.dart';
 import 'package:swip/widgets/capture_sheet.dart';
 import 'package:swip/widgets/capture_sheet_shell.dart';
+import 'package:swip/widgets/ledger_row.dart';
 
 /// `F-174`, `F-175` — the non-intrusive capture result, and the striped bar.
 ///
@@ -248,13 +249,12 @@ void main() {
   });
 
   group('View all', () {
-    testWidgets('never renders the field table — the ledger does that now',
+    testWidgets('the condensed sheet never renders the field table',
         (t) async {
-      // `F-180`. The brief layout is the whole point: at a counter, with
-      // somebody waiting to be paid, the reason paragraph and the four routes
-      // are the screen the owner called "so messed up". `F-175` unfolded them
-      // in place; this round sends them to the ledger instead, so there is no
-      // state in which this sheet shows them.
+      // `F-180` argued this for both windows; `F-189` narrows it to the one
+      // where it was ever true. Over somebody else's app, mid-checkout, the
+      // field table is detail nobody stopped to read covering something they
+      // did — which is the screen the owner called "so messed up".
       //
       // **A tall surface, deliberately.** `CLAUDE.md`: a `findsNothing` below
       // the fold passes for the wrong reason, and this suite has shipped that
@@ -269,6 +269,7 @@ void main() {
           details: manyDetails,
           onPos: () {},
           onViewAll: () {},
+          condensed: true,
         ),
         surface: const Size(400, 800),
       ));
@@ -279,6 +280,61 @@ void main() {
       // The positive half of the same pump, so the negatives above cannot be
       // passing because nothing rendered at all.
       expect(find.text('View all'), findsOneWidget);
+      expect(t.takeException(), isNull);
+    });
+
+    testWidgets('and the condensed sheet IS one dashboard row', (t) async {
+      // Not "looks like one". The same widget, so it cannot drift.
+      await surfaced(t, const Size(400, 800));
+      await t.pumpWidget(harness(
+        CaptureResultSheet(
+          event: withoutMcc,
+          mcc: null,
+          sourceLabel: 'UPI QR',
+          details: manyDetails,
+          onPos: () {},
+          onViewAll: () {},
+          condensed: true,
+        ),
+        surface: const Size(400, 800),
+      ));
+      await t.pump();
+
+      expect(find.byType(LedgerRow), findsOneWidget);
+      expect(t.takeException(), isNull);
+    });
+
+    testWidgets('the full sheet DOES render the field table', (t) async {
+      // `F-189`, reversing `F-180` for this window on the owner's
+      // instruction: *"in the full screen scanner view the output card will
+      // not be the one [crossed out] but instead the card will be as same as
+      // marked"* — the ledger's own detail sheet, field table and all.
+      //
+      // The pair of assertions is the point. The one above and this one
+      // disagree on purpose, and a change that quietly made them agree again
+      // would break one of them rather than passing both.
+      await surfaced(t, const Size(400, 800));
+      await t.pumpWidget(harness(
+        CaptureResultSheet(
+          event: withoutMcc,
+          mcc: null,
+          sourceLabel: 'UPI QR',
+          details: manyDetails,
+          onPos: () {},
+          onViewAll: () {},
+        ),
+        surface: const Size(400, 800),
+      ));
+      await t.pumpAndSettle();
+
+      // No scroll needed, and that is worth saying rather than assuming.
+      // `CLAUDE.md`'s warning is about a `ListView`, which builds only what is
+      // near the viewport — so a finder below the fold sees nothing and a
+      // `findsNothing` passes for the wrong reason. This sheet is a `Column`
+      // inside a `SingleChildScrollView`: every child is built whether or not
+      // it is on screen, so both the positive and the negative below are real.
+      expect(find.text('Payment company'), findsOneWidget);
+      expect(find.byType(LedgerRow), findsNothing);
       expect(t.takeException(), isNull);
     });
 

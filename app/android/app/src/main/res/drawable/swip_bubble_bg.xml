@@ -26,10 +26,22 @@
 
   Same rule as the camera overlays in `swip_tokens.dart`: this is drawn over an
   arbitrary screen that SWIP does not control and cannot measure. It has to
-  carry its own contrast, so it is SWIP's ink ground with a gold hairline
-  regardless of the app underneath, the wallpaper, or whether the user is in
-  Paper or Foil. A bubble that followed the app theme would be a white circle
-  on a white screen exactly when somebody needed to find it.
+  carry its own contrast regardless of the app underneath, the wallpaper, or
+  whether the user is in Paper or Foil. A bubble that followed the app theme
+  would be a white circle on a white screen exactly when somebody needed to
+  find it.
+
+  ## Why it is gold now, and why the inner disc is gone — `F-189`
+
+  It used to be an ink circle with a gold disc inside it, so the mark sat in a
+  9 dp ink ring. The owner asked for *"less black bordered and more yellow"*,
+  and the right answer was not to thin the ring but to delete it: gold field,
+  ink mark is what `ic_launcher_foreground` already is. The floating button now
+  looks like SWIP's app icon instead of its negative, which is one fewer thing
+  for a user to learn.
+
+  That took `swip_bubble_disc.xml` with it — a gold disc on a gold ground is
+  not a disc — and the glyph is drawn straight onto this shape.
 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">

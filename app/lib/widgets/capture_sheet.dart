@@ -499,18 +499,31 @@ class CaptureSheet extends StatelessWidget {
                 ),
               ),
 
-              // F-23 — technical detail, available but never in the way.
-              if (rawPayload != null) ...[
-                const SizedBox(height: SwipSpace.xs),
-                Center(
-                  child: TextButton(
-                    onPressed: () => _showRaw(context, rawPayload!),
-                    child: Text('View technical details',
-                        style: SwipType.bodyS
-                            .copyWith(color: SwipColors.textSecondary)),
-                  ),
+            ],
+
+            // F-23 — technical detail, available but never in the way.
+            //
+            // `F-189`. **Outside the `showFurniture` block**, deliberately.
+            // That flag exists because a pinned footer replaces the primary
+            // button — two primary buttons on one sheet, one scrolling and one
+            // not, is what `F-145` was about. It was never meant to take the
+            // route to the payload with it, and while the only sheet using it
+            // was the brief one that never drew this anyway, nothing showed
+            // that the two had been bundled by accident.
+            //
+            // The full-screen scanner's result now uses this layout *with* a
+            // footer, and it is the one screen where somebody who wants the
+            // raw code is standing in front of the code.
+            if (!_full && rawPayload != null) ...[
+              SizedBox(height: showFurniture ? SwipSpace.xs : SwipSpace.md),
+              Center(
+                child: TextButton(
+                  onPressed: () => _showRaw(context, rawPayload!),
+                  child: Text('View technical details',
+                      style: SwipType.bodyS
+                          .copyWith(color: SwipColors.textSecondary)),
                 ),
-              ],
+              ),
             ],
           ],
         ),

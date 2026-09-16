@@ -2370,6 +2370,90 @@ all. On iOS, SWIP is a QR scanner with a good ledger.
 
 ---
 
+## Prompt 50 — 16 Sep 2026 · Two cards, an arc, and the 39 bytes
+
+**Original prompt, verbatim:**
+
+> few observations
+> - we need direct redirections to the SWIPs app battery usage  in the
+>   onboarding wizard
+>
+> - the card that is being shown on the scanning via the launcher is not
+>   supposed to be that view it is supposed to be a condensed card view that
+>   is shown on the dashboard like that of shown where the check mark is
+>   there
+>
+> - also in the full screen scanner view the outout card will not be the one
+>   done X mark on the screen
+> but instead  the card will be as same as marked in the this view marked
+> screenshot, also make the border of logo on the launcher icon less black
+> bordered and more yellow
+>
+> - also the behaviour of the launcher icon populating sub options should be
+>   placed in circular way in front  rather than top positioned reveal it
+>   should be in front like tree  branches in miro
+>
+> also check the black box jsonl files shared above
+>
+>
+> also I am sharign the qr code which couldn't get the mcc man, why is rhis
+> happening how can we get the mcc also the razorpay thing is not working i
+> guess if the mcc is not getting detected also the doc link are not getting
+> detected please find the working for these qrs otherwise the whole app ide
+> will fail
+
+With `SWIP_PowerTrace_2026-09-16_18-34-52.jsonl`,
+`SWIP_BubbleTrace_2026-09-16_18-35-14.jsonl`, seven annotated screenshots and a
+photograph of a Paytm soundbox QR.
+
+| # | ID | Did | Why |
+|---|---|---|---|
+| 1 | — | Decoded the photographed QR: **39 bytes, two fields, no `mc`** — [`docs/46`](46-THE-CODE-YOU-SENT.md) | It is byte-identical to corpus entry 6, which SWIP had already read correctly twice |
+| 2 | `F-189` | The hovering card's result is now **one dashboard row** | Over somebody else's app, everything past the verdict covers something the user was doing |
+| 3 | `F-189` | The full-screen scanner's result is the **ledger's own detail view** | SWIP's own screen has nothing behind it, so the detail was being withheld for a reason that only applied to the other window |
+| 4 | `F-189` | The fan opens on an **arc in front**, tilted 25° | *"in circular way in front… like tree branches in miro"* |
+| 5 | `F-189` | The bubble is **gold with an ink mark** — the app icon, not its negative | *"less black bordered and more yellow"* |
+| 6 | `F-189` | The wizard's button opens App info with the **battery row highlighted** | There is no public intent for that screen; this is the honest ceiling |
+| 7 | `F-189` | `show()` stopped re-running its whole hide path while already hidden | Found in the battery export as six `asleep overlay unmatched` lines |
+
+### The headline: the QR is not failing, and Razorpay was never the answer
+
+```
+upi://pay?pa=paytm.s27l8o9@pty&pn=Paytm
+```
+
+Thirty-nine bytes, decoded from the owner's photograph. No `mc`, no merchant
+ID, no signature. **Already in the corpus as page 6**, recorded `mc: null`.
+
+And the two complaints in that sentence cannot be the same fault: a working
+Razorpay key returns a **shop name**, never a category. It would have changed
+the word *Paytm* on that screen into the shop's name and left the headline
+exactly as it was. [`docs/46` §3](46-THE-CODE-YOU-SENT.md).
+
+The `vyapar…@hdfcbank` code in the owner's own screenshots came back **8999
+Professional Services**, from the same scanner in the same session. The scanner
+is not the problem; the sticker is.
+
+### What the two exports found
+
+**The battery export found a real bug**, which is the first time a black box
+has paid for itself in the round it shipped. Six `asleep overlay
+unmatched:true` lines: `show()`'s no-op guard read
+`view.visibility != View.GONE`, which is false exactly when the bubble is
+already hidden — so every broadcast that changed nothing ran `cancelMotion`,
+`closeFan` and a `PowerTrace.asleep` again. Nothing was wrong on screen, which
+is why only a recorder could see it.
+
+**The bubble trace did not confirm `F-184`.** There is no `bubble.restored`
+line in the file and no snooze in it — the gesture was never performed, so the
+fix is still unverified and the trace stays in for another round.
+
+It did show something else: at 17:37 the fan was opened **five times in ten
+seconds and nothing was ever picked**. That is the layout complaint, visible in
+the log before it was written down.
+
+---
+
 <!--
 Template for the next entry:
 

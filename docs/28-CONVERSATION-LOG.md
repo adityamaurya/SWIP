@@ -1769,6 +1769,134 @@ build** ([`docs/38`](38-BUBBLE-TRACE.md) §8).
 
 ---
 
+## Prompt 50 — 16 Sep 2026 · Two cards, an arc, and the 39 bytes
+
+**You asked:** a direct link to SWIP's battery setting; the hovering scanner's
+result to be the condensed dashboard row; the full-screen scanner's result to
+be the ledger's detail view; the launcher icon less black and more yellow; the
+fan to open in an arc in front rather than upward; the two black boxes read;
+and why the Paytm QR gives no MCC.
+
+### First — your QR, decoded, in full
+
+```
+upi://pay?pa=paytm.s27l8o9@pty&pn=Paytm
+```
+
+**Thirty-nine bytes. Two fields.** Where the money goes, and a name — which is
+*Paytm's* name, not the shop's. There is no `mc`, no merchant ID, no signature,
+no city. You have just read the entire file.
+
+And SWIP had already read it correctly, twice: that exact code is **page 6 of
+the 52-page PDF** you sent two rounds ago, recorded in
+[`docs/42`](42-MARKET-QR-CORPUS.md) as `mc: null`. I decoded today's photograph
+independently and got the identical bytes.
+
+**No decoder, no API and no amount of engineering extracts a category from
+those 39 bytes**, because it is not in them. Not for SWIP, not for CRED, not
+for anybody. [`docs/46`](46-THE-CODE-YOU-SENT.md) is the full page.
+
+### And Razorpay is a different thing entirely
+
+> *"the razorpay thing is not working i guess if the mcc is not getting
+> detected"*
+
+These cannot be the same fault, and it matters because the disappointment is
+landing in the wrong place.
+
+| | What it gives you | An MCC? |
+|---|---|---|
+| The QR | Whatever the acquirer printed | ~1 in 10 |
+| **Razorpay** | The **shop's name** | **Never** |
+| Their card machine | The category, from the terminal | **Yes** |
+
+A working Razorpay key would have turned the word *Paytm* on that screen into
+the shop's real name. It would **not** have changed the headline, because the
+headline is about the category and Razorpay does not return one — no commercial
+API does. [`docs/43` §7](43-RAZORPAY-IN-PLAIN-WORDS.md) said this and it is
+worth saying again.
+
+Worth noticing in your own screenshots: the `vyapar…@hdfcbank` code came back
+**8999 Professional Services**, from the same scanner, in the same session.
+The scanner is fine. The sticker is what differs.
+
+### The two cards
+
+You were right that one presentation was being used for two very different
+situations, and the two fixes are opposites:
+
+* **Hovering, via the bubble** — now a single **dashboard row**. Not a copy of
+  one; literally `LedgerRow`, the same widget the dashboard and the ledger
+  draw, so it cannot drift. Over somebody else's app, mid-checkout, everything
+  past the verdict is detail nobody stopped to read covering something they
+  did.
+* **The full-screen scanner** — now the **ledger's own detail view**, field
+  table and *View technical details* and all. SWIP's own screen has nothing
+  behind it but a viewfinder, so the detail was being withheld for a reason
+  that only ever applied to the other window.
+
+That reverses part of `F-180`, which I had argued for. [`docs/36`
+D-61](36-DEVIATIONS.md).
+
+### The fan, and why the first attempt was still a list
+
+An arc in front now, swung away from whichever edge the bubble is parked on.
+
+The interesting part: my first version put the two items at +30° and −30°,
+which **share a cosine** — so they landed on the same `x`, one above the other.
+That is a column in front of the bubble, which is better than a column above it
+and is still a list. Tilting the whole arc up 25° puts them at 55° and −5°, so
+each differs from the other in both directions. That is the branch shape.
+
+The arithmetic is [`FanArc.kt`](../app/android/app/src/main/kotlin/in/swip/app/FanArc.kt)
+— pure Kotlin, no Android in it, with a JVM test that asserts the two items
+**never overlap** at any position on a tall phone or a short one. An overlay
+window has no parent, so two discs on one pixel is not an error anywhere; it is
+just one disc on screen and an unreachable choice.
+
+### The bubble is gold now
+
+Not a thinner black ring — no ring. The ground is gold and the mark is ink,
+which is what your app icon already is, so the floating button now matches the
+icon on your home screen instead of being its photographic negative. The inner
+disc is gone: a gold disc on a gold ground is not a disc.
+
+### What the black boxes found
+
+**The battery export found a real bug**, which is the first time one of these
+has paid for itself in the round it shipped. Six `asleep overlay unmatched`
+lines. The bubble's `show()` had a guard meant to catch *state says visible,
+view is hidden* — written as `view.visibility != View.GONE`, which is false
+exactly when the bubble is already hidden. So every broadcast that changed
+nothing re-ran the whole hide path. Nothing looked wrong on screen, which is
+why four months of it would have gone unnoticed.
+
+**Your bubble trace did not confirm `F-184`** — there is no `bubble.restored`
+line in it and no snooze at all, so the gesture was never performed. That fix
+is still unverified and the trace stays in for one more round.
+
+It did show something else: at 17:37 you opened the fan **five times in ten
+seconds and never picked anything.** The layout complaint was in the log before
+you wrote it down.
+
+### The battery link
+
+There is **no public Android intent** for the per-app battery screen — it is an
+unexported fragment inside Settings and every manufacturer moves it. What the
+button does now is App info with the battery row **highlighted**, using the
+same mechanism Settings search uses to deep-link a row. You land on SWIP's page
+with *App battery usage* picked out, one tap from Unrestricted.
+
+Deliberately **not** the battery-optimisation list, which is public and would
+be inviting a Doze exemption Play does not allow SWIP to have —
+[`36` D-45](36-DEVIATIONS.md).
+
+**Still open:** *"the doc link are not getting detected"* — I could not tell
+which links you mean, and I would rather ask than fix the wrong thing. And
+`F-184` still needs one snooze-and-wait export.
+
+---
+
 <!--
 Template:
 

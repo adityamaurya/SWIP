@@ -293,14 +293,22 @@ class _ScanPageState extends ConsumerState<ScanPage> {
     //
     // That round's argument was that the number is the product and a sheet
     // caps it at 60 px over a camera feed. True, and it is why the hero is
-    // still rendered large here: `CaptureLayout.brief` gives the digits the
-    // same treatment the page did, on a sheet that is 62% of the screen.
+    // still rendered large here.
     //
     // What changed is what is behind it. The camera is still running and still
     // pointed at the counter, so covering it completely means the next code
     // needs a dismissal first — and the covering screen carried a button whose
     // only job was to undo the covering. Putting the sheet down is that button
     // now, which is what frees both slots for *View all* and *Tap POS*.
+    //
+    // `F-189`. **One call, two sheets, and the sheet decides** — not this
+    // page. `ScanPage` is the same widget in both of SWIP's windows, which is
+    // the whole argument in `docs/32` §10 for not writing a second scanner,
+    // and a branch here would be the first crack in that. What the result
+    // should look like depends on which window it lands in, so
+    // `CaptureResultSheet` asks `SwipSurface` the question it already asks for
+    // *Tap POS*: one dashboard row over somebody else's app, the ledger's full
+    // detail view on SWIP's own screen.
     await CaptureResultSheet.open(
       context,
       // `F-175`. The most useful route out of a missing category, as a button

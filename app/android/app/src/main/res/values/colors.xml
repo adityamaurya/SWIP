@@ -13,6 +13,23 @@
       two values are SWIP's ink and SWIP's gold, and they stay put whether the
       user is in Paper or Foil.
     -->
-    <color name="swip_bubble_ground">#060507</color>
-    <color name="swip_bubble_edge">#33C9A227</color>
+    <!--
+      `F-189`. **Inverted.** The ground was ink with a gold hairline and a gold
+      disc inside it, which left a 9 dp ink ring around the mark:
+
+      > *"make the border of logo on the launcher icon less black bordered and
+      > more yellow"*
+
+      Gold field, ink mark is what `ic_launcher_foreground` already does and
+      what the owner sees on their home screen every day, so the floating
+      button now matches the app icon instead of being its photographic
+      negative. The inner disc is gone with it — see `swip_bubble_bg.xml`.
+
+      The hairline is ink at 25%: enough to hold an edge against a white app,
+      far too little to read as a border. It is the one thing keeping a gold
+      circle from dissolving into a bright screenshot, which is the same
+      contrast argument `F-172` settled for the hover chrome.
+    -->
+    <color name="swip_bubble_ground">#C9A227</color>
+    <color name="swip_bubble_edge">#40060507</color>
 </resources>

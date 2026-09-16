@@ -21,7 +21,8 @@
 
   ## Why the fill is ink and not gold
 
-  Because it is drawn on `swip_bubble_disc`, which is gold. In the shade
+  Because it is drawn on `swip_bubble_bg`, which is gold since `F-189`
+  (it was a gold `swip_bubble_disc` on an ink ground before that). In the shade
   this colour is discarded entirely - Android renders a notification small
   icon from its alpha channel alone and tints it - so the one file can be
   ink in the bubble and correct in the status bar at the same time.
