@@ -1897,6 +1897,47 @@ which links you mean, and I would rather ask than fix the wrong thing. And
 
 ---
 
+### Prompt 50, continued — the links, and a red build
+
+**You asked:** *"fyi the docs link was saying (check screenshot), also same for
+all the hyperlinks in that table"* — with a screenshot of
+*"Unsupported link: docs/43-RAZORPAY-IN-PLAIN-WORDS.md"*.
+
+That answers the question I had left open, and the answer is worse than I
+expected: **it was my own replies, in every round.**
+
+I have been writing evidence links as `docs/43-RAZORPAY-IN-PLAIN-WORDS.md` — a
+path relative to the repository. That is correct inside a file *in* the
+repository, and meaningless in a chat window, which has no repository to
+resolve it against. So every link rendered as a link, and every tap got
+*"Unsupported link"*.
+
+The standing rule in `CLAUDE.md` is *never leave the owner blind with words*,
+and these links were satisfying it on paper while opening nothing. **A link
+that looks like a link and does nothing is worse than plain text**, because
+nobody bothers to report plain text. It took a screenshot to find.
+
+Fixed as a rule rather than a resolution: `CLAUDE.md`'s standing table now has
+a row saying absolute `https://github.com/adityamaurya/SWIP/blob/<branch>/…`
+URLs in chat, relative paths only in files that live in the repo.
+[`36` D-63](36-DEVIATIONS.md).
+
+### And the build went red — on the wizard test, not on the wizard
+
+Six failures in `bubble_wizard_test.dart`, all from the same rename. `F-189`
+replaced the battery step's *Open SWIP's app settings* with *Open SWIP's
+battery setting* and deleted `openThisAppSettings`; the test drove the wizard
+by tapping the old label and mocked the old channel method.
+
+Worth noticing **how** it failed: on the label, in three places, rather than on
+the wiring. The suite had no assertion that the button reaches the platform at
+all, so a rename that had kept the label and broken the call would have gone
+green. `F-190` adds that assertion — `CLAUDE.md`'s rule about asserting on what
+reaches the channel rather than on what the widget remembers, which is the rule
+the dead floating bubble was hiding behind for four months.
+
+---
+
 <!--
 Template:
 

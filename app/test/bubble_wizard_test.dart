@@ -53,7 +53,10 @@ void main() {
           notificationsGranted = true;
           return true;
         case 'requestOverlayPermission':
-        case 'openThisAppSettings':
+        // `F-189`. Was `openThisAppSettings`, which is gone: the battery step
+        // now lands on the same App info page with the battery row picked
+        // out, so the general-purpose route had no callers left.
+        case 'openBatterySettings':
           return true;
       }
       return null;
@@ -166,12 +169,39 @@ void main() {
         await advance(t, 'Next'); // 1 → 2, the overlay permission
         await advance(t, 'Next'); // 2 → 3, notifications
         await advance(t, 'Allow notifications'); // 3 → 4, keeping it running
-        await advance(t, 'Open SWIP\'s app settings'); // 4 → 5, all set
+        await advance(t, 'Open SWIP\'s battery setting'); // 4 → 5, all set
 
         expect(find.textContaining('all set'), findsOneWidget);
         expect(t.takeException(), isNull);
       });
     }
+  });
+
+  group('the battery step', () {
+    testWidgets('its button reaches the battery route, not app info',
+        (t) async {
+      // `CLAUDE.md`: assert on **what reaches the channel**, never on what the
+      // widget remembers. This button's whole job is the platform call, and a
+      // renamed method that nothing calls is the shape `check_wiring` exists
+      // for — but the gate only sees that a name is *used somewhere*, not that
+      // this button is the thing using it.
+      //
+      // `F-189` deleted `openThisAppSettings` and this is the test that would
+      // have caught a half-done rename: the old name was mocked here and the
+      // label was asserted in three places, so the suite went red on the
+      // label rather than on the wiring.
+      overlayGranted = true;
+      await t.pumpWidget(harness());
+      await t.pumpAndSettle();
+      await advance(t, 'Next');
+      await advance(t, 'Next');
+      await advance(t, 'Allow notifications');
+      calls.clear();
+
+      await advance(t, 'Open SWIP\'s battery setting');
+      expect(methods(), contains('openBatterySettings'));
+      expect(methods(), isNot(contains('openThisAppSettings')));
+    });
   });
 
   group('the overlay step', () {
@@ -208,7 +238,7 @@ void main() {
       await advance(t, 'Next');
       await advance(t, 'Next');
       await advance(t, 'Allow notifications');
-      await advance(t, 'Open SWIP\'s app settings');
+      await advance(t, 'Open SWIP\'s battery setting');
       await t.pumpAndSettle();
 
       expect(find.textContaining('all set'), findsOneWidget);
@@ -256,7 +286,7 @@ void main() {
       await advance(t, 'Next');
       await advance(t, 'Next');
       await advance(t, 'Allow notifications');
-      await advance(t, 'Open SWIP\'s app settings');
+      await advance(t, 'Open SWIP\'s battery setting');
       await t.pumpAndSettle();
     }
 

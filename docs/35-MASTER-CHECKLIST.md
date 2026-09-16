@@ -352,7 +352,7 @@ growing.
 | Read the battery and bubble exports | 50 | ✅ the battery one **found a real bug** — `show()` re-running its hide path while hidden |
 | Why the Paytm QR gives no MCC | 50 | ✅ [`46`](46-THE-CODE-YOU-SENT.md) — 39 bytes, decoded in full, byte-identical to corpus entry 6. It is not in there |
 | *"the razorpay thing is not working"* | 50 | ✅ answered: it returns a **name**, never a category, so it cannot be the same fault. [`46` §3](46-THE-CODE-YOU-SENT.md) |
-| *"the doc link are not getting detected"* | 50 | ❓ **Unclear which links.** Asked rather than guessed — §5 |
+| *"the doc link are not getting detected"* | 50 | ✅ `F-190` — **my own chat links.** Repo-relative markdown paths render as links and open nothing. Absolute GitHub URLs from now on; the rule is in `CLAUDE.md` |
 
 ### 4.6 Cannot be done
 
@@ -381,7 +381,7 @@ money, or is deliberately held.
 | Deleting the bubble trace | Deliberately still here, for one more round. [`38` §4](38-BUBBLE-TRACE.md) is the eleven-step list, including deleting its own gate check and moving the escaping cases into `BlackboxTest` | Mine, once the above is confirmed |
 | Which of the seven POS failures is actually yours | [`45` §2](45-WHY-A-POS-TAP-FAILS.md) says it is almost certainly the default-payment-app slot, and *almost certainly* is not a finding. `F-187` records it per tap | **Yours** — clear the box, tap two or three machines, export |
 | Which part of SWIP costs the most battery | `F-188` measures **duration**, which is the honest thing a phone can measure about itself. The first export already found a bug in `show()`; a day of ordinary use is the next input | **Yours** — leave it a day, export |
-| Which links *"are not getting detected"* | Prompt 50 listed it next to the MCC and Razorpay complaints, and it could be the in-app help links, the docs in the repo, or something on the capture screen. Building for the wrong reading costs a round | **Yours** — one sentence on which ones |
+| ~~Which links *"are not getting detected"*~~ | **Answered with a screenshot**: *"Unsupported link: docs/43-RAZORPAY-IN-PLAIN-WORDS.md"*. They were the links in my own replies, not anything in the app | — |
 | Donations on an iOS build | Guideline 3.2.1 allows donations outside in-app purchase only for registered non-profits. SWIP is not one, so it is Apple's cut on a donation, or no donation surface on iOS. Better decided before submission than during review | **Yours** — [`44` §5C](44-CAN-THIS-SHIP-TO-THE-APP-STORE.md) |
 | A behavioural test for the bubble's **gestures** | `F-173` built the Kotlin test source set and `ShakeDetector` is covered, so the blocker is gone — but a `WindowManager` overlay cannot be exercised on the JVM. The drag, the swallow and the target's window lifecycle need instrumentation and a device | Mine — and now it is a device problem, not a build-config one |
 | The circle→camera shared-element morph, [`32` §4](32-FLOATING-BUBBLE.md) | Cannot be done as specified while the scanner is a separate Activity with its own Flutter engine — there is no shared element to morph across a process boundary | Mine — needs a different design, not more effort |

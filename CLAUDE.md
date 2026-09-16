@@ -28,6 +28,7 @@ not add a network dependency without saying so out loud.
 | Push | `git push -u origin <branch>`; retry 4× on network failure with 2/4/8/16 s backoff |
 | CI | **Read the logs yourself after every push, including the APK job.** Two builds were once reported green while the APK job had failed |
 | Links | Every claim gets a link to the file, commit or source it came from. Never leave the owner "blind with words" |
+| Links **in chat** | **Absolute `https://github.com/adityamaurya/SWIP/blob/<branch>/<path>` URLs, always.** A repo-relative link like `docs/43-…md` renders as a link and opens nothing — the Claude client answers *"Unsupported link"*. Relative paths are correct **inside** the repo and dead everywhere else |
 | Ledgers | A changelog entry per prompt, a prompt ledger with every prompt **verbatim and timestamped**, and a conversation log of the answers. **Never delete a row from any of them** |
 | Before every build | Run [`docs/30-PRE-LAUNCH-PARAMETERS.md`](docs/30-PRE-LAUNCH-PARAMETERS.md) §1 |
 
@@ -234,6 +235,7 @@ Each of these cost a broken build or a broken screen. Do not re-derive them.
 | **One presentation for two windows is one rule too few** | `F-180` argued the capture result should never show its field table. Right for the hovering card, over somebody else's app; wrong for the full-screen scanner, which is SWIP's own screen with a viewfinder behind it. **Ask what is behind a surface before deciding how much it may say.** `F-189`, `docs/36` D-61 |
 | **The QR the owner said "couldn't get the MCC" is 39 bytes long** | `upi://pay?pa=paytm.s27l8o9@pty&pn=Paytm` — decoded from the photograph, byte-identical to corpus entry 6, which SWIP had already read correctly twice. **Decode the artifact and show it in full**; it ends the question in a way any amount of explanation does not. `docs/46` |
 | **"Razorpay is not working" and "no MCC" cannot be the same fault** | The lookup returns a **name**, never a category. A working key would have changed the word *Paytm* on that screen into the shop's name and left the headline identical. When two complaints arrive in one sentence, check whether one of them is even capable of causing the other. `docs/46` §3 |
+| **A repo-relative markdown link is dead in a chat reply** | `[docs/43](docs/43-RAZORPAY-IN-PLAIN-WORDS.md)` resolves against the repository, and a chat client has no repository — it renders as a link, the owner taps it, and gets *"Unsupported link"*. **Worse than plain text**, because it looks like it works and the failure is silent until somebody tries. Every round's reply had been doing this. Absolute `blob/<branch>/` URLs in chat; relative paths only in files that live in the repo. `F-190` |
 
 **The recurring mistake, twice over: checking the source instead of the
 artifact.** Read the built thing, not the code that should have built it.

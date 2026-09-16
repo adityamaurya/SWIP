@@ -2385,6 +2385,20 @@ prompt, and guessing would build the wrong thing. Asked rather than assumed.
 
 ---
 
+### Prompt 50, continued — `F-190`
+
+| File | Change |
+|---|---|
+| `bubble_wizard_test.dart` | The battery step's label and channel mock follow `F-189`'s rename; **new**: an assertion that the button reaches `openBatterySettings` and not the deleted `openThisAppSettings` |
+| [`CLAUDE.md`](../CLAUDE.md) | A standing rule: **absolute GitHub URLs in chat replies.** Repo-relative markdown paths render as links and open nothing |
+
+**How the build failed is the finding.** Six wizard tests went red on a *label*,
+in three places, because the suite never asserted that the step's button reaches
+the platform at all. A rename that kept the label and broke the call would have
+stayed green.
+
+---
+
 <!--
 Template for the next entry:
 
