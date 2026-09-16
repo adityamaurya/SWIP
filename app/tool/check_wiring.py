@@ -310,49 +310,56 @@ def check_callbacks() -> list[str]:
 
 
 def check_bubble_radius() -> list[str]:
-    """The bubble's corner radius must stay half its diameter.
+    """The bubble's ground must stay an oval.
 
-    `buildBubble` sets `val size = dp(56f)` and `swip_bubble_bg.xml` carries
-    `<corners android:radius="28dp" />`. Neither file mentions the other except
-    in a comment, and a comment is not a check — which is exactly the situation
-    that produced every other entry in this file.
+    ## What this used to check, and why it changed
+
+    `swip_bubble_bg.xml` was a **rectangle with a 28 dp corner radius**, which
+    is a true circle only while the view is square. That was deliberate — the
+    bubble could stretch into a pill, and a rectangle-with-radius becomes a
+    correct pill on its own. So this rule read `val size = dp(56f)` out of
+    `buildBubble` and demanded the radius be exactly half of it, because
+    neither file mentioned the other except in a comment and a comment is not
+    a check.
+
+    `F-185` deleted the pill. The owner reported the shape it produced — *"it
+    should be circle only not become rounded rectangle"* — and with the label
+    gone there is nothing left that ever wants a non-square bubble.
+
+    So the drawable is an `oval` now, and the rule that watched two numbers has
+    become a rule that watches one word. **That is a stronger guarantee, not a
+    weaker one:** a radius can drift out of step with a diameter, and an oval
+    cannot stop being round.
+
+    The check is kept rather than deleted because the failure it guards against
+    is unchanged and still silent — a rounded square looks fine in a code
+    review and wrong on a phone.
     """
     if not BUBBLE_KT.exists() or not BUBBLE_BG.exists():
         return [f"{BUBBLE_KT.name} or {BUBBLE_BG.name} is missing"]
 
-    # Anchored to `buildBubble`, not searched across the file.
-    #
-    # `F-173` added a snooze target with its own `val size = dp(72f)`, earlier
-    # in the file than the bubble's, and an unanchored search matched that
-    # one — so the gate demanded a 36 dp corner radius and failed a build over
-    # a number it had read off the wrong widget. A check that can be pointed at
-    # the wrong thing by an unrelated edit is worse than no check, because it
-    # fails loudly and for a reason that is not true.
-    kotlin = BUBBLE_KT.read_text(encoding="utf-8")
-    builder = kotlin.find("private fun buildBubble")
-    size = (re.search(r"val size = dp\((\d+(?:\.\d+)?)f\)", kotlin[builder:])
-            if builder >= 0 else None)
-    radius = re.search(r'<corners android:radius="(\d+(?:\.\d+)?)dp"',
-                       BUBBLE_BG.read_text(encoding="utf-8"))
+    bg = BUBBLE_BG.read_text(encoding="utf-8")
+    shape = re.search(r'android:shape="(\w+)"', bg)
 
     # A pattern that stops matching is a check that silently passes forever,
-    # so an unreadable number is a failure rather than a shrug.
-    if not size:
-        return ["could not find `val size = dp(…f)` inside `buildBubble` in "
-                "SwipBubbleService.kt — the bubble radius check is no longer "
-                "checking anything"]
-    if not radius:
-        return ["could not find `<corners android:radius=\"…dp\">` in "
-                "swip_bubble_bg.xml — the bubble radius check is no longer "
-                "checking anything"]
+    # so an unreadable shape is a failure rather than a shrug.
+    if not shape:
+        return ['could not find `android:shape="…"` in swip_bubble_bg.xml — '
+                "the bubble shape check is no longer checking anything"]
+    if shape.group(1) != "oval":
+        return [f'swip_bubble_bg.xml is a "{shape.group(1)}", not an oval. '
+                "The floating button must be round at every width — `F-185`, "
+                "after a pill-shaped tap state was reported as the bubble "
+                "turning into a rounded rectangle. If a pill is genuinely "
+                "wanted again, this rule goes back to comparing the corner "
+                "radius against `buildBubble`'s diameter."]
 
-    want = float(size.group(1)) / 2
-    got = float(radius.group(1))
-    if abs(want - got) > 1e-6:
-        return [f"the bubble is {size.group(1)} dp across, so "
-                f"swip_bubble_bg.xml's corner radius must be {want:g} dp — it "
-                f"is {got:g} dp, which makes the collapsed bubble a rounded "
-                f"square instead of a circle"]
+    # Belt and braces: an oval with corners is a contradiction somebody has
+    # half-finished, and Android silently ignores the corners.
+    if "<corners" in bg:
+        return ["swip_bubble_bg.xml is an oval but still declares <corners>. "
+                "Android ignores it, so the file says two different things and "
+                "only one of them is true."]
     return []
 
 

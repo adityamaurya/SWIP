@@ -32,7 +32,6 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.TextView
 import android.widget.Toast
 import androidx.dynamicanimation.animation.DynamicAnimation
 import androidx.dynamicanimation.animation.FlingAnimation
@@ -98,6 +97,19 @@ import kotlin.math.abs
 class SwipBubbleService : Service() {
 
     companion object {
+        // `F-185`. The fan's three numbers. Here rather than in a second
+        // `companion object` of their own — a Kotlin class may only have one,
+        // and two is a compile error rather than a style opinion.
+
+        /** Gap between the bubble's centre and the first item's centre. */
+        private const val FAN_GAP_DP = 68f
+
+        /** Each item lands this much later than the one before it. */
+        private const val FAN_STAGGER_MS = 45L
+
+        /** Long enough to read two icons, short enough not to be litter. */
+        private const val FAN_TIMEOUT_MS = 6_000L
+
         private const val CHANNEL_ID = "swip.bubble"
         private const val NOTIFICATION_ID = 0x5117
 
@@ -177,7 +189,7 @@ class SwipBubbleService : Service() {
          * How long the bubble stays on screen after being snoozed, so the
          * message explaining where it went can be read.
          *
-         * Longer than [peek]'s own 900 ms settle would be pointless — the pill
+         * Longer than the old pill's 900 ms settle would be pointless — it
          * has collapsed back to a circle by then and there is nothing left to
          * read. Shorter and the sentence is gone before the eye reaches it.
          */
@@ -409,8 +421,13 @@ class SwipBubbleService : Service() {
     private lateinit var windows: WindowManager
     private var bubble: View? = null
 
-    /** The pill's text. Held so [peek] never has to guess a child index. */
-    private var label: TextView? = null
+    /**
+     * `F-185`. The bubble's icon, held so the fan can turn it into a cross.
+     *
+     * A field rather than `getChildAt(0)`, which would be a silent dependency
+     * on the order two `addView` calls happen in, sixty lines away.
+     */
+    private var glyph: ImageView? = null
     private var params: WindowManager.LayoutParams? = null
 
     private val main = Handler(Looper.getMainLooper())
@@ -441,33 +458,32 @@ class SwipBubbleService : Service() {
      *
      * `F-167` added the long-press snooze and, with it, a line promising the
      * bubble would announce itself before going — *"a button that silently
-     * disappears when held reads as a bug"*. The string exists, the [peek]
-     * call is there, and **nobody has ever seen it.**
-     *
-     * The long-press handler peeks the message and then calls
-     * `applyVisibility`, which finds a snooze in storage and sets the window
-     * `GONE` — on the same frame. The pill was made visible and taken away
-     * before one frame had been drawn with it in. Finished, correct,
-     * unreachable: the shape `check_wiring.py` exists for, and the shape it
-     * cannot see, because every individual piece works.
+     * disappears when held reads as a bug"*. The message was peeked and then
+     * `applyVisibility` set the window `GONE` **on the same frame**, so nobody
+     * ever saw it. Finished, correct, unreachable: the shape
+     * `check_wiring.py` exists for, and the shape it cannot see, because every
+     * individual piece works.
      *
      * A grace period rather than reordering the two calls, because `snooze()`
      * also `nudge()`s and that broadcast comes back a few milliseconds later
      * to hide the bubble anyway. The only place that can honour "say goodbye
      * first" is the method that does the hiding.
+     *
+     * **`F-185` removed the pill**, so the goodbye is now the swallow
+     * animation and a toast. This window is what still gives them time to
+     * play, which is why it survived the deletion of the thing it was written
+     * for.
      */
     private var goodbyeUntil = 0L
 
     /**
      * `F-165`. Which side the bubble is parked against.
      *
-     * The window is `WRAP_CONTENT` and positioned by its **left** edge, so
-     * widening into a pill grows it to the right. Parked on the right-hand
-     * side of the screen, that put the label off the edge and "Scanning…"
-     * arrived cropped to "S".
-     *
-     * Knowing the side means the expansion can be compensated for — see
-     * [reanchor].
+     * Originally so a pill widening to the right could be compensated for when
+     * the bubble was parked on the right-hand edge — "Scanning…" used to
+     * arrive cropped to "S". **`F-185` removed the pill**, and this stayed,
+     * because [edgeX] still needs to know which edge to snap back to and
+     * [restorePark] still needs to know where "back" is.
      */
     private var parkedRight = false
 
@@ -719,6 +735,255 @@ class SwipBubbleService : Service() {
     // the target near the bottom for this reason, and it is also where a thumb
     // already is.
 
+    // ── the fan ─────────────────────────────────────────────────────────────
+    //
+    // `F-185`. **What a tap does now.**
+    //
+    // > *"Once you click the launcher icon, it is not bouncy enough. It opens
+    // > as something called 'scanning.' It's actually not scanning, right?…
+    // > if you click on the launcher icon, it gives you two options: 1. the QR
+    // > 2. the POS"*
+    //
+    // Both halves of that were right, and they were one mechanism.
+    //
+    // A tap used to call `peek()`, which makes the bubble **expand into a
+    // pill** carrying the word *Scanning…*. That is where the rounded
+    // rectangle the owner reported came from — the circle is a circle only
+    // while the label is `GONE`, because `swip_bubble_bg` is a rectangle whose
+    // corner radius is half the height, and a pill is what that becomes the
+    // moment the view is wider than it is tall.
+    //
+    // And the word was a lie. Nothing was scanning: the hovering window had
+    // not started, its Flutter engine had not started, and the camera was half
+    // a second away. The label existed to cover that half second, which is a
+    // reasonable thing to want and a bad thing to lie about.
+    //
+    // So the tap opens a fan instead. The bubble's own glyph becomes a cross,
+    // two discs spring out above it, and the delay is now covered by a
+    // deliberate choice rather than by a caption. It also answers a question
+    // the old design could not: **SWIP has two capture vectors and the bubble
+    // only ever offered one of them.**
+    //
+    // ## Why the items are their own windows
+    //
+    // The same reason the snooze target is. The bubble's window is
+    // `WRAP_CONTENT` and sized to the bubble; growing it to hold a menu would
+    // change the thing the drag maths, the edge snapping and `BubblePark` all
+    // measure. Separate windows leave every one of those untouched.
+    //
+    // ## Why there is no full-screen scrim
+    //
+    // A FAB menu normally dims everything and closes on an outside tap. Doing
+    // that here means a full-screen **touchable** overlay over somebody else's
+    // app, which is exactly the "in the way" that `docs/32` §4 rules out. The
+    // fan closes on: choosing an item, pressing the cross, starting a drag,
+    // the bubble being hidden for any reason, or [FAN_TIMEOUT_MS] of nothing.
+
+    private var fanViews: List<View> = emptyList()
+    private var fanOpen = false
+
+    /** Closes an unattended fan, so it is never found open later. */
+    private val fanTimeout = Runnable { closeFan() }
+
+    private fun toggleFan() {
+        if (fanOpen) closeFan() else openFan()
+    }
+
+    /**
+     * Spring two discs out of the bubble.
+     *
+     * Upwards when there is room, downwards when the bubble is parked near the
+     * top. The check is against the **items' own extent**, not the bubble's:
+     * a fan that opens off the top of the screen is a menu with no items in
+     * it, and on a window with `FLAG_LAYOUT_NO_LIMITS` nothing stops it.
+     */
+    private fun openFan() {
+        val host = bubble ?: return
+        val lp = params ?: return
+        if (fanOpen) return
+        fanOpen = true
+
+        val gap = dp(FAN_GAP_DP)
+        val size = dp(56f)
+        val screenHeight = resources.displayMetrics.heightPixels
+        // Room for two items plus a margin, measured from the bubble's top.
+        val up = lp.y - 2 * gap >= dp(8f)
+        val step = if (up) -gap else gap
+        val originY = if (up) lp.y else lp.y + (host.height - size)
+
+        val items = listOf(
+            R.drawable.swip_fan_qr to getString(R.string.swip_fan_qr),
+            R.drawable.swip_fan_pos to getString(R.string.swip_fan_pos),
+        )
+
+        val built = mutableListOf<View>()
+        items.forEachIndexed { i, (icon, label) ->
+            val view = buildFanItem(icon, label) {
+                closeFan()
+                if (i == 0) openScanner() else openTapScreen()
+            }
+            val itemLp = WindowManager.LayoutParams(
+                size,
+                size,
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                else
+                    @Suppress("DEPRECATION")
+                    WindowManager.LayoutParams.TYPE_PHONE,
+                // Touchable, unlike the snooze target — these are buttons.
+                // NOT_FOCUSABLE still, or the keyboard closes in whatever app
+                // the user is typing in.
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                PixelFormat.TRANSLUCENT,
+            ).apply {
+                gravity = Gravity.TOP or Gravity.START
+                x = lp.x + (host.width - size) / 2
+                // `coerceIn` throws when its maximum is below its minimum,
+                // and both bounds here come from a live screen measurement —
+                // the hazard `BubblePark` exists to contain. `coerceAtLeast`
+                // first makes the range provably non-empty.
+                y = (originY + step * (i + 1)).coerceIn(
+                    dp(8f),
+                    (screenHeight - size - dp(8f)).coerceAtLeast(dp(8f)),
+                )
+            }
+
+            runCatching { windows.addView(view, itemLp) }
+                .onSuccess {
+                    built += view
+                    // Staggered, because two discs arriving on the same frame
+                    // read as one wide thing appearing rather than as a menu
+                    // unfolding. 45 ms is about one and a half frames.
+                    main.postDelayed({
+                        if (!fanOpen) return@postDelayed
+                        springFor(view, DynamicAnimation.SCALE_X,
+                            SpringForce.STIFFNESS_MEDIUM,
+                            SpringForce.DAMPING_RATIO_MEDIUM_BOUNCY)
+                            .animateToFinalPosition(1f)
+                        springFor(view, DynamicAnimation.SCALE_Y,
+                            SpringForce.STIFFNESS_MEDIUM,
+                            SpringForce.DAMPING_RATIO_MEDIUM_BOUNCY)
+                            .animateToFinalPosition(1f)
+                        view.animate().alpha(1f).setDuration(120).start()
+                    }, FAN_STAGGER_MS * i)
+                }
+        }
+
+        fanViews = built
+        if (built.isEmpty()) {
+            // Every `addView` failed, which means the overlay permission went
+            // away underneath us. Do not leave `fanOpen` true — the next tap
+            // would try to close a fan that was never on screen and do nothing
+            // at all, which is the worst of the three outcomes.
+            fanOpen = false
+            return
+        }
+
+        glyph?.setImageResource(R.drawable.swip_fan_close)
+        // The cross arrives with a quarter turn, so the change is motion
+        // rather than a swap the eye has to notice after the fact.
+        glyph?.animate()?.rotationBy(90f)?.setDuration(180)?.start()
+        runCatching {
+            host.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
+        }
+        main.removeCallbacks(fanTimeout)
+        main.postDelayed(fanTimeout, FAN_TIMEOUT_MS)
+        BubbleTrace.log(this, "fan.open", "up" to up, "items" to built.size)
+    }
+
+    /** Take the fan away. Safe to call when there is no fan. */
+    private fun closeFan() {
+        main.removeCallbacks(fanTimeout)
+        if (!fanOpen) return
+        fanOpen = false
+
+        for (view in fanViews) {
+            // Faded and removed in the callback rather than removed outright:
+            // `removeView` is immediate, so dropping the windows on this frame
+            // makes two discs vanish rather than leave.
+            view.animate()
+                .alpha(0f).scaleX(0.4f).scaleY(0.4f)
+                .setDuration(130)
+                .withEndAction { runCatching { windows.removeView(view) } }
+                .start()
+        }
+        fanViews = emptyList()
+
+        glyph?.setImageResource(R.drawable.swip_bubble_mark)
+        glyph?.animate()?.rotationBy(-90f)?.setDuration(180)?.start()
+        BubbleTrace.log(this, "fan.close")
+    }
+
+    /** One disc in the fan: the bubble's own ground, with a different mark. */
+    private fun buildFanItem(
+        icon: Int,
+        label: String,
+        onTap: () -> Unit,
+    ): View {
+        val size = dp(56f)
+        val disc = dp(38f)
+        val pad = (size - disc) / 2
+
+        val mark = ImageView(this).apply {
+            setBackgroundResource(R.drawable.swip_bubble_disc)
+            setImageResource(icon)
+            setPadding(dp(7f), dp(7f), dp(7f), dp(7f))
+            layoutParams = LinearLayout.LayoutParams(disc, disc)
+        }
+
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            minimumWidth = size
+            minimumHeight = size
+            setPadding(pad, pad, pad, pad)
+            setBackgroundResource(R.drawable.swip_bubble_bg)
+            alpha = 0f
+            // Starts small so the spring has somewhere to come from. Set here
+            // rather than after `addView`, or the first frame is full size and
+            // the pop reads as a flash.
+            scaleX = 0.4f
+            scaleY = 0.4f
+            addView(mark)
+            isClickable = true
+            contentDescription = label
+            setOnClickListener {
+                runCatching {
+                    it.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
+                }
+                onTap()
+            }
+        }
+    }
+
+    /**
+     * `F-185`. Bring the real app forward at the POS screen.
+     *
+     * NFC cannot be read from the hovering window — that engine has no
+     * `MainActivity` channel, and `CLAUDE.md` records what an unanswered
+     * `MethodChannel` does to a screen. It is also the honest thing for the
+     * user: tapping a terminal means holding the phone against it, which is
+     * not something to do through a card floating over somebody else's app.
+     *
+     * `SINGLE_TOP` so a running SWIP is reused rather than stacked, which is
+     * also what delivers the extra to `onNewIntent`.
+     */
+    private fun openTapScreen() {
+        BubbleTrace.log(this, "tap.openPos")
+        runCatching {
+            startActivity(
+                Intent(this, MainActivity::class.java).apply {
+                    addFlags(
+                        Intent.FLAG_ACTIVITY_NEW_TASK or
+                            Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    )
+                    putExtra(MainActivity.EXTRA_OPEN_TAP, true)
+                }
+            )
+        }
+    }
+
     private var target: View? = null
     private var targetParams: WindowManager.LayoutParams? = null
 
@@ -885,7 +1150,15 @@ class SwipBubbleService : Service() {
      * its first frame — which is exactly the bug `F-170` found in the gesture
      * this one replaces.
      */
-    private fun swallow(bubble: View, centre: Pair<Int, Int>?) {
+    private fun swallow(bubble: View, centre: Pair<Int, Int>?, undoY: Int) {
+        // `F-184`. **Before the springs, and before `swallowed` guards the
+        // recorder.** The drag that ended here has already walked [restY] down
+        // onto the target one `ACTION_MOVE` at a time, so the value that needs
+        // restoring in ten minutes is the one from touch-down, not the one the
+        // gesture left behind. Assigning it here rather than suppressing the
+        // recorder during a drag keeps repositioning working: that gesture is
+        // supposed to move the resting place, and this one is not.
+        restY = undoY
         goodbyeUntil = System.currentTimeMillis() + SWALLOW_MS
         // `F-180`. Claimed **before** the springs below are aimed, because
         // they drive the same property the resting position is recorded from.
@@ -1028,8 +1301,8 @@ class SwipBubbleService : Service() {
      *
      * A spring whose rest position is already where it is, handed a velocity,
      * overshoots and settles — which is a bulge with no duration, no end
-     * callback and nothing to cancel. See [peek] for why the chained version
-     * that used to live there had to go.
+     * callback and nothing to cancel — which is why the chained version that
+     * used to live in the pill's peek had to go.
      */
     private fun kickScale(velocity: Float) {
         // `cancel()` first, and this is the one place it is right to. A start
@@ -1151,7 +1424,10 @@ class SwipBubbleService : Service() {
         listenForShake(false)
         hideTarget()
         main.removeCallbacks(unquiet)
-        main.removeCallbacks(settle)
+        // `F-185`. The fan is windows of its own, so it has to go before the
+        // service does or two discs outlive the thing that owns them.
+        main.removeCallbacks(fanTimeout)
+        closeFan()
         runCatching { unregisterReceiver(systemEvents) }
         removeBubble()
         super.onDestroy()
@@ -1211,6 +1487,7 @@ class SwipBubbleService : Service() {
     }
 
     private fun removeBubble() {
+        closeFan()
         BubbleTrace.log(this, "bubble.removed")
         cancelMotion()
         // Reset, or a service that is stopped and started again builds a fresh
@@ -1224,7 +1501,6 @@ class SwipBubbleService : Service() {
         popY = null
         bubble?.let { v -> runCatching { windows.removeView(v) } }
         bubble = null
-        label = null
         params = null
     }
 
@@ -1337,7 +1613,8 @@ class SwipBubbleService : Service() {
      * SWIP itself coming forward — all of which mean something else is already
      * taking the screen, and animating out under it would draw the eye to a
      * bubble that is supposed to be getting out of the way. The fourth, the
-     * long-press snooze, does its own goodbye through [peek] before this runs.
+     * long-press snooze, said its own goodbye before this ran (`F-185` replaced
+     * that with the swallow animation and a toast).
      *
      * [wasVisible] rather than reading `view.visibility`: this method is
      * called on every broadcast and every nudge, many of which change nothing,
@@ -1364,6 +1641,12 @@ class SwipBubbleService : Service() {
 
         if (!visible) {
             cancelMotion()
+            // `F-185`. The fan lives in its own windows, so hiding the bubble
+            // does not hide them — they would be left floating over the app
+            // with the thing that owns them gone. Every reason to hide is also
+            // a reason the menu is stale: the screen went off, a payment
+            // started, SWIP came forward, or it was snoozed.
+            closeFan()
             view.visibility = View.GONE
             return
         }
@@ -1452,26 +1735,19 @@ class SwipBubbleService : Service() {
             setPadding(dp(7f), dp(7f), dp(7f), dp(7f))
             layoutParams = LinearLayout.LayoutParams(disc, disc)
         }
+        this.glyph = glyph
 
-        val text = TextView(this).apply {
-            text = getString(R.string.swip_bubble_peek)
-            // The one colour that is safe over SWIP's ink ground, hard-coded
-            // for the same reason the drawable's are - see swip_bubble_bg.xml.
-            setTextColor(0xFFF2EFE9.toInt())
-            textSize = 13f
-            maxLines = 1
-            // GONE rather than INVISIBLE: INVISIBLE still occupies width, so
-            // the bubble would be pill-shaped and empty at rest.
-            visibility = View.GONE
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply {
-                marginStart = dp(9f)
-                marginEnd = dp(3f)
-            }
-        }
-        label = text
+        // `F-185`. **No label TextView any more.**
+        //
+        // It existed so the bubble could stretch into a pill and say
+        // something, and the only thing it ever said was *Scanning…* on a tap.
+        // The owner's instruction is explicit — *"it should be circle only not
+        // become rounded rectangle"* — and the fan does the acknowledging now,
+        // so the pill has no remaining job.
+        //
+        // Deleting it takes `peek`, `reanchor` and the `label` field with it,
+        // and lets `swip_bubble_bg` become a true oval: a circle by
+        // construction rather than by keeping two numbers in agreement.
 
         return LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -1488,7 +1764,6 @@ class SwipBubbleService : Service() {
             // never in the way".
             alpha = 0.84f
             addView(glyph)
-            addView(text)
             // `isClickable` + the `performClick` call in the listener are what
             // make this reachable by TalkBack. A bare `setOnTouchListener` on
             // a non-clickable view is invisible to every accessibility
@@ -1515,6 +1790,25 @@ class SwipBubbleService : Service() {
         private var startX = 0
         private var startY = 0
         private var downAt = 0L
+
+        /**
+         * `F-184`. The bubble's Y at touch-down, so a drag that ends in a
+         * snooze can be undone.
+         *
+         * ## The bug this fixes, read out of the owner's own trace
+         *
+         * `F-180` records the resting position from `ACTION_MOVE`, so it
+         * follows the finger — including the last few centimetres onto the
+         * snooze target. The gesture that says *"put this away"* was therefore
+         * also the gesture that said *"and remember this is where it lives"*,
+         * and the bubble came back ten minutes later just above the bottom of
+         * the screen.
+         *
+         * Two `bubble.restored` lines in that file, `y=1768` and `y=1753`, on a
+         * screen 2229 px tall whose target sits at 1770. `F-180` fixed the X
+         * and left the Y saying the same wrong thing more quietly.
+         */
+        private var preDragY = 0
         private var dragging = false
 
         private val slop by lazy {
@@ -1575,6 +1869,12 @@ class SwipBubbleService : Service() {
                     downY = event.rawY
                     startX = lp.x
                     startY = lp.y
+                    // `F-184`. Where the bubble was **before this gesture**,
+                    // kept separately from [startY] because [startY] is the
+                    // drag's origin and this is the snooze's undo point. They
+                    // are the same number and they mean different things, and
+                    // the day one of them moves the other must not follow.
+                    preDragY = lp.y
                     downAt = System.currentTimeMillis()
                     dragging = false
 
@@ -1614,6 +1914,11 @@ class SwipBubbleService : Service() {
                     if (!dragging && (abs(dx) > slop || abs(dy) > slop)) {
                         dragging = true
                         BubbleTrace.log(this@SwipBubbleService, "drag.start")
+                        // `F-185`. A fan left open while its bubble walks off
+                        // is two discs pointing at nothing. Closed here rather
+                        // than on `ACTION_DOWN`, because a press that turns out
+                        // to be a tap must not have dismissed it on the way in.
+                        closeFan()
                         // `F-173`. The target appears the moment the gesture
                         // becomes a drag — not on touch-down, or a tap would
                         // flash a snooze target for one frame every time
@@ -1664,7 +1969,7 @@ class SwipBubbleService : Service() {
 
                     if (snoozing) {
                         BubbleTrace.log(this@SwipBubbleService, "drag.snoozed")
-                        swallow(view, centre)
+                        swallow(view, centre, preDragY)
                     } else if (dragging) {
                         snapToEdge(view, lp, vx, vy)
                     } else if (event.actionMasked == MotionEvent.ACTION_UP) {
@@ -1680,7 +1985,9 @@ class SwipBubbleService : Service() {
                             // waiting for. Without it the bubble is a button
                             // TalkBack cannot press.
                             view.performClick()
-                            openScanner()
+                            // `F-185`. The fan, not the scanner. The bubble
+                            // has two vectors behind it and used to offer one.
+                            toggleFan()
                         }
                     }
                     return true
@@ -1753,6 +2060,41 @@ class SwipBubbleService : Service() {
             slideX?.apply {
                 cancel()
                 setStartVelocity(vx)
+                // `F-186`. A tick when the bubble actually reaches the edge.
+                //
+                // > *"can you add haptic feedback for the bubbles? Whenever I
+                // > move it to either of the ends, it creates haptic feedback"*
+                //
+                // On the spring's **end listener**, not at the moment of
+                // release. Buzzing on release would be feedback about the
+                // finger, which the finger already knows; buzzing on arrival
+                // is feedback about the bubble, which is off under the thumb
+                // and is the thing there is no other way to feel.
+                //
+                // `addEndListener` rather than a `postDelayed` guess: a spring
+                // has no duration, so there is no number to guess. The
+                // listener is added fresh each snap and removed by the
+                // animation when it ends, so they do not accumulate.
+                //
+                // Written as a SAM conversion held in a `var` rather than as
+                // an anonymous `object`: the listener's Java signature takes a
+                // **raw** `DynamicAnimation`, and spelling that out in Kotlin
+                // is a guess at a generic bound. The lambda lets the compiler
+                // work it out, and the self-reference is what allows the
+                // listener to take itself off again.
+                var tick: DynamicAnimation.OnAnimationEndListener? = null
+                tick = DynamicAnimation.OnAnimationEndListener { a, canceled, _, _ ->
+                    a.removeEndListener(tick)
+                    // Not on cancel: a cancelled snap is a bubble the user
+                    // grabbed again mid-flight, and it never landed.
+                    if (!canceled) {
+                        runCatching {
+                            view.performHapticFeedback(
+                                HapticFeedbackConstants.CLOCK_TICK)
+                        }
+                    }
+                }
+                addEndListener(tick)
                 animateToFinalPosition(target)
             }
 
@@ -1806,12 +2148,17 @@ class SwipBubbleService : Service() {
     private fun openScanner() {
         BubbleTrace.log(this, "tap.openScanner")
 
-        // A brief expansion so the tap is acknowledged before the window
-        // appears. `docs/32` §4: the delay before the scanner opens is the
-        // thing to hide, and a press animation is how you hide it. It matters
-        // more here than it did — the hovering window starts its own Flutter
-        // engine, so there is about half a second to cover.
-        peek()
+        // `F-185`. **No `peek()` here any more.**
+        //
+        // It used to expand the bubble into a pill reading *Scanning…* to
+        // cover the half second the hovering window takes to start its engine.
+        // Two things wrong with that, and the owner caught both: the pill is
+        // what turned the circle into a rounded rectangle, and nothing was
+        // scanning — the camera was still half a second away.
+        //
+        // The fan covers the same half second honestly. By the time this runs
+        // the user has already pressed twice, and a menu closing is its own
+        // acknowledgement.
 
         val launch = Intent(this, SwipHoverActivity::class.java).apply {
             // NEW_TASK is required to start an Activity from a Service at all.
@@ -1835,61 +2182,10 @@ class SwipBubbleService : Service() {
     }
 
     /**
-     * Expand to a pill for a moment, then settle back to a circle.
-     *
-     * The label is held in a field rather than fetched with `getChildAt(1)`.
-     * An index is a silent dependency on the order two `addView` calls happen
-     * in, thirty lines away; a field breaks at compile time instead.
-     */
-    private fun peek(message: String = getString(R.string.swip_bubble_peek)) {
-        val view = bubble ?: return
-        val text = label ?: return
-        if (text.visibility == View.VISIBLE) return
-        text.text = message
-
-        // This alone is what widens the bubble - the window is WRAP_CONTENT,
-        // so making the label visible re-measures it into a pill.
-        text.visibility = View.VISIBLE
-        reanchor()
-
-        // `F-170`. One call, no timer, no second animation waiting on the
-        // first's end callback.
-        //
-        // This used to be `animate().scaleX(1.06f)` for 140 ms followed by a
-        // `withEndAction` scaling back — two fixed animations chained through
-        // a callback, so a peek arriving while the last one was mid-chain
-        // produced a visible double bump, and a service destroyed between them
-        // left the bubble parked at 1.06.
-        //
-        // A spring already rests at 1. Handing it an outward velocity and the
-        // same rest position makes it bulge and return on its own, with the
-        // size of the bulge set by the kick rather than by a hard-coded
-        // scale: 2.5 against `STIFFNESS_MEDIUM` peaks at about 6%, which is
-        // where the old number came from. Interrupting it is free.
-        kickScale(2.5f)
-
-        main.removeCallbacks(settle)
-        main.postDelayed(settle, 900)
-    }
-
-    /**
-     * `F-165`. Keep the pill on screen when it changes width.
-     *
-     * A `WRAP_CONTENT` overlay is positioned by its left edge, so showing or
-     * hiding the label moves its *right* edge. Parked against the right-hand
-     * side that pushed the text off the screen — the owner saw "Scanning…"
-     * cropped to a single letter.
-     *
-     * The new width is not known until the view has been measured, which is
-     * why this runs in [View.post] rather than immediately: reading
-     * `view.width` on the same frame as the visibility change returns the
-     * *old* width, and compensating by that is the same bug with extra steps.
-     */
-    /**
      * `F-180`. The three numbers that define a legal resting place, in one
      * place, because three copies of them is how they drift.
      *
-     * [snapToEdge], [reanchor] and [restorePark] all have to agree on where
+     * [snapToEdge] and [restorePark] both have to agree on where
      * the bubble is allowed to sit, and they used to compute it separately.
      * That is survivable while two of them run one after the other and
      * invisible when the third runs ten minutes later — which is exactly the
@@ -1943,41 +2239,6 @@ class SwipBubbleService : Service() {
         runCatching { slideX?.cancel(); settleY?.cancel(); glideY?.cancel() }
         runCatching { windows.updateViewLayout(view, lp) }
         BubbleTrace.log(this, "bubble.restored", "x" to lp.x, "y" to lp.y)
-    }
-
-    private fun reanchor() {
-        val view = bubble ?: return
-        view.post {
-            if (bubble !== view) return@post
-            val target = edgeX(view).toFloat()
-
-            // `F-170`. Sprung, not assigned.
-            //
-            // Two reasons, and the second is a bug rather than a polish. The
-            // pill widening by ~90 px used to move the window's left edge by
-            // that much in a single frame, which is a jump the eye catches on
-            // the one side of the screen where the bubble is parked. And
-            // writing `lp.x` directly while [slideX] is mid-flight means the
-            // spring's next frame overwrites the assignment — a peek during an
-            // edge snap would silently do nothing at all.
-            //
-            // `animateToFinalPosition` on the same spring instance is the
-            // answer to both: it re-aims the motion that is already running,
-            // keeping its velocity, rather than competing with it.
-            slideX?.animateToFinalPosition(target)
-        }
-    }
-
-    /**
-     * Named rather than a lambda so [peek] can cancel a pending one. Two taps
-     * inside 900 ms would otherwise queue two settles, and the second would
-     * close the pill the first tap had just reopened.
-     */
-    private val settle = Runnable {
-        label?.visibility = View.GONE
-        // Narrowing moves the right edge too, so the circle would otherwise
-        // be left sitting where the pill's left edge had been.
-        reanchor()
     }
 
     // ── the notification Android requires ───────────────────────────────────

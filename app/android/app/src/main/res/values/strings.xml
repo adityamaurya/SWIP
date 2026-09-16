@@ -34,7 +34,23 @@
     -->
 
     <!-- The pill's one word, shown for a moment when the bubble is tapped. -->
-    <string name="swip_bubble_peek">Scanning…</string>
+    <!--
+      `F-185`. **No longer used on a tap.** It said "Scanning…" the moment the
+      bubble was pressed, which was two things wrong at once: nothing was
+      scanning yet — the hovering window had not even started its engine — and
+      expanding into a pill to say so is what turned the circle into a rounded
+      rectangle the owner reported. A tap now opens the fan instead.
+
+      Kept because [peek] is still the right animation for a message the bubble
+      genuinely has, and deleting the string would leave the method with no
+      default.
+    -->
+    <string name="swip_bubble_peek">Reading…</string>
+
+    <!-- `F-185`. The fan. -->
+    <string name="swip_fan_qr">Scan a code</string>
+    <string name="swip_fan_pos">Tap a card machine</string>
+    <string name="swip_fan_close">Close</string>
 
     <!--
       TalkBack reads this. The bubble is a 56 dp circle containing a glyph and

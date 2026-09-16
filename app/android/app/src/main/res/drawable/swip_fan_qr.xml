@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  `F-185` — the QR option in the bubble's fan.
+
+  Four finder-pattern corners rather than a literal QR grid. At 38 dp on top of
+  somebody else's app, a real QR's modules turn into grey noise; the three
+  squares are the part of a QR the eye actually recognises, and drawing them
+  alone reads as "code" at any size.
+
+  Ink on the gold disc, same as `swip_bubble_mark`, because it sits in the same
+  disc.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <path
+        android:fillColor="#060507"
+        android:pathData="M3,3 L10,3 L10,10 L3,10 Z M5,5 L5,8 L8,8 L8,5 Z" />
+    <path
+        android:fillColor="#060507"
+        android:pathData="M14,3 L21,3 L21,10 L14,10 Z M16,5 L16,8 L19,8 L19,5 Z" />
+    <path
+        android:fillColor="#060507"
+        android:pathData="M3,14 L10,14 L10,21 L3,21 Z M5,16 L5,19 L8,19 L8,16 Z" />
+    <path
+        android:fillColor="#060507"
+        android:pathData="M14,14 L17,14 L17,17 L14,17 Z M18,18 L21,18 L21,21 L18,21 Z" />
+</vector>
