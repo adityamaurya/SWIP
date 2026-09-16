@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/swip_tokens.dart';
-import 'bubble_trace_page.dart';
+import 'blackbox_page.dart';
 import 'bubble_wizard.dart';
 
 /// `F-131` — the floating scan bubble, and the permission it needs.
@@ -223,7 +223,7 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
     // every resume along with everything else on this screen — one place that
     // reads the world, which is the same rule `applyVisibility` follows on the
     // Kotlin side.
-    final trace = await BubbleTracePage.traceEnabled();
+    final trace = await BlackboxPage.bubbleTraceAvailable();
 
     if (!mounted) return;
     setState(() {
@@ -530,9 +530,13 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
                 // anyone has to remember to flip. On a Play Store build the
                 // future resolves false and this row does not exist.
                 //
-                // Delete this block, `bubble_trace_page.dart`, `BubbleTrace.kt`
-                // and the three channel cases in `MainActivity` and the feature
-                // is gone. `docs/38` has the list.
+                // Delete this block, `Blackbox.bubble` in
+                // `blackbox_page.dart`, `BubbleTrace.kt` and the three
+                // `trace*` channel cases in `MainActivity` and the feature is
+                // gone. **The screen itself stays** — `F-187` gave it two more
+                // recorders, and they ask `blackboxEnabled` rather than
+                // `traceEnabled` so this deletion cannot take them with it.
+                // `docs/38` §4 has the list.
                 if (_traceAvailable) ...[
                   const SizedBox(height: SwipSpace.xxl),
                   ListTile(
@@ -549,7 +553,8 @@ class _BubbleSettingsPageState extends State<BubbleSettingsPage>
                     trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                          builder: (_) => const BubbleTracePage()),
+                          builder: (_) =>
+                              const BlackboxPage(box: Blackbox.bubble)),
                     ),
                   ),
                 ],

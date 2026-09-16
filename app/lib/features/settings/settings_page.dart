@@ -23,6 +23,7 @@ import '../../data/sources/ledger_lines.dart';
 import '../../data/sources/ledger_seal.dart';
 import '../backup/recovery_phrase.dart';
 import '../backup/recovery_phrase_page.dart';
+import '../bubble/blackbox_page.dart';
 import '../bubble/bubble_settings.dart';
 import '../bubble/bubble_wizard.dart';
 import '../lookup/lookup_settings_page.dart';
@@ -265,6 +266,59 @@ class SettingsPage extends ConsumerWidget {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                     content: Text('Explanations will show again')));
               }
+            },
+          ),
+
+          const Divider(height: SwipSpace.xxl),
+          // `F-187`, `F-188`. The two new recorders.
+          //
+          // A `FutureBuilder` rather than making this whole page stateful for
+          // one boolean — and the future answers **false** on a Play Store
+          // build, so the section is not drawn at all rather than drawn empty.
+          //
+          // The bubble's own trace is deliberately **not** here: it lives
+          // inside "Scan from anywhere", next to the feature it watches, and
+          // moving it would be tidier filing at the cost of somebody finding
+          // it. These two have no screen of their own to live in.
+          FutureBuilder<bool>(
+            future: BlackboxPage.available(),
+            builder: (context, snap) {
+              if (snap.data != true) return const SizedBox.shrink();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Divider(height: SwipSpace.xxl),
+                  _header('Diagnostics · debug build only'),
+                  ListTile(
+                    leading: const Icon(Icons.contactless_outlined),
+                    title: const Text('POS tap black box'),
+                    subtitle: Text(
+                      'Why a tap on a card machine worked, or did not. Tap a '
+                      'few machines, then export',
+                      style: SwipType.bodyS
+                          .copyWith(color: SwipColors.textSecondary),
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const BlackboxPage(box: Blackbox.tap),
+                    )),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.battery_alert_outlined),
+                    title: const Text('Battery black box'),
+                    subtitle: Text(
+                      'How long each part of SWIP was awake. Leave it a day, '
+                      'then export',
+                      style: SwipType.bodyS
+                          .copyWith(color: SwipColors.textSecondary),
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const BlackboxPage(box: Blackbox.power),
+                    )),
+                  ),
+                ],
+              );
             },
           ),
 

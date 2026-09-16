@@ -618,3 +618,153 @@ later.
 wrong.** The same is true of any state changed during a transition out: the
 next appearance is the first chance anyone has to notice, and by then the cause
 is long gone from the screen and from memory.
+
+---
+
+## 15. The half that `F-180` missed — `F-184`
+
+> *"there you go deepdive and find for any bug if there is any"* — prompt 49,
+> with a fresh export
+
+§14's fix was the round's deliverable, and the export sent to confirm it
+contains this:
+
+```
+bubble.restored   x=18   y=1768
+bubble.restored   x=18   y=1753
+```
+
+The phone is 2229 px tall. The snooze target sits at **y = 1770**.
+
+So the X was right — 18 px is the left edge — and **the Y was the target**,
+which is the exact thing §14 was written to stop. `F-180` had fixed half of it,
+and the remaining half said the same wrong thing more quietly: not
+bottom-*centre* any more, so the screenshot no longer looks obviously wrong.
+
+### Why the recorder was still reading the swallow
+
+`restY` is written from `windowY`'s setter, and `swallowed` was supposed to
+gate that off for the swallow's duration. It did. What it did not cover is the
+**drag that precedes the swallow** — the user's own finger, dragging the bubble
+down onto the target, one `ACTION_MOVE` at a time, each one a perfectly
+ordinary settle as far as the recorder is concerned.
+
+By the time `swallow` starts and the gate closes, `restY` has already been
+walked down to within a few pixels of the target by the gesture itself.
+
+**The gesture that means *"put this away"* was also saying *"and remember this
+is where it lives"*.** Those are two different statements and one drag was
+making both.
+
+### The fix
+
+`DragAndTap` captures `preDragY` at `ACTION_DOWN`, next to the `startY` it
+already records for the slop test — the position the bubble was resting at
+*before the finger arrived*. `swallow(bubble, centre, undoY)` takes it and sets
+`restY = undoY` as its first act, before a single frame of animation runs.
+
+A drag that ends anywhere other than the target is unaffected: it settles
+normally and the setter records where it settled, which is correct and is the
+whole point of §14.
+
+### The shape, which is §14's with one more turn
+
+A position written while a window is hidden is a position nobody can see is
+wrong — **and the frames immediately before it goes are part of "hidden"**, because
+nobody is reading a coordinate during a gesture either. The interesting
+question is not *"what happens while it is invisible"* but *"what was the last
+thing to write this, and was that thing about where it lives or about where it
+was going"*.
+
+---
+
+## 16. The fan, and the label that was lying — `F-185`
+
+> *"Once you click the launcher icon, it is not bouncy enough. It opens as
+> something called 'scanning.' It's actually not scanning, right?"*
+>
+> *"its also becoming square when I drag it closer it should become enlarge a
+> bit and be corcle only not become rounded rectangle"* — prompt 49
+
+**Two reports, one mechanism.**
+
+### The label
+
+Tapping the bubble called `peek()`, which made a `TextView` visible with the
+word *"Scanning…"* in it and hid it again half a second later.
+
+Nothing was scanning. `SwipHoverActivity` had not started, its second Flutter
+engine had not started, and CameraX was some way behind that. The label existed
+to fill the gap — which is a reasonable thing to want, and naming the gap
+something it is not is not a reasonable way to do it. The owner spotted it
+immediately, from the outside, with no access to the code.
+
+### The circle
+
+`swip_bubble_bg.xml` was a `rectangle` with `<corners android:radius="28dp"/>`,
+and the bubble is 56 dp. A rounded rectangle whose radius is exactly half its
+height **is** a circle — but only while it is square. Showing a word widened a
+`WRAP_CONTENT` `LinearLayout`, and a 56 dp-tall row wider than 56 dp with a
+28 dp radius is a pill.
+
+So the rounded rectangle was never a styling choice, and no amount of adjusting
+the radius would have fixed it. It was the label.
+
+Deleting `peek()` removed the only thing that could change the view's width,
+which is what allowed the drawable to become `android:shape="oval"` — **round
+by construction**, rather than by two numbers being kept in agreement forever.
+`check_wiring.py`'s rule changed with it, from a radius-versus-diameter
+comparison to a shape check. That is stronger: a number can drift and a shape
+cannot.
+
+### What the tap does instead
+
+Two discs spring out from the bubble, 68 dp apart, staggered 45 ms, while the
+bubble's own glyph cross-fades to a cross:
+
+| | |
+|---|---|
+| **Scan a code** | The hovering scanner, as before |
+| **Tap a card machine** | Straight to the in-app POS screen |
+
+SWIP has had two capture vectors since `F-140` and the bubble only ever offered
+one of them. The fan is not decoration — it is the second door, which existed
+and had no handle out here.
+
+It closes on a second tap, on either choice, on a drag, when the bubble hides,
+and on a 6 s idle timeout. That last one matters more than it sounds: this is a
+window over somebody else's app, and a menu left open on top of a payment
+screen is exactly the intrusion [§2](#2-the-rule-swip-commits-to-and-enforces-in-code)
+promises not to be.
+
+---
+
+## 17. Feeling the edge — `F-186`
+
+> *"can you add haptic feedback for the bubbles? Whenever I move it to either
+> of the ends"*
+
+A `HapticFeedbackConstants.CLOCK_TICK` on the edge spring's **end listener**,
+not on the finger's release.
+
+That distinction is the whole design. Buzzing when the finger lifts is feedback
+about the finger — which the finger already knows about, because it is the
+thing that just moved. Buzzing when the bubble **lands** is feedback about the
+bubble, which by then is somewhere off under a thumb and has no other way to
+report that it arrived.
+
+Skipped when the animation is `canceled`: a cancelled snap is one the user
+grabbed again mid-flight, and it never landed. A tick there would be the phone
+insisting something finished when the user can see it did not.
+
+### The listener has to be able to remove itself
+
+`DynamicAnimation.OnAnimationEndListener` is added to a long-lived, reused
+spring ([§4](#4-the-animation-since-that-is-what-was-actually-asked-about) —
+never rebuild one), so a listener added on every snap and never removed is a
+leak that fires N times on the Nth snap.
+
+Removing it needs a reference to itself, which a lambda passed straight as an
+argument does not have. So it is a SAM conversion held in a `var` declared one
+line above, assigned, then added — and its first act when it runs is
+`removeEndListener(tick)`.

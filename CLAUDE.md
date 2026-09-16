@@ -42,22 +42,29 @@ python3 tool/check_links.py     # doc links that point at nothing
 bash    tool/check_secrets.sh   # a key that must never reach the repository
 ```
 
-There is a **Kotlin unit suite** as of `F-173`, run by CI and locally with
-`cd app/android && ./gradlew :app:testDebugUnitTest`. It covers `ShakeDetector`
-and `BubbleTrace`'s line format; anything touching `WindowManager` still cannot
-be tested without a device.
+There is a **Kotlin unit suite** as of `F-173`, run by CI with
+`cd app/android && ./gradlew :app:testDebugUnitTest`. It covers `ShakeDetector`,
+`BubblePark`, both flight recorders' line format and — as of `F-187` —
+`TapTrace`'s privacy rule; anything touching `WindowManager` still cannot be
+tested without a device. **It cannot be run in this environment**: `gradlew` and
+`build.gradle` do not exist until `bootstrap.sh` generates them, and there is no
+Flutter toolchain here. CI is the compiler, which is why its logs get read.
 
-**There is temporary debugging apparatus in the tree.** `BubbleTrace` records
-the floating button's lifecycle so a disappearance can be read rather than
-guessed at. It is gated on `FLAG_DEBUGGABLE`, so it cannot reach a Play Store
-build, and `check_wiring.py` fails if that gate is ever weakened.
-[`docs/38`](docs/38-BUBBLE-TRACE.md) has the eleven-step removal list.
-**`F-178` is now confirmed by a real export** ([`docs/38`](docs/38-BUBBLE-TRACE.md) §6),
-so the condition for deleting it is met — it is held for one more round only
-because the same export found `F-180`, whose fix cannot be verified without it.
-[`docs/38` §8](docs/38-BUBBLE-TRACE.md) records that as a decision rather than
-an oversight. **Delete it, including its own gate check, once `F-180` is
-confirmed in a second export.**
+**There is temporary debugging apparatus in the tree.** Three recorders now:
+`BubbleTrace` for the floating button's lifecycle, and `Blackbox.tap` /
+`Blackbox.power` (`F-187`, `F-188`) for POS taps and battery spans. All are
+gated on `FLAG_DEBUGGABLE`, so none can reach a Play Store build, and
+`check_wiring.py` fails if that gate is ever weakened.
+
+Only `BubbleTrace` is **temporary**; the other two are the owner's standing
+three-export ritual. [`docs/38`](docs/38-BUBBLE-TRACE.md) has its eleven-step
+removal list. **`F-178` is confirmed by a real export**
+([`docs/38`](docs/38-BUBBLE-TRACE.md) §6) — but each export since has found the
+next thing: `F-180`, and then `F-184` inside `F-180`'s own fix.
+[`docs/38` §8](docs/38-BUBBLE-TRACE.md) records the hold as a decision rather
+than an oversight. **Delete it, including its own gate check and after moving
+its escaping cases into `BlackboxTest`, once `F-184` is confirmed by an export
+where `bubble.restored` reports the edge the bubble was parked at.**
 
 `check_wiring.py` exists because **four times** a feature was built, tested and
 never connected — the floating bubble's switch wrote a preference nothing read
@@ -77,9 +84,10 @@ value is that the user sees something, ask what else runs on that frame.**
 It checks seven shapes — unimported files, method-channel names against
 `MainActivity.kt` and `SwipHoverActivity.kt` in both directions, preference keys
 written but never read, widget callbacks that a widget invokes as `name?.call(`
-while no caller supplies one, the bubble's diameter against
-`swip_bubble_bg.xml`'s corner radius (which must stay exactly half, or the
-circle becomes a rounded square with nothing failing), `BubbleTrace.enabled()`
+while no caller supplies one, `swip_bubble_bg.xml` still declaring
+`android:shape="oval"` and no `<corners>` (`F-185` — this was a radius-versus-
+diameter comparison, and a shape cannot drift out of step with a number the way
+a radius can), `BubbleTrace.enabled()`
 still testing `FLAG_DEBUGGABLE`, and **a widget test that builds a capture with
 a category and never settles** — `F-180`, after the `_FoilCode` timer cost a
 third CI round. That last one discovers the animated widgets from the source
@@ -203,6 +211,17 @@ Each of these cost a broken build or a broken screen. Do not re-derive them.
 | **A gap in the middle of a family is the kind nobody finds by reading** | `pta` was missing from the handle map while `pty`, `ptys`, `ptsbi`, `ptaxis`, `pthdfc` and `ptyes` were all there — and `okbizaxis`/`okbizicici` were missing entirely, which is every Google Pay code in the corpus and therefore every code that carries an MCC. Fifty entries look exhaustive. `F-182` |
 | **No commercial API returns an MCC for a VPA** | Razorpay's `validate/vpa` returns a name and a boolean. The MCC lives in the acquirer's switch and reaches a phone only from the QR payload or the POS terminal. Also: **NPCI deprecated UPI Collect on 28 Feb 2026**, which was that endpoint's main customer — so it is built behind an injected transport and a 404 is treated as "no name". `docs/41` |
 | **CRED does not need a PSP licence to show a merchant name** | Resolving a VPA is a commercial API (Razorpay, Cashfree, Decentro, Juspay) sold to any business with KYC. No API returns the **MCC** — that lives in the acquirer's switch, which is why CRED writes *"may not"*. `F-157` |
+| **A rectangle whose corner radius is half its height is a circle only while it is square** | So `swip_bubble_bg` became a pill the moment anything widened the view — and what widened it was a label. The report *"it becomes a rounded rectangle"* was not about the drawable at all. An `oval` is round **by construction**; a radius has to be kept in agreement with a diameter forever. `F-185` |
+| **A gesture that puts something away must not also record where it lives** | `restY` was written on every `ACTION_MOVE`, so the drag onto the snooze target walked the remembered position down onto the target one frame at a time. `F-180` fixed the X and left the Y saying the same wrong thing more quietly. Capture the pre-drag position at `ACTION_DOWN`. `F-184` |
+| **A label that covers a slow start is a lie with a loading spinner's manners** | The bubble said *"Scanning…"* while the hovering window had not started, its engine had not started and the camera was half a second away. Covering that gap is reasonable; naming it something it is not is not. The owner caught it in one sentence. `F-185` |
+| **Haptics belong on the landing, not on the release** | Buzzing when the finger lifts is feedback about the finger, which the finger already knows. Buzzing when the bubble lands is feedback about the **bubble**, which by then is under a thumb and has no other way to be felt. On the spring's end listener, skipped when `canceled` — a cancelled snap is one the user grabbed again, and it never landed. `F-186` |
+| **A `DynamicAnimation` end listener has to remove itself, so it cannot be a lambda argument** | It needs its own identity to pass to `removeEndListener`, and the Java generic signature is not something to guess at. Hold the SAM conversion in a `var` declared one line above, assign it, then add it. `F-186` |
+| **A `MethodChannel` name held in an enum field is invisible to `check_wiring`** | Tidier code that switched off the gate: six handlers read as dead platform code. The check's constraint is *literals at the call site*, and that constraint is the feature — a name it cannot see is a name it cannot match against `MainActivity.kt`. Keep the literals in a `switch`, and write down why. `F-187` |
+| **Android routes the whole contactless field to exactly one app** | Not to whichever app is open — to whichever holds the *default contactless payment* slot. On any phone with Google Wallet set up, that is Wallet, and **SWIP never sees a byte**. `setPreferredService` wins only while SWIP's own screen is in front, which is exactly why some taps work and some do not. `F-55`/`F-56` found it; nothing recorded it **per tap** until `F-187`. [`docs/45`](docs/45-WHY-A-POS-TAP-FAILS.md) |
+| **A privacy rule enforced by a function signature survives a hurried edit; one written in a comment does not** | An APDU exchange is the one place a real merchant identifier lives (EMV `9F16`), and the black box is meant to be **exported and sent**. `TapTrace.tagFields` cannot emit a value because it is never handed one — and `TapTraceTest` proves it by feeding real-looking hex in and asserting none of it comes out. `F-187` |
+| **No app can measure its own milliamps** | Android exposes no per-app current draw, so a "battery black box" that claims one is fabricating. What a phone can honestly measure about itself is **duration** — which span was awake, for how long, and the battery level at each end. A sensor registered for six hours is a finding whether or not anyone can price it. `F-188` |
+| **iOS HCE is EEA-anchored, and that is a licence problem rather than an entitlement one** | Apple's NFC & SE Platform entitlement requires an agreement with Apple **and** a payment-services licence in the EEA. India is not in the EEA and SWIP deliberately does not touch money. Not a harder version of the Android work — a door with no handle on our side. [`docs/44` §3](docs/44-CAN-THIS-SHIP-TO-THE-APP-STORE.md) |
+| **iOS has no overlay API at all** | Not a permission to request, not a review to pass — the thing is absent. Widgets are on the home screen, Live Activities cannot open a camera, and Picture-in-Picture is a 2.5.1 rejection. Two of SWIP's three ways in are Android-only. [`docs/44` §4](docs/44-CAN-THIS-SHIP-TO-THE-APP-STORE.md) |
 
 **The recurring mistake, twice over: checking the source instead of the
 artifact.** Read the built thing, not the code that should have built it.
@@ -280,6 +299,9 @@ padding.** `docs/36` D-51.
 | **The whole stack, for explaining the app to a developer** | [`docs/40-WHAT-SWIP-IS-BUILT-WITH.md`](docs/40-WHAT-SWIP-IS-BUILT-WITH.md) |
 | **The Razorpay key: what it is, what it is not, how to set it up** | [`docs/41-RAZORPAY-EXPLAINED.md`](docs/41-RAZORPAY-EXPLAINED.md) |
 | **52 real market QRs, decoded, with the distribution** | [`docs/42-MARKET-QR-CORPUS.md`](docs/42-MARKET-QR-CORPUS.md) |
+| **The Razorpay key with the vocabulary removed** | [`docs/43-RAZORPAY-IN-PLAIN-WORDS.md`](docs/43-RAZORPAY-IN-PLAIN-WORDS.md) |
+| **Whether SWIP can ship to the App Store, and what dies there** | [`docs/44-CAN-THIS-SHIP-TO-THE-APP-STORE.md`](docs/44-CAN-THIS-SHIP-TO-THE-APP-STORE.md) |
+| **The seven ways a POS tap fails, and how to read the black box** | [`docs/45-WHY-A-POS-TAP-FAILS.md`](docs/45-WHY-A-POS-TAP-FAILS.md) |
 
 ---
 

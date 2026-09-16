@@ -1600,6 +1600,175 @@ button. And the bubble trace stays in until `F-180` is confirmed.
 
 ---
 
+## Prompt 49 — 16 Sep 2026 · The fan, the black boxes, and the App Store
+
+**You asked:** deep-dive the trace; stop the bubble becoming a rounded
+rectangle; explain the Razorpay key in plain language; replace the launcher
+tap with a two-option fan; find a foolproof way to tap a POS machine; build a
+POS black box and a battery black box with export buttons; add haptics at the
+edges; and answer whether this can ship to the App Store.
+
+### First — the trace found a real bug, and it was mine from last round
+
+`F-180` was **half a fix**, and your export is what proved it.
+
+Two lines in the file:
+
+```
+bubble.restored  x=18  y=1768
+bubble.restored  x=18  y=1753
+```
+
+Your screen is 2229 px tall and the snooze target sits at **y = 1770**. So the
+X was right — the bubble came back to the edge — and the Y was *the snooze
+target itself*. Ten minutes after putting it away, it came back where you had
+put it away, which is why it read as *"it moves to the centre"*.
+
+The mechanism: the remembered resting position was recorded from every
+`ACTION_MOVE`. So the drag that means *"put this away"* **also walked the
+remembered position down onto the target, one frame at a time**. `F-184`
+captures the Y at touch-down instead and restores that.
+
+This is the second round in a row where the trace file answered a question
+that reading the code had not. It is earning its keep.
+
+### The square bubble and the "Scanning…" label are the same thing
+
+You spotted two things and they turned out to be one.
+
+Tapping the bubble showed a word. To show a word, the view had to get wider —
+and the background was a **rectangle with a 28 dp corner radius**, which is a
+circle only while the view is square. Widen it and you get a pill. That is your
+rounded rectangle; it was never a styling choice.
+
+And the word was *"Scanning…"* while **nothing was scanning**. You were right
+to call that out. The hovering window had not started, its Flutter engine had
+not started, and the camera was still about half a second away. The label
+existed to cover that half second — a reasonable thing to want and a bad thing
+to lie about.
+
+So the label is gone, and with it the whole reason the shape could stretch. The
+drawable is now an **oval**: round because it is a circle, not because two
+numbers happen to agree.
+
+### The fan
+
+Tapping the bubble now opens two discs, 45 ms apart, and the glyph turns into
+a cross:
+
+* **Scan a code** — the camera, as before.
+* **Tap a card machine** — straight to the POS screen.
+
+SWIP has had two ways in since `F-140` and the bubble only ever offered one of
+them. [`docs/32`](32-FLOATING-BUBBLE.md) has the physics.
+
+### Razorpay, with the vocabulary removed
+
+[`docs/43`](43-RAZORPAY-IN-PLAIN-WORDS.md). The one-line version:
+
+**A key is a username and a password.** It lets SWIP phone a company and ask
+*"whose payment address is this?"*, so your ledger says shop names instead of
+thirty rows saying "Paytm". It is free, it takes five minutes, it is off until
+you turn it on, **use the test one**, and it has nothing to do with the
+category code.
+
+Your screenshot shows you already pressed **Test the key** and it answered:
+*"The key works."* That is the feature alive.
+
+### The POS black box, and the honest answer about "foolproof"
+
+> *"The major issue is that I don't know what the issue is."*
+
+**That is the actual problem**, and it is the same shape as the disappearing
+bubble: every way a tap can fail looks identical from outside.
+
+There are **seven** ways ([`docs/45`](45-WHY-A-POS-TAP-FAILS.md)), and four of
+them are your phone rather than the terminal:
+
+| | What went wrong | Fixable by you? |
+|---|---|---|
+| 1 | No NFC hardware | No |
+| 2 | NFC switched off | **Yes** |
+| 3 | **SWIP is not the default contactless payment app** | **Yes** |
+| 4 | Screen off or phone locked | **Yes** |
+| 5 | The terminal never sent a `SELECT` we know | No |
+| 6 | It selected us and never asked for options | Hold it longer |
+| 7 | It answered and every value was padding | No |
+
+**Number 3 is almost certainly yours.** *"Some happen to be successful, and a
+few fail"* is exactly what that looks like: Android routes the entire
+contactless field to **one** app, and on a phone with Google Wallet set up that
+is Wallet. SWIP only wins while its own screen is in front. Lock the phone,
+switch apps, let the screen dim — the routing goes back and SWIP never sees a
+byte.
+
+So: **Settings → Diagnostics → POS tap black box**, debug builds only. Clear
+it, then tap two or three machines — *a failure next to a success is worth far
+more than a failure alone*. The line to read first is `nfc.state`, and
+`isDefaultPayment: false` is your answer if it is there.
+
+**What is deliberately not in that file: any value from the exchange.** An APDU
+is the one place a real merchant identifier lives, and these files are meant to
+be sent to me. It records tag names and lengths, and there is a JVM test that
+feeds it real-looking data and asserts none of it comes back out.
+
+### The battery black box
+
+**Settings → Diagnostics → Battery black box.** Five named spans — the bubble
+service, the shake sensor, the overlay window, the NFC listener, the hovering
+engine — each with how long it was awake and the battery level at both ends.
+
+One thing to be straight about: **no app can measure its own milliamps.**
+Android does not expose that. What this measures is **duration**, which is the
+thing you can actually act on — a sensor that stayed registered for six hours
+is a finding whether or not anyone can price it.
+
+### Haptics
+
+A tick when the bubble **lands** at an edge, not when your finger lifts.
+Buzzing on release is feedback about the finger, which the finger already
+knows. Buzzing on the landing is feedback about the bubble — which by then is
+off under your thumb and has no other way to be felt.
+
+### The App Store
+
+[`docs/44`](44-CAN-THIS-SHIP-TO-THE-APP-STORE.md). The verdict:
+
+**Yes it can ship, and about half of it will not work — permanently, for
+reasons Apple controls.**
+
+* **Tap a card machine: impossible.** Apple opened NFC to third parties, but it
+  needs an Apple agreement, an NFC & SE Platform entitlement, **and a payment
+  services licence in the EEA**. India is not in the EEA and SWIP is not a
+  payments provider.
+* **The floating bubble: impossible.** iOS has no overlay API at all. Not a
+  permission to request — the thing does not exist.
+* Scanning, the ledger, the exports, the backup, the themes: all fine.
+
+So on iOS, SWIP is *a QR scanner with a good ledger*. The pitch said "flexible
+for any app store" and the architecture honours it — nothing needs rewriting.
+**What cannot be flexible is a platform's refusal.** Ship Android first, not
+because iOS is hard but because iOS cannot carry the product.
+
+### The ritual
+
+Three exports, all `.jsonl`, all debug-only, none containing anything you
+captured:
+
+| | Where |
+|---|---|
+| Bubble trace | Settings → Scan from anywhere → Bubble trace |
+| POS tap black box | Settings → Diagnostics |
+| Battery black box | Settings → Diagnostics |
+
+**Still open:** `F-184` needs one more export to confirm — put the bubble away
+by dragging it to the target, wait ten minutes, and send me the file. If
+`bubble.restored` comes back at the edge you last parked it at rather than at
+the target, that is the fix confirmed and **the bubble trace comes out of the
+build** ([`docs/38`](38-BUBBLE-TRACE.md) §8).
+
+---
+
 <!--
 Template:
 

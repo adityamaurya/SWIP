@@ -178,6 +178,9 @@ class SwipHoverActivity : FlutterFragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         BubbleTrace.log(this, "hover.create")
+        // `F-188`. A second Flutter engine and a camera, in one window.
+        // The most expensive thing SWIP ever does, and the shortest-lived.
+        PowerTrace.awake(this, "engine")
 
         // `F-177`. Kill the system's activity-open animation.
         //
@@ -285,6 +288,7 @@ class SwipHoverActivity : FlutterFragmentActivity() {
     }
 
     override fun onDestroy() {
+        PowerTrace.asleep(this, "engine")
         BubbleTrace.log(this, "hover.destroy")
         // Belt as well as braces: `onPause` has already cleared this in every
         // ordinary path, and a process torn down between the two would leave

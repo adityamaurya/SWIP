@@ -28,17 +28,18 @@ So this checks the wires themselves, in the three shapes the project uses:
      `MainActivity.kt` or `SwipHoverActivity.kt`, or a handler nothing calls;
   3. a `SharedPreferences` key written but never read, or read but never
      written;
-  4. the bubble's diameter and its background's corner radius drifting apart;
-  5. the temporary bubble trace losing its "debug builds only" gate.
+  4. `swip_bubble_bg.xml` no longer being an `oval`;
+  5. either flight recorder losing its "debug builds only" gate.
 
 The fourth is a different animal from the first three and belongs here for the
-same reason they do. `swip_bubble_bg.xml` is a rounded rectangle whose radius
-is exactly **half** the bubble's size — that is what makes the collapsed state
-a true circle and the expanded state a true pill, with no code choosing between
-them. Change one number and nothing fails: the build is green, every test
-passes, and the bubble quietly becomes a rounded square. `F-170` moved both
-from 48/24 to 56/28, and the only thing that would have caught a half-done
-version of that is this.
+same reason they do. This used to compare the bubble's diameter against the
+background's corner radius, which had to stay exactly **half** of it or the
+circle became a rounded square with nothing failing. `F-185` deleted the label
+that could widen the view, so the drawable became a true `oval` and the rule
+got stronger: **a shape cannot drift out of step with a number the way a radius
+can.** What is checked now is that nobody turns it back into a rectangle, and
+that an oval does not also declare `<corners>` — which Android ignores, leaving
+the file saying two different things with only one of them true.
 
 Exceptions are declared below **with a reason**, because "known and accepted"
 and "nobody noticed" look identical from the outside, and the whole point of
@@ -74,6 +75,11 @@ KOTLIN_HOVER = ROOT / "android/app/src/main/kotlin/in/swip/app/SwipHoverActivity
 BUBBLE_KT = ROOT / "android/app/src/main/kotlin/in/swip/app/SwipBubbleService.kt"
 BUBBLE_BG = ROOT / "android/app/src/main/res/drawable/swip_bubble_bg.xml"
 TRACE_KT = ROOT / "android/app/src/main/kotlin/in/swip/app/BubbleTrace.kt"
+
+# `F-187`. The other two recorders — the POS black box and the battery
+# black box — share one gate, and unlike the trace above they are meant to
+# stay. So this one outlives `TRACE_KT` and `check_trace_gate` with it.
+BLACKBOX_KT = ROOT / "android/app/src/main/kotlin/in/swip/app/Blackbox.kt"
 
 # ── declared exceptions ─────────────────────────────────────────────────
 #
@@ -404,6 +410,47 @@ def check_trace_gate() -> list[str]:
     return []
 
 
+def check_blackbox_gate() -> list[str]:
+    """`F-187`. The **permanent** recorders must stay impossible to ship.
+
+    `Blackbox.tap` records every POS tap and `Blackbox.power` every wake span.
+    Unlike the bubble trace these are not temporary — they are the owner's
+    standing three-export ritual — which makes this the check that matters more
+    of the two, because it is the one nobody will ever come back and delete.
+
+    The stakes are higher here as well. The bubble trace records window
+    lifecycle; the POS recorder sits next to an APDU exchange, which is the one
+    place in SWIP where a real merchant identifier lives. `TapTrace` is written
+    so it cannot emit a value, and `TapTraceTest` proves that — but a release
+    build that records nothing at all is a second, independent guarantee, and
+    two independent guarantees is the right number for a file meant to be
+    exported and sent.
+
+    Deliberately separate from `check_trace_gate` rather than folded into it:
+    `docs/38` §4 step 9 deletes that one along with `BubbleTrace`, and a shared
+    function would take this with it. The duplication is the point.
+    """
+    if not BLACKBOX_KT.exists():
+        return ["Blackbox.kt is gone. If the recorders were deliberately "
+                "removed, delete this check too (a rule guarding a file that "
+                "does not exist stops meaning anything). If not, this is the "
+                "POS and battery black boxes disappearing silently."]
+
+    text = BLACKBOX_KT.read_text(encoding="utf-8")
+    gate = re.search(r"fun enabled\([^)]*\)[^\n]*=\s*\n?([^\n]*\n[^\n]*)",
+                     text)
+    if gate is None:
+        return ["Blackbox.enabled() is not where it was — the check that keeps "
+                "the POS and battery recorders out of a release build can no "
+                "longer see it. Fix this check rather than removing it."]
+    if "FLAG_DEBUGGABLE" not in gate.group(1):
+        return ["Blackbox.enabled() no longer tests FLAG_DEBUGGABLE. The POS "
+                "tap recorder sits next to an APDU exchange and would start "
+                "writing on Play Store users' phones, and nothing else would "
+                "fail. See docs/45-WHY-A-POS-TAP-FAILS.md."]
+    return []
+
+
 # ── 7. a widget test that renders a category, and never lets it finish ───────
 #
 # `F-180`. This is the third time the same test has been written wrong, and the
@@ -523,6 +570,7 @@ def check_test_settles() -> list[str]:
 def main() -> int:
     problems = (check_unimported() + check_channel() + check_prefs()
                 + check_callbacks() + check_bubble_radius() + check_trace_gate()
+                + check_blackbox_gate()
                 + check_test_settles())
     if problems:
         print("WIRING PROBLEMS\n")

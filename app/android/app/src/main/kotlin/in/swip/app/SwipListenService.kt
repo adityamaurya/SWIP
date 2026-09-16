@@ -134,9 +134,38 @@ class SwipListenService : HostApduService() {
     /** `F-143`. Whether the terminal got as far as selecting one of our AIDs. */
     private var selected = false
 
+    /**
+     * `F-187`. Whether this tap has already been opened in the black box.
+     *
+     * `HostApduService` has no "a field appeared" callback — only APDUs and a
+     * deactivation — so the first command of an exchange has to stand in for
+     * one. Cleared in [onDeactivated], which is the only honest end of a tap.
+     */
+    private var fieldOpen = false
+
     override fun processCommandApdu(apdu: ByteArray?, extras: Bundle?): ByteArray {
-        if (apdu == null || apdu.size < 4) return SW_INS_NOT_SUPPORTED
+        // `F-187`. The first APDU of a tap is the only moment SWIP can prove
+        // the field reached it at all — and the absence of this line is the
+        // single most informative thing the black box can record, because it
+        // means the routing sent the terminal somewhere else.
+        if (!fieldOpen) {
+            fieldOpen = true
+            TapTrace.snapshot(this, "field")
+            TapTrace.log(this, "hce.field")
+        }
+
+        if (apdu == null || apdu.size < 4) {
+            TapTrace.log(this, "hce.apdu.short", "bytes" to (apdu?.size ?: 0))
+            return SW_INS_NOT_SUPPORTED
+        }
         trace.append("<< ").append(apdu.toHex()).append('\n')
+        // Class, instruction and length. **Not the body** — see `TapTrace`.
+        TapTrace.log(
+            this, "hce.apdu",
+            "cla" to "%02X".format(apdu[0]),
+            "ins" to "%02X".format(apdu[1]),
+            "bytes" to apdu.size,
+        )
 
         return when {
             isSelect(apdu) -> handleSelect(apdu)
@@ -161,10 +190,17 @@ class SwipListenService : HostApduService() {
         val name = apdu.copyOfRange(5, 5 + lc)
 
         return if (String(name, Charsets.US_ASCII) == PPSE) {
+            // `F-140`: without the PPSE AID registered, a tap does nothing at
+            // all. This line is the proof that it is registered and working.
+            TapTrace.log(this, "hce.select.ppse")
             ppseResponse() + SW_OK
         } else {
             // Any AID we advertised: reply with the FCI carrying the PDOL.
             selected = true
+            // The AID is a scheme identifier — Visa, Mastercard, RuPay — and
+            // not merchant data, so it is safe and it is worth having: which
+            // scheme the terminal picked explains a lot about what follows.
+            TapTrace.log(this, "hce.select.aid", "aid" to name.toHex())
             fciWithPdol(name) + SW_OK
         }
     }
@@ -186,7 +222,19 @@ class SwipListenService : HostApduService() {
             } else {
                 body
             }
-            emit(slicePdol(values), REASON_READ)
+            val sliced = slicePdol(values)
+            TapTrace.log(
+                this, "hce.gpo",
+                "bytes" to values.size,
+                // Failure 7 in `TapTrace`'s list, and the hardest to see: the
+                // exchange worked perfectly and every value was padding, so
+                // `slicePdol` dropped them all and there is nothing to show.
+                "kept" to sliced.size,
+            )
+            TapTrace.tags(this, "hce.tags", sliced)
+            emit(sliced, REASON_READ)
+        } else {
+            TapTrace.log(this, "hce.gpo.empty", "lc" to lc, "bytes" to apdu.size)
         }
 
         // Decline. Nothing is authorised, no cryptogram is produced, and the
@@ -324,12 +372,44 @@ class SwipListenService : HostApduService() {
      * can ever show how often it happens.
      */
     override fun onDeactivated(reason: Int) {
+        val outcome = when {
+            emitted -> REASON_READ
+            selected -> REASON_NO_GPO
+            else -> REASON_NO_SELECT
+        }
+        // `F-187`. The last line of every tap, and the one to read first.
+        //
+        // `reason` is Android's: `DEACTIVATION_LINK_LOSS` (0) means the phone
+        // was moved away, `DEACTIVATION_DESELECTED` (1) means the terminal
+        // ended the conversation deliberately. A `no_gpo` that ends in link
+        // loss is somebody lifting the phone too early; a `no_gpo` that ends
+        // in a deselect is the terminal choosing not to continue, which is a
+        // completely different thing to go and fix.
+        TapTrace.log(
+            this, "hce.end",
+            "outcome" to outcome,
+            "androidReason" to reason,
+            // Fully qualified, and that is not style. **Kotlin does not bring
+            // a Java superclass's static fields into scope**, so the bare
+            // `DEACTIVATION_LINK_LOSS` a Java author would write here does not
+            // compile — `CLAUDE.md` records the same trap costing a build on
+            // `Activity.OVERRIDE_TRANSITION_OPEN`.
+            "why" to when (reason) {
+                android.nfc.cardemulation.HostApduService.DEACTIVATION_LINK_LOSS ->
+                    "moved away"
+                android.nfc.cardemulation.HostApduService.DEACTIVATION_DESELECTED ->
+                    "terminal ended it"
+                else -> "unknown"
+            },
+        )
+
         if (!emitted) {
             emit(emptyMap(), if (selected) REASON_NO_GPO else REASON_NO_SELECT)
         }
         trace.setLength(0)
         emitted = false
         selected = false
+        fieldOpen = false
     }
 
     private fun ByteArray.toHex() =

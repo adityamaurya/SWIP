@@ -1244,8 +1244,10 @@ class SwipBubbleService : Service() {
 
         if (!on) {
             runCatching { sensors?.unregisterListener(shakeListener) }
+            PowerTrace.asleep(this, "sensor")
             return
         }
+        PowerTrace.awake(this, "sensor")
 
         val manager = sensors
             ?: (getSystemService(Context.SENSOR_SERVICE) as? SensorManager)
@@ -1339,6 +1341,10 @@ class SwipBubbleService : Service() {
     override fun onCreate() {
         super.onCreate()
         BubbleTrace.log(this, "service.create")
+        // `F-188`. The two long spans are the ones worth watching: they
+        // are the only subsystems meant to last hours, which makes them
+        // the only ones where "too long" is invisible.
+        PowerTrace.awake(this, "service")
         windows = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
         // Seeded, not assumed. A service started while the screen is off (a
@@ -1418,6 +1424,8 @@ class SwipBubbleService : Service() {
         // Before `running` is cleared, so the line records the state it died
         // in rather than the state it was being put into.
         BubbleTrace.log(this, "service.destroy", "wanted" to isWanted(this))
+        PowerTrace.asleep(this, "overlay")
+        PowerTrace.asleep(this, "service")
         running = false
         // Before anything else: an accelerometer listener that outlives its
         // service is a leak the system logs and nobody reads.
@@ -1641,6 +1649,10 @@ class SwipBubbleService : Service() {
 
         if (!visible) {
             cancelMotion()
+            // `F-188`. A hidden overlay is not composited, so the span ends
+            // here rather than when the service stops. Most of a day's
+            // "bubble is running" is actually screen-off.
+            PowerTrace.asleep(this, "overlay")
             // `F-185`. The fan lives in its own windows, so hiding the bubble
             // does not hide them — they would be left floating over the app
             // with the thing that owns them gone. Every reason to hide is also
@@ -1666,6 +1678,7 @@ class SwipBubbleService : Service() {
         }
 
         view.visibility = View.VISIBLE
+        PowerTrace.awake(this, "overlay")
         // Set directly, not sprung: this is the *start* of the pop, and a
         // spring cannot be told where to begin — only where to end. Cancelling
         // first because writing a property a running animation owns is
@@ -1680,25 +1693,30 @@ class SwipBubbleService : Service() {
     // ── the bubble itself ───────────────────────────────────────────────────
 
     /**
-     * `F-158`. The shape is taken from the assistant overlay in the owner's
-     * PDF (pages 22-24): a small circle parked against the screen edge that
-     * **expands into a pill** when it has something to say, then settles back.
+     * `F-158`, rewritten by `F-185`. The shape is taken from the assistant
+     * overlay in the owner's PDF (pages 22-24): a small disc parked against
+     * the screen edge.
      *
-     * ## Why a horizontal `LinearLayout` and not a `FrameLayout`
+     * ## It used to be able to become a pill. It cannot any more.
      *
-     * Because the circle and the pill have to be **the same view at two
-     * widths**, and that only works if the width is measured rather than set.
-     * The window is `WRAP_CONTENT`; a 38 dp disc between two 9 dp pads
-     * measures to exactly the 56 dp minimum, so it is a circle. Show the
-     * label and the same measure pass makes it a pill. Nothing computes a
-     * width, nothing animates one, and there is no state that can disagree
-     * with what is on screen.
+     * The PDF's overlay expands into a pill when it has something to say, and
+     * this was built that way: a horizontal `LinearLayout` in a
+     * `WRAP_CONTENT` window, so the circle and the pill were **the same view
+     * at two widths**, measured rather than computed. A 38 dp disc between two
+     * 9 dp pads measures to exactly the 56 dp minimum — a circle — and showing
+     * a label made the same measure pass produce a pill.
      *
-     * A `FrameLayout` stacks its children, so the label would have been drawn
-     * **on top of** the glyph inside an unchanged circle. That was the first
-     * version of this method and it would have shipped as a smudge.
+     * That was elegant and it was the bug. The only thing the pill ever said
+     * was *Scanning…*, on a tap, before anything was scanning, and what the
+     * owner saw was the shape: *"it should be circle only not become rounded
+     * rectangle"*. [openFan] does the acknowledging now, so the label is gone
+     * and **this row has exactly one child**.
      *
-     * ## The size, and the one number that has to move with it
+     * The `LinearLayout` stays — a `FrameLayout` would do as well today, and
+     * swapping it buys nothing while costing the `gravity` and padding
+     * behaviour that is already correct.
+     *
+     * ## The size
      *
      * `F-170` — *"can you make sure that you increase the size a bit"*. 48 dp
      * to **56 dp**, which is Material's FAB diameter: the size Android itself
@@ -1707,14 +1725,16 @@ class SwipBubbleService : Service() {
      * touch target — correct as a floor, too small for the one control that
      * has to be findable over somebody else's app.
      *
-     * **The corner radius in `swip_bubble_bg.xml` is half of [size] and has to
-     * be changed with it.** That is what makes the square case a true circle;
-     * left at 24 dp on a 56 dp bubble it would be a rounded square, and
-     * nothing would fail — it would just quietly stop being round.
+     * **There is no longer a second number to keep in step with it.**
+     * `swip_bubble_bg.xml` used to be a rectangle with a corner radius of
+     * exactly half [size]; change one and nothing failed, the bubble just
+     * quietly became a rounded square. It is an `oval` now, so it is round
+     * whatever the view measures to, and `check_wiring.py` checks the shape
+     * rather than the arithmetic.
      *
      * Built in code rather than inflated from a layout because it is one row
-     * with two children, and a layout file for that is a second place to keep
-     * in sync for no benefit.
+     * with one child, and a layout file for that is a second place to keep in
+     * sync for no benefit.
      */
     @SuppressLint("ClickableViewAccessibility")
     private fun buildBubble(): View {

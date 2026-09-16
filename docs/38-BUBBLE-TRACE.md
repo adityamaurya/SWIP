@@ -36,7 +36,7 @@ APK and **absent from anything signed for release**.
 
 * The debug APK CI builds records everything.
 * A Play Store build records nothing, and
-  [`BubbleTracePage.traceEnabled`](../app/lib/features/bubble/bubble_trace_page.dart)
+  [`BlackboxPage.available`](../app/lib/features/bubble/blackbox_page.dart)
   answers `false`, so the Settings row is never drawn. The entry point does not
   exist rather than existing and being empty.
 
@@ -121,14 +121,14 @@ When the cause is found, in this order:
 | # | Do |
 |---|---|
 | 1 | Delete [`BubbleTrace.kt`](../app/android/app/src/main/kotlin/in/swip/app/BubbleTrace.kt) |
-| 2 | Delete [`BubbleTraceTest.kt`](../app/android/app/src/test/kotlin/in/swip/app/BubbleTraceTest.kt) |
-| 3 | Delete [`bubble_trace_page.dart`](../app/lib/features/bubble/bubble_trace_page.dart) |
+| 2 | **Move its eleven escaping cases into [`BlackboxTest.kt`](../app/android/app/src/test/kotlin/in/swip/app/BlackboxTest.kt) first**, then delete [`BubbleTraceTest.kt`](../app/android/app/src/test/kotlin/in/swip/app/BubbleTraceTest.kt). `BlackboxTest` asserts the format **by comparison** against `BubbleTrace.formatLine` — delete one side and the other stops testing anything, silently |
+| 3 | Remove `Blackbox.bubble` from [`blackbox_page.dart`](../app/lib/features/bubble/blackbox_page.dart) — **the file itself stays**, `F-187` gave it two more recorders |
 | 4 | Remove the three `trace*` cases from [`MainActivity.kt`](../app/android/app/src/main/kotlin/in/swip/app/MainActivity.kt) |
 | 5 | Remove the `_traceAvailable` field, the `BubbleTracePage.traceEnabled()` call and the `if (_traceAvailable)` block from [`bubble_settings.dart`](../app/lib/features/bubble/bubble_settings.dart) |
 | 6 | Remove the `group('the temporary bubble trace'…)` and the `traceEnabled` mock from [`bubble_settings_test.dart`](../app/test/bubble_settings_test.dart) |
 | 7 | Delete every `BubbleTrace.log(` call — `SwipBubbleService.kt`, `SwipHoverActivity.kt`, `SwipBootReceiver.kt`, `SwipTile.kt`, `MainActivity.kt` |
 | 8 | Delete `traceVisibility` and `lastTrace` from `SwipBubbleService.kt` |
-| 9 | Delete `check_trace_gate` and `TRACE_KT` from [`check_wiring.py`](../app/tool/check_wiring.py), and its line from that file's docstring |
+| 9 | Delete `check_trace_gate` and `TRACE_KT` from [`check_wiring.py`](../app/tool/check_wiring.py). **Leave `check_blackbox_gate` and `BLACKBOX_KT` alone** — they guard the two recorders that stay, and they are written as a separate function precisely so this step cannot take them |
 | 10 | Delete [`tool/read_trace.py`](../app/tool/read_trace.py) — the reader is half of the same tool |
 | 11 | Delete this page, and its rows in `docs/35` and `CLAUDE.md` |
 
@@ -283,10 +283,27 @@ none of them can be tested on a CI machine with no screen. Removing the only
 instrument that can read the result, in the same round as the fix, would mean
 the next report is a description again.
 
-So: **the trace comes out once `F-180` is confirmed in a second export**, on
+### And the second export found the next one
+
+The prompt-49 export was that file, and it did **not** confirm `F-180`. It
+showed `bubble.restored x=18, y=1768` and `y=1753` on a 2229 px screen whose
+snooze target sits at **1770** — the X correct, the Y on the target. `F-180`
+had fixed half of it: `restY` was still being written on every `ACTION_MOVE`,
+so the drag onto the target walked the remembered position down onto the target
+one frame at a time. `F-184` captures the Y at touch-down instead.
+
+That is twice in a row that an export has found the thing after the thing.
+**Which is the argument for the trace rather than against it** — each of those
+faults is invisible while the window is hidden and reads, on the next
+appearance, as a description of a feeling.
+
+So: **the trace comes out once `F-184` is confirmed in a further export**, on
 the same terms — a file showing `bubble.restored` landing at the edge the
-bubble was dragged to, not at bottom-centre. §4's eleven steps are unchanged
-and this section goes with them.
+bubble was parked at before the snooze drag began. §4's eleven steps are
+unchanged except step 2, which now moves the escaping cases into `BlackboxTest`
+before deleting them, and this section goes with them.
 
 Nothing is at risk in the meantime: it cannot reach a Play Store build (§2),
-and `check_wiring.py` fails if that gate is weakened.
+and `check_wiring.py` fails if that gate is weakened. `F-187` added a second,
+separate gate check for `Blackbox` — the recorders that stay — so step 9 cannot
+take the guarantee out along with this one.

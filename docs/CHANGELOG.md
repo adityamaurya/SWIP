@@ -1889,7 +1889,7 @@ both a white app and a black one, and the shadow was never what carried it.
 |---|---|
 | [`BubbleTrace.kt`](../app/android/app/src/main/kotlin/in/swip/app/BubbleTrace.kt) | **New, temporary.** The recorder |
 | [`BubbleTraceTest.kt`](../app/android/app/src/test/kotlin/in/swip/app/BubbleTraceTest.kt) | **New, temporary.** The line format |
-| [`bubble_trace_page.dart`](../app/lib/features/bubble/bubble_trace_page.dart) | **New, temporary.** Read, export, clear |
+| `bubble_trace_page.dart` (renamed to [`blackbox_page.dart`](../app/lib/features/bubble/blackbox_page.dart) by `F-187`) | **New, temporary.** Read, export, clear |
 | [`SwipHoverActivity.kt`](../app/android/app/src/main/kotlin/in/swip/app/SwipHoverActivity.kt) | The lifecycle fix and the transition kill |
 | [`SwipBubbleService.kt`](../app/android/app/src/main/kotlin/in/swip/app/SwipBubbleService.kt) | `traceVisibility`, and `from:` on every state-changing call |
 | [`hover_scan.dart`](../app/lib/features/bubble/hover_scan.dart) | No slide, no elevation, a softer scrim |
@@ -2253,6 +2253,73 @@ scuffed modules, and onion skins over the data area.
 
 Whether a `rzp_test_` key reaches `validate/vpa` — razorpay.com is blocked from
 this environment, so the app's own "Test the key" button is the instrument.
+
+---
+
+## Prompt 49 — 16 Sep 2026 · The fan, the black boxes, and the App Store
+
+### Screens changed
+
+| ID | Screen | Change | Serves |
+|---|---|---|---|
+| — | Floating bubble | Tap opens a **two-option fan** (scan a code · tap a card machine); the glyph becomes a cross. The `Scanning…` label is deleted | prompt 49 |
+| — | Floating bubble | Always a circle — the background is an `oval`, not a rectangle with a radius | prompt 49 |
+| `S-07` | Settings | **New Diagnostics section** — POS tap black box, Battery black box. Debug builds only | prompt 49 |
+| — | Bubble trace | Renamed **Black box**, now one screen serving three recorders | prompt 49 |
+
+### Code
+
+| File | Change |
+|---|---|
+| `SwipBubbleService.kt` | `F-184` — `preDragY` captured at `ACTION_DOWN`; `swallow()` restores that rather than the position the snooze drag walked into the target |
+| `SwipBubbleService.kt` | `F-185` — `openFan` / `closeFan` / `buildFanItem` / `openTapScreen`, a 6 s idle timeout, 68 dp spacing, 45 ms stagger. **Deleted**: `peek()`, `reanchor()`, the `settle` runnable, the label `TextView` |
+| `SwipBubbleService.kt` | `F-186` — a `CLOCK_TICK` on the edge spring's end listener, skipped on cancel |
+| `SwipBubbleService.kt` | `F-188` — `PowerTrace` spans for the service, the shake sensor and the overlay window |
+| `swip_bubble_bg.xml` | `android:shape="oval"`, `<corners>` removed |
+| **`swip_fan_qr.xml` · `swip_fan_pos.xml` · `swip_fan_close.xml`** | **New.** The fan's three glyphs |
+| **`Blackbox.kt`** | **New.** The recorder core, named so there can be more than one. `tap` and `power`; `FLAG_DEBUGGABLE` gate; 512 KB trim on a line boundary |
+| **`TapTrace.kt`** | **New.** The POS recorder. `log`, `tags` (names and lengths **only**, via the pure `tagFields`), and `snapshot` — the six facts that decide whether a tap can work at all |
+| **`PowerTrace.kt`** | **New.** Awake/asleep spans with `elapsedRealtime` and the battery level at each end |
+| `SwipListenService.kt` | Instrumented end to end: `hce.field`, `hce.apdu`, `hce.select.ppse`, `hce.select.aid`, `hce.gpo`, `hce.tags`, `hce.end` with the Android deactivation reason |
+| `MainActivity.kt` | `tapTraceDump` / `tapTraceClear` / `powerTraceDump` / `powerTraceClear`; `TapTrace.snapshot` on every listen; `PowerTrace` around the NFC listener |
+| `SwipHoverActivity.kt` | `PowerTrace` around the second Flutter engine |
+| **`blackbox_page.dart`** | **New**, replacing `bubble_trace_page.dart`. One screen, three boxes, channel names kept as literals at the call site so `check_wiring` can still see them |
+| `settings_page.dart` | The Diagnostics section, behind `BlackboxPage.available()` |
+| `bubble_settings.dart` | Points at the shared screen |
+| `check_wiring.py` | The bubble-radius rule becomes a **shape** rule — `oval`, and no `<corners>` |
+| **`BlackboxTest.kt`** | **New.** Four cases plus a **drift check** against `BubbleTrace.formatLine`, and an assertion that the three recorders write to three different files |
+| **`TapTraceTest.kt`** | **New.** Five cases. The one that matters feeds `tagFields` real-looking hex — a merchant name, a merchant ID — and asserts **none of it comes back out** |
+
+### Docs
+
+| File | |
+|---|---|
+| **[`43-RAZORPAY-IN-PLAIN-WORDS.md`](43-RAZORPAY-IN-PLAIN-WORDS.md)** | **New.** The same facts as `41` with the vocabulary removed. A key is a username and a password |
+| **[`44-CAN-THIS-SHIP-TO-THE-APP-STORE.md`](44-CAN-THIS-SHIP-TO-THE-APP-STORE.md)** | **New.** Yes, and about half of it will not work. iOS HCE is EEA-anchored; iOS has no overlay API at all |
+| **[`45-WHY-A-POS-TAP-FAILS.md`](45-WHY-A-POS-TAP-FAILS.md)** | **New.** The seven failure modes, why number 3 is the intermittent one, and how to read the black box |
+| [`38-BUBBLE-TRACE.md`](38-BUBBLE-TRACE.md) | Relinked to `blackbox_page.dart`; the removal list now says *remove `Blackbox.bubble`*, the file itself stays |
+| [`CLAUDE.md`](../CLAUDE.md) | New facts, three index rows |
+
+### What the trace found
+
+**`F-180` was half a fix.** `bubble.restored` at `y=1768` and `y=1753` on a
+2229 px screen whose snooze target sits at **1770**. The X was the edge; the Y
+was the target. `restY` was recorded from `ACTION_MOVE`, so the drag onto the
+target **walked the remembered position down onto the target one frame at a
+time** — the gesture meaning *"put this away"* also said *"and remember this is
+where it lives"*.
+
+**The square bubble and the `Scanning…` label are one mechanism.** A
+`WRAP_CONTENT` row widened by a visible `TextView`, over a `rectangle` whose
+corner radius is a circle only while the view is square. Deleting the label is
+what let the drawable become an `oval`.
+
+### Open
+
+`F-184` needs a second export: drag the bubble to the snooze target, wait ten
+minutes, and check that `bubble.restored` reports the edge it was parked at
+rather than the target. That is also the remaining condition for deleting the
+bubble trace — [`38` §8](38-BUBBLE-TRACE.md).
 
 ---
 

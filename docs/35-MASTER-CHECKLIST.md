@@ -280,9 +280,9 @@ the live docs, then wire a key.
 | Cashback-arbitrage donation mechanism | 29 | 🚫 **declined** — [`27` §3](27-DONATIONS.md) |
 | A plan to avoid GST | 29 | 🚫 **declined**; the accurate position given instead |
 
-### 4.5b The floating bubble and the hovering scanner — prompts 36–40
+### 4.5b The floating bubble and the hovering scanner — prompts 36 onward
 
-Kept together because they are one feature built over five rounds, and because
+Kept together because they are one feature built over many rounds, and because
 four of the entries below are things that were **already built and not
 connected**. That count is the reason `check_wiring.py` exists and keeps
 growing.
@@ -332,14 +332,26 @@ growing.
 | A non-intrusive result instead of full screen | 41 | ✅ `F-175` — for the two live vectors only |
 | Split the CTA into *View all* and *Tap POS* | 41 | ✅ `F-175` |
 | *Tap POS* reaches the in-app POS screen | 41 | ✅ `F-175` — a push in the app, and bringing the app forward from the hovering card |
+| Deep-dive the new trace for any bug | 49 | ✅ `F-184` — it found one: `F-180` fixed the X and left the Y saying the same wrong thing more quietly |
+| Stop the bubble becoming a rounded rectangle | 49 | ✅ `F-185` — the shape stretched because a label made it wider; the label is gone and the drawable is an `oval` |
+| The launcher icon "is not bouncy enough" | 49 | ✅ `F-185` — a spring-driven fan rather than a bigger press animation |
+| *"It opens as something called 'scanning.' It's actually not scanning, right?"* | 49 | ✅ Correct, and it never was. The label covered the half second before the engine started, which is a bad thing to lie about |
+| Two options on tap: the QR and the POS | 49 | ✅ `F-185` — staggered 45 ms, with the glyph becoming a cross |
+| Haptic feedback at the edges | 49 | ✅ `F-186` — on the spring's landing, not on the finger's release |
+| Explain the Razorpay key in plain language | 49 | ✅ [`43`](43-RAZORPAY-IN-PLAIN-WORDS.md) — the same facts as `41` with the vocabulary removed |
+| A foolproof way to tap a POS machine | 49 | ✅ as far as one exists — [`45` §2](45-WHY-A-POS-TAP-FAILS.md). **Three of the seven failures are one Android setting**; the other three are somebody else's hardware |
+| A POS black box with an export button | 49 | ✅ `F-187` — Settings → Diagnostics, debug builds only |
+| A battery black box | 49 | ✅ `F-188` — five named spans. **Duration, not milliamps** — no app can measure its own current |
+| Can this ship to the iOS App Store? | 49 | ✅ [`44`](44-CAN-THIS-SHIP-TO-THE-APP-STORE.md) — yes, and two of the three capture vectors will never work there |
+| The three-export ritual | 49 | ✅ bubble trace, POS black box, battery black box — one screen, three boxes, all `.jsonl` |
 
 ### 4.6 Cannot be done
 
 | Ask | Why |
 |---|---|
 | Scrape the LinkedIn profile photo | Behind an auth wall. The colophon falls back to a monogram; dropping `brand/avatar.jpg` into `/brand/` fixes it |
-| NFC "Tap POS" on iOS | Apple does not expose the EMV kernel to third parties. [`31` §2.1](31-IOS-AND-IPA.md) |
-| Floating bubble on iOS | No overlay API exists |
+| NFC "Tap POS" on iOS | Apple's HCE entitlement is **EEA-anchored** and needs an EEA payment-services licence. India is not in the EEA. [`44` §3](44-CAN-THIS-SHIP-TO-THE-APP-STORE.md), [`31` §2.1](31-IOS-AND-IPA.md) |
+| Floating bubble on iOS | **No overlay API exists** — not a permission to request, the thing is absent. [`44` §4](44-CAN-THIS-SHIP-TO-THE-APP-STORE.md) |
 | MCC from a VPA lookup | Not exposed by any public or commercial API — §3.3 |
 | Read the **first** 40-page PDF | The container was reclaimed and the upload was gone. **This one arrived and was read in full** |
 
@@ -355,8 +367,12 @@ money, or is deliberately held.
 | Display serif | Held as its own commit so a bad outcome is bisectable | Mine, next round |
 | ~~Bubble step 4 — the scanner over other apps~~ | **Done** (`F-163`), and deliberately **not** as a native CameraX overlay: that would be a second implementation of scanning, and SWIP's is several rounds of hard-won behaviour. The real `ScanPage` is hovered instead, in a transparent Activity. [`32` §10](32-FLOATING-BUBBLE.md) | — |
 | ~~The result page inside the hovering card~~ | **Done** (`F-168`) — the card carries its own `Navigator`, so the push is bounded to those pixels | — |
-| Confirming the disappearance is actually fixed | `F-178` is a plausible cause found by reading, not one confirmed by watching. The recorder is on; closing this needs an exported trace showing the bubble surviving the sequence that used to kill it | **Yours** — reproduce and export |
-| Deleting the bubble trace | Deliberately still here. [`38` §4](38-BUBBLE-TRACE.md) is the ten-step list, including deleting its own gate check | Mine, once the above is confirmed |
+| ~~Confirming the disappearance is actually fixed~~ | **Confirmed** by the prompt-47 export — [`38` §6](38-BUBBLE-TRACE.md). The same export then found `F-180`, and the prompt-49 one found `F-184` inside that | — |
+| Confirming the resting position is actually fixed | `F-184` is the second half of `F-180`, and like it, it is a fix to something that only shows ten minutes later while the window is hidden. Closing it needs one export where `bubble.restored` reports the **edge the bubble was parked at**, not the snooze target | **Yours** — drag it away, wait ten minutes, export |
+| Deleting the bubble trace | Deliberately still here, for one more round. [`38` §4](38-BUBBLE-TRACE.md) is the eleven-step list, including deleting its own gate check and moving the escaping cases into `BlackboxTest` | Mine, once the above is confirmed |
+| Which of the seven POS failures is actually yours | [`45` §2](45-WHY-A-POS-TAP-FAILS.md) says it is almost certainly the default-payment-app slot, and *almost certainly* is not a finding. `F-187` records it per tap | **Yours** — clear the box, tap two or three machines, export |
+| Which part of SWIP costs the most battery | `F-188` measures **duration**, which is the honest thing a phone can measure about itself. A day of ordinary use is the input | **Yours** — leave it a day, export |
+| Donations on an iOS build | Guideline 3.2.1 allows donations outside in-app purchase only for registered non-profits. SWIP is not one, so it is Apple's cut on a donation, or no donation surface on iOS. Better decided before submission than during review | **Yours** — [`44` §5C](44-CAN-THIS-SHIP-TO-THE-APP-STORE.md) |
 | A behavioural test for the bubble's **gestures** | `F-173` built the Kotlin test source set and `ShakeDetector` is covered, so the blocker is gone — but a `WindowManager` overlay cannot be exercised on the JVM. The drag, the swallow and the target's window lifecycle need instrumentation and a device | Mine — and now it is a device problem, not a build-config one |
 | The circle→camera shared-element morph, [`32` §4](32-FLOATING-BUBBLE.md) | Cannot be done as specified while the scanner is a separate Activity with its own Flutter engine — there is no shared element to morph across a process boundary | Mine — needs a different design, not more effort |
 | ~~The drag target, [`32` §4](32-FLOATING-BUBBLE.md)~~ | **Done** (`F-173`), as a **snooze** target rather than a delete one — SWIP's bubble is not a conversation you close, it is a tool you want back | — |
@@ -385,7 +401,7 @@ money, or is deliberately held.
 | `tool/check_const.py` | ✅ |
 | `flutter analyze` | ✅ clean (one expected warning: `assets/brand/` is gitignored and copied by `bootstrap.sh`) |
 | `flutter test` | ✅ **281 passing** at prompt 35; **more since** — the count in each round's CI log is the authority, not this line |
-| `tool/check_wiring.py` | ✅ five checks as of `F-170` — files, channels, preferences, callbacks, and the bubble's radius against its diameter |
+| `tool/check_wiring.py` | ✅ seven checks as of `F-185` — files, channels, preferences, callbacks, the trace gate, a capture test that never settles, and the bubble's background being an **oval** (was a radius-versus-diameter comparison; a shape cannot drift) |
 | `tool/check_wiring.py` — a capture test that never settles | ✅ `F-180`, after the `_FoilCode` timer cost a third CI round |
 | `tool/check_links.py`, `tool/check_secrets.sh` | ✅ |
 | Close button legible over a white app and a black app, both palettes | ✅ `test/hover_chrome_test.dart` — composited, not eyeballed |
@@ -399,6 +415,9 @@ money, or is deliberately held.
 | Merchant lookup sends only the VPA | ✅ asserted on the request body |
 | No secrets in the tree | ✅ |
 | No HTTP client in the app | ✅ the directory's transport is injected |
+| The POS black box carries no values from an exchange | ✅ `TapTraceTest` — fed real-looking hex for `9F16` and `5F20`, asserts none of it comes back out |
+| The three recorders write to three different files | ✅ `BlackboxTest` — a copy-pasted filename would interleave two traces and nothing else would fail |
+| The two recorders' JSONL escaping has not drifted apart | ✅ `BlackboxTest` compares `Blackbox.formatLine` against `BubbleTrace.formatLine` byte for byte |
 
 ### What a sanity check cannot tell you
 

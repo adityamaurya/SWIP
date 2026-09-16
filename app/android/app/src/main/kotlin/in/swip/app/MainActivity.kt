@@ -284,12 +284,20 @@ class MainActivity : FlutterFragmentActivity() {
 
                     "startListening" -> {
                         listening = true
+                        // `F-187`. The POS screen is open, so this is the
+                        // moment to record what state the phone is in —
+                        // **before** a tap rather than after one. Four of the
+                        // seven ways a tap can fail are knowable right here,
+                        // and three of them the user can fix.
+                        TapTrace.snapshot(this, "screen")
+                        PowerTrace.awake(this, "nfc")
                         applyPreferredService(true)
                         result.success(null)
                     }
 
                     "stopListening" -> {
                         listening = false
+                        PowerTrace.asleep(this, "nfc")
                         applyPreferredService(false)
                         result.success(null)
                     }
@@ -566,6 +574,46 @@ class MainActivity : FlutterFragmentActivity() {
                         BubbleTrace.clear(this)
                         result.success(true)
                     }
+
+                    // `F-187`, `F-188`. The other two black boxes.
+                    //
+                    // Three pairs of methods rather than one pair taking a
+                    // name, and that is deliberate: `check_wiring.py` matches
+                    // channel method names between this file and `lib/` in
+                    // both directions, and a name assembled from a string at
+                    // runtime is a name that check cannot see. Three explicit
+                    // pairs stay checkable.
+                    "tapTraceDump" -> result.success(Blackbox.tap.dump(this))
+
+                    "tapTraceClear" -> {
+                        Blackbox.tap.clear(this)
+                        result.success(true)
+                    }
+
+                    "powerTraceDump" -> result.success(Blackbox.power.dump(this))
+
+                    "powerTraceClear" -> {
+                        Blackbox.power.clear(this)
+                        result.success(true)
+                    }
+
+                    // `F-187`. **Deliberately not `traceEnabled` reused.**
+                    //
+                    // The two boxes above are permanent and `BubbleTrace` is
+                    // not — `docs/38` §4 step 4 deletes `traceEnabled` along
+                    // with it. Had the Diagnostics section kept asking that
+                    // question, the deletion would have taken the POS and
+                    // battery boxes off the Settings screen as well: the
+                    // future would resolve false, the section would stop
+                    // drawing, and **nothing would fail**. No file would be
+                    // unimported, no channel name unmatched, no preference
+                    // unread. It is the exact shape `check_wiring.py` exists
+                    // for and the one variant it cannot see.
+                    //
+                    // Both answers come from `FLAG_DEBUGGABLE` and are always
+                    // equal today. That is not the point; the point is which
+                    // one survives.
+                    "blackboxEnabled" -> result.success(Blackbox.enabled(this))
 
                     "consumeTileLaunch" -> {
                         if (pendingOpenCapture != null) {
