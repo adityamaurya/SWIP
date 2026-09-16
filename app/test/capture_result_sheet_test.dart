@@ -351,18 +351,25 @@ void main() {
         ),
         surface: const Size(400, 800),
       ));
-      await t.pump();
+      await t.pumpAndSettle();
+      final before = find.text('Payment company').evaluate().length;
 
       await t.tap(find.text('View all'));
       await t.pumpAndSettle();
 
       expect(asked, 1);
-      // The label does not flip, the table does not appear, and the sheet is
-      // still the sheet. Everything that used to happen here now happens on
-      // the screen this button opens.
+      // The label does not flip and the sheet is still the sheet. Everything
+      // that used to happen *here* now happens on the screen this button
+      // opens.
       expect(find.text('Show less'), findsNothing);
-      expect(find.text('Payment company'), findsNothing);
       expect(find.text('View all'), findsOneWidget);
+      // `F-189`. This used to read `findsNothing`, which was a statement
+      // about `F-180`'s brief layout rather than about the tap. The full
+      // sheet draws the table from the start, so the honest version of
+      // *"nothing expanded in place"* is that the table is the **same before
+      // and after** — which is a stronger claim than its absence ever was.
+      expect(find.text('Payment company'), findsOneWidget);
+      expect(before, 1);
     });
 
     testWidgets('is disabled, not hidden, when there is nowhere to go',
