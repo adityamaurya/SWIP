@@ -103,7 +103,7 @@ Five of the forty-eight.
 
 ---
 
-## 4. Three things the corpus proved that reading could not
+## 4. Four things the corpus proved that reading could not
 
 ### The `sign=` block is not a JWT
 
