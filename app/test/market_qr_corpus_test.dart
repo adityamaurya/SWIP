@@ -144,6 +144,11 @@ void main() {
             'phonepemerchant',
             'verified merchant',
             'google pay merchant',
+            // `F-182`. This one is why the assertion is worth having: it
+            // failed here on the first CI run, on two Vyapar codes carrying
+            // `pn=Default`. Every earlier placeholder in this list is PSP
+            // branding; this one is a billing app's unset form field, which is
+            // why no amount of reading the list would have suggested it.
             'default',
           )),
           reason: 'page ${v.page} took the PSP placeholder as a shop name',

@@ -136,6 +136,20 @@ looks exhaustive, and `pta` was missing while `pty`, `ptys`, `ptsbi`, `ptaxis`,
 `test/market_qr_corpus_test.dart` now asserts that **every acquirer in the
 corpus is named**.
 
+### `pn=Default` was becoming a shop's name
+
+The two Vyapar codes carry `pn=Default` — a billing app's unset form field. It
+walked straight through `_genericNames`, because every entry in that list was
+PSP *branding*: "Paytm", "Verified Merchant", "Google Pay Merchant". This one is
+not branding, so nothing about it looked wrong.
+
+Two shops in one afternoon would have been filed in the ledger as a business
+called **Default**.
+
+**It was found by this corpus's test failing on its first CI run**, which is the
+best argument for the fixture: nothing in `merchant_identity.dart` looked wrong,
+and re-reading that list a third time would not have suggested it.
+
 ### The payment company is never the shop
 
 Forty-eight codes, and the `pn` field names **not one actual business**. Every

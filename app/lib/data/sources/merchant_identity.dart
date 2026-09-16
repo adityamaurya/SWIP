@@ -362,6 +362,23 @@ abstract final class MerchantIdentifier {
     'verified merchant', 'verified paytm account', 'google pay merchant',
     'phonepemerchant', 'paytmmerchant', 'bharatpe merchant',
     'verified', 'verified user', 'upi user', 'qr merchant',
+
+    // `F-182`. **`pn=Default`**, found by the market corpus and caught by a
+    // test rather than by reading:
+    //
+    //   upi://pay?pa=Vyapar.175338547694@hdfcbank&pn=Default&mc=8999&…
+    //
+    // Two shops in one afternoon, both of which would have been filed in the
+    // ledger as a business called "Default". It is a billing app's unset
+    // field, and it slipped through every earlier list because those were
+    // built from PSP *branding* — "Paytm", "Verified Merchant", "Google Pay
+    // Merchant" — and this one is not branding. It is a form default.
+    //
+    // Worth noting how it was found. `market_qr_corpus_test.dart` asserts that
+    // no capture in the corpus takes a PSP placeholder as a shop name; that
+    // assertion failed on the first CI run after it was written. Nothing in
+    // this file looked wrong, and nothing would have.
+    'default', 'default merchant',
   };
 
   /// Work out who is behind a payment QR.
