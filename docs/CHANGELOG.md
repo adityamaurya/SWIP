@@ -2202,6 +2202,58 @@ correct and the complaint was purely about where the bubble came back.
 `F-180` needs a second export to confirm — `bubble.restored` landing at an edge
 rather than at bottom-centre. The trace comes out after that.
 
+## Prompt 48 — 16 Sep 2026 · The stack, the key, and 52 market QRs
+
+### Screens changed
+
+| ID | Screen | Change | Serves |
+|---|---|---|---|
+| `S-02` | Scan QR | After 7 s with nothing read, the caption becomes evidence-based guidance | prompt 48 |
+| — | Merchant names | A four-screen walkthrough on first open; the settings screen after | prompt 48 |
+
+### Code
+
+| File | Change |
+|---|---|
+| **`lookup_wizard.dart`** | **New.** Four screens: what you get · what leaves your phone · what a Razorpay key can do · get the key |
+| **`wizard_shell.dart`** | **New.** `WizardProgress`, `WizardScreen`, `WizardStep` — extracted from `bubble_wizard.dart` rather than copied, byte-identical so nothing moved on screen |
+| `bubble_wizard.dart` | Now uses the shared shell; three private classes deleted |
+| `settings_page.dart` | `_openLookup` — walkthrough first time, settings after, flag written **before** the push |
+| `merchant_identity.dart` | **Five missing handles**: `pta`, `okbizaxis`, `okbizicici`, `unitype`, `fbpe` |
+| `scan_page.dart` | `F-183` — the stuck state, its timer, and `_StuckHint` |
+| **`test/fixtures/market_qr_corpus.json`** | **New.** 48 payloads, verbatim |
+| **`test/market_qr_corpus_test.dart`** | **New.** Twelve assertions over the corpus |
+
+### Docs
+
+| File | |
+|---|---|
+| **[`40-WHAT-SWIP-IS-BUILT-WITH.md`](40-WHAT-SWIP-IS-BUILT-WITH.md)** | **New.** The entire stack, with the reason for each choice |
+| **[`41-RAZORPAY-EXPLAINED.md`](41-RAZORPAY-EXPLAINED.md)** | **New.** What the key is, what it is not, what to do with the test key |
+| **[`42-MARKET-QR-CORPUS.md`](42-MARKET-QR-CORPUS.md)** | **New.** 52 photographs, 48 decoded, the distribution and the four failures |
+| [`CLAUDE.md`](../CLAUDE.md) | Five rows, three index entries, and the measured Paytm number |
+
+### What the corpus found
+
+**Five of forty-eight codes carry a usable category**, and the acquirer decides:
+every Google Pay for Business code publishes `mc`, and not one Paytm, PhonePe or
+BharatPe code does. Nineteen omit the field entirely; twenty-two set `mc=0000`.
+
+**Fourteen of fourteen Paytm codes decoded**, so the reported failure was the
+app correctly reporting an absent category rather than a scanner fault.
+
+`sign=` is a **DER ECDSA signature**, not a JWT — two INTEGERs, no payload.
+
+**Four photographs could not be decoded by anything**, after seven minutes each
+of finder-pattern clustering and an exhaustive rotated sliding-window sweep. All
+four are physical: an idol resting on the code, a dark out-of-focus soundbox,
+scuffed modules, and onion skins over the data area.
+
+### Open
+
+Whether a `rzp_test_` key reaches `validate/vpa` — razorpay.com is blocked from
+this environment, so the app's own "Test the key" button is the instrument.
+
 ---
 
 <!--

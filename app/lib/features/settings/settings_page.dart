@@ -26,6 +26,7 @@ import '../backup/recovery_phrase_page.dart';
 import '../bubble/bubble_settings.dart';
 import '../bubble/bubble_wizard.dart';
 import '../lookup/lookup_settings_page.dart';
+import '../lookup/lookup_wizard.dart';
 import '../onboarding/home_market_page.dart';
 import '../support/support_section.dart';
 
@@ -240,9 +241,11 @@ class SettingsPage extends ConsumerWidget {
               style: SwipType.bodyS.copyWith(color: SwipColors.textSecondary),
             ),
             trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => const LookupSettingsPage(),
-            )),
+            // `F-181`. The walkthrough the first time, the settings screen
+            // after — the same shape as the bubble row above, and for the same
+            // reason. The owner could not tell from the settings screen what
+            // the feature was for, and he commissioned it.
+            onTap: () => _openLookup(context),
           ),
 
           const Divider(height: SwipSpace.xxl),
@@ -329,6 +332,29 @@ class SettingsPage extends ConsumerWidget {
     if (!context.mounted) return;
     await Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => const BubbleWizard(),
+    ));
+  }
+
+  /// `F-181`. Identical gating to [_openBubble], including the part that is
+  /// easy to get wrong: the flag is written **before** the push, so somebody
+  /// who backs out of the walkthrough with the system gesture does not meet it
+  /// again on every future visit to Settings.
+  Future<void> _openLookup(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final seen = prefs.getBool(LookupWizard.seenKey) ?? false;
+    if (!context.mounted) return;
+
+    if (seen) {
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => const LookupSettingsPage(),
+      ));
+      return;
+    }
+
+    await prefs.setBool(LookupWizard.seenKey, true);
+    if (!context.mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => const LookupWizard(),
     ));
   }
 

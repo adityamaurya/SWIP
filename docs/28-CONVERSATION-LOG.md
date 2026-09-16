@@ -1475,6 +1475,129 @@ to rather than at bottom-centre, the trace comes out next round —
 [`docs/38` §8](38-BUBBLE-TRACE.md) records that as a decision rather than an
 oversight, with the eleven-step removal list unchanged.
 
+## Prompt 48 — 16 Sep 2026 · The stack, the key, and 52 market QRs
+
+**You asked:** write down every technology used so you can answer your
+developer friend; explain what the Razorpay thing is and what to do with your
+test key; build an onboarding flow for it; and decode the market QRs and find
+the pattern.
+
+### First — the thing you should hear before anything else
+
+**The app did not fail on your Paytm codes. It read every one of them
+perfectly, and told you the truth: Paytm does not publish a category.**
+
+Fourteen Paytm codes in that PDF. All fourteen decoded — most on the very first
+attempt with no processing at all. Not one of them contains an `mc` parameter.
+Not empty, not zero. **Absent.**
+
+So when the app said "no category", that was the app working. I understand why
+it read as failure, and that is a fair thing to be annoyed about — but the fix
+is not in the scanner.
+
+### The numbers, which are the product
+
+48 of 52 photographs decoded. Of those 48:
+
+| | Codes | **Carry a usable category** |
+|---|---|---|
+| PhonePe | 24 | **0** (22 say `mc=0000`) |
+| Paytm | 14 | **0** (no `mc` field at all) |
+| BharatPe | 5 | **0** |
+| Google Pay for Business | 3 | **3** |
+| Vyapar / HDFC | 2 | **2** |
+
+**Five out of forty-eight.** And the pattern is one sentence: **the acquirer
+decides, and the shop has no say in it.** The same vegetable stall would publish
+a category on a Google Pay code and not on a PhonePe one.
+
+Everything is in [`docs/42`](42-MARKET-QR-CORPUS.md), including the payloads.
+
+### The four that would not decode
+
+Not one is a software problem, and I want to be exact because "no matter how,
+just do it" deserves a real answer rather than a shrug.
+
+A Paytm card with a plastic-wrapped idol resting on it. A PhonePe soundbox in a
+dark stall, badly out of focus. A BharatPe card lying among chillies with its
+printed squares scuffed off. And one with **onion skins across the data area**.
+
+I gave each of them finder-pattern detection and then an exhaustive sweep —
+every part of the picture, at four zoom levels, rotated twelve ways, processed
+seven ways. About **seven minutes of computing per photograph.** All four came
+back empty, and that is the correct answer: a QR carries about 15% redundancy,
+and past that **the information is not in the photograph.** No app recovers it.
+
+**So I built the useful thing instead.** After seven seconds of looking at
+something it cannot read, the scanner now says which of those four things is
+probably in the way — three of which you can fix by moving something. A live
+camera that silently reads nothing is indistinguishable from a broken app, which
+is precisely how this got reported to me.
+
+### What the corpus found that reading never would
+
+**Five payment handles were missing from the app** — `@pta`, `@okbizaxis`,
+`@okbizicici`, `@unitype`, `@fbpe`. Five real shops would have shown a blank
+where the payment company goes, and that includes **all three Google Pay codes,
+which are the only ones in the whole sample that carry a category.** The handle
+map has fifty entries and looks complete; `pta` was missing while six other
+Paytm handles were present. Fixed, and now tested.
+
+**PhonePe's `sign=` block is not a JWT.** I had been treating it as a signal
+without knowing what it was. Decoded, it is a raw DER ECDSA signature — two
+numbers, no payload. There is nothing hiding inside it.
+
+### Your Razorpay key
+
+**What it does: turns a payment address into a shop's real name.** That is all.
+It is the one thing SWIP ever sends anywhere.
+
+Scan a Paytm sticker and the name field says "Paytm". Every Paytm sticker in
+India says "Paytm". CRED shows the real shop name because it asks a payment
+provider who owns the address — it is not reading it out of the QR, because
+**the name is not in the QR**. SWIP can make the same request with your account.
+
+**It will not give you the MCC.** No commercial API does. That is not SWIP being
+weak — it is why CRED writes "merchant **may** not accept RuPay CC".
+
+**What to do with your test key:** Settings → Merchant names → paste both halves
+→ **press "Test the key"**. That button asks Razorpay and shows you the reply. I
+am deliberately not telling you what a test key will do, because razorpay.com is
+blocked from the machine I work on, and this project has been burned once
+already by shipping three constants I could not verify. The app has the
+instrument; use it and tell me what it says.
+
+**Keep the test key, not a live one.** A Razorpay key pair is not read-only —
+Razorpay does not issue one. The same credentials that look up a name can create
+orders, list every payment on your account and issue refunds. `rzp_test_` works
+against a sandbox and cannot move money.
+
+One risk worth knowing: **NPCI switched off UPI Collect on 28 February 2026**,
+and that was this endpoint's main reason for existing. It still works as a name
+lookup, but it is built behind one swappable class so that if it disappears,
+one file changes. Confirmed from PayU, Cashfree and Razorpay's own blog —
+[`docs/41` §5](41-RAZORPAY-EXPLAINED.md).
+
+**And the onboarding you asked for is built.** Four screens: what you get, what
+leaves your phone, what a Razorpay key can do and why to use a test one, then
+the literal click path and the two fields. You were right that if you could not
+follow it, nobody could.
+
+### Your developer friend
+
+[`docs/40`](40-WHAT-SWIP-IS-BUILT-WITH.md). Every language, every package with
+the reason it was chosen, the native Android layer, how both capture paths
+actually work, the CI, the test counts, and §12 — the five questions he will ask
+next, with the answers.
+
+One correction to the ask, said plainly: **nothing in a git repository is
+secret.** That file sits in the same repo as everything else. What it is, is
+separate and written for you. The only genuinely secret things here are keys,
+and there have never been any in the repository.
+
+**Still open:** whether your test key works against that endpoint — press the
+button. And the bubble trace stays in until `F-180` is confirmed.
+
 ---
 
 <!--

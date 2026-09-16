@@ -1,0 +1,446 @@
+{
+ "_comment": "F-182 \u2014 52 photographs from the owner's market walk, 16 Sep 2026. Decoded from the page images, not transcribed. Four pages carried no decodable code and are listed in undecodable[].",
+ "generatedBy": "the decode described in docs/42-MARKET-QR-CORPUS.md",
+ "photos": 52,
+ "decoded": 48,
+ "undecodable": [
+  14,
+  22,
+  33,
+  41
+ ],
+ "vectors": [
+  {
+   "page": 1,
+   "payload": "upi://pay?pa=paytm.s22k4cx@pty&pn=Paytm",
+   "brand": "Paytm",
+   "handle": "pty",
+   "mc": null,
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 2,
+   "payload": "upi://pay?pa=paytm.s1zx4nq@pty&pn=Paytm",
+   "brand": "Paytm",
+   "handle": "pty",
+   "mc": null,
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 3,
+   "payload": "upi://pay?pa=gpay-11252478681@okbizaxis&mc=5411&pn=Google%20Pay%20Merchant&oobe=fos123&qrst=stn&tr=1252478681&cu=INR&ver=01&mode=01",
+   "brand": "Google Pay",
+   "handle": "okbizaxis",
+   "mc": "5411",
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 4,
+   "payload": "upi://pay?pa=Vyapar.175338547694@hdfcbank&pn=Default&mc=8999&tr=STQU175338547694&cu=INR",
+   "brand": "Vyapar / HDFC",
+   "handle": "hdfcbank",
+   "mc": "8999",
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 5,
+   "payload": "upi://pay?pa=Vyapar.175338547694@hdfcbank&pn=Default&mc=8999&tr=STQU175338547694&cu=INR",
+   "brand": "Vyapar / HDFC",
+   "handle": "hdfcbank",
+   "mc": "8999",
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 6,
+   "payload": "upi://pay?pa=paytm.s27l8o9@pty&pn=Paytm",
+   "brand": "Paytm",
+   "handle": "pty",
+   "mc": null,
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 7,
+   "payload": "upi://pay?pa=paytm.s2se9rg@pty&pn=Paytm",
+   "brand": "Paytm",
+   "handle": "pty",
+   "mc": null,
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 8,
+   "payload": "upi://pay?pa=Q472112445@ybl&pn=PhonePeMerchant&mc=0000&mode=02&purpose=00",
+   "brand": "PhonePe",
+   "handle": "ybl",
+   "mc": "0000",
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 9,
+   "payload": "upi://pay?pa=Q569783126@ybl&pn=PhonePeMerchant&mc=0000&mode=02&purpose=00",
+   "brand": "PhonePe",
+   "handle": "ybl",
+   "mc": "0000",
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 10,
+   "payload": "upi://pay?pa=Q274349376@ybl&pn=PhonePeMerchant&mc=0000&mode=02&purpose=00",
+   "brand": "PhonePe",
+   "handle": "ybl",
+   "mc": "0000",
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 11,
+   "payload": "upi://pay?pa=Q718838095@ybl&pn=PhonePeMerchant&mc=0000&mode=02&purpose=00",
+   "brand": "PhonePe",
+   "handle": "ybl",
+   "mc": "0000",
+   "signed": false,
+   "decodedBy": "raw/cv2"
+  },
+  {
+   "page": 12,
+   "payload": "upi://pay?pa=paytmqr5yyi9s@ptys&pn=Paytm",
+   "brand": "Paytm",
+   "handle": "ptys",
+   "mc": null,
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 13,
+   "payload": "upi://pay?pa=paytm.s22jrgs@pty&pn=Paytm",
+   "brand": "Paytm",
+   "handle": "pty",
+   "mc": null,
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 15,
+   "payload": "upi://pay?pa=paytm.s2w1qzd@pty&pn=Paytm",
+   "brand": "Paytm",
+   "handle": "pty",
+   "mc": null,
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 16,
+   "payload": "upi://pay?pa=gpay-12190185193@okbizaxis&mc=5411&pn=Google%20Pay%20Merchant&oobe=fos123&qrst=snp&tr=2190185193&cu=INR&ver=01&mode=01",
+   "brand": "Google Pay",
+   "handle": "okbizaxis",
+   "mc": "5411",
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 17,
+   "payload": "upi://pay?pa=paytmqr6v2c78@ptys&pn=Paytm",
+   "brand": "Paytm",
+   "handle": "ptys",
+   "mc": null,
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 18,
+   "payload": "upi://pay?pa=Q969567292@ybl&pn=PhonePeMerchant&mc=0000&mode=02&purpose=00",
+   "brand": "PhonePe",
+   "handle": "ybl",
+   "mc": "0000",
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 19,
+   "payload": "upi://pay?pa=Q188971123@ybl&pn=PhonePeMerchant&mc=0000&mode=02&purpose=00",
+   "brand": "PhonePe",
+   "handle": "ybl",
+   "mc": "0000",
+   "signed": false,
+   "decodedBy": "raw/cv2"
+  },
+  {
+   "page": 20,
+   "payload": "upi://pay?pa=Q950381097@ybl&pn=PhonePeMerchant&mc=0000&mode=02&purpose=00",
+   "brand": "PhonePe",
+   "handle": "ybl",
+   "mc": "0000",
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 21,
+   "payload": "upi://pay?pa=Q897347367@ybl&pn=PhonePeMerchant&mc=0000&mode=02&purpose=00",
+   "brand": "PhonePe",
+   "handle": "ybl",
+   "mc": "0000",
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 23,
+   "payload": "upi://pay?pa=Q719167362@ybl&pn=PhonePe&mode=02",
+   "brand": "PhonePe",
+   "handle": "ybl",
+   "mc": null,
+   "signed": false,
+   "decodedBy": "raw/cv2"
+  },
+  {
+   "page": 24,
+   "payload": "upi://pay?pa=BHARATPE.9J0B0E7A5G447437@fbpe&pn=Verified Merchant&cu=INR&tn=Pay to BharatPe Merchant",
+   "brand": "BharatPe",
+   "handle": "fbpe",
+   "mc": null,
+   "signed": false,
+   "decodedBy": "raw/cv2"
+  },
+  {
+   "page": 25,
+   "payload": "upi://pay?pa=Q897347367@ybl&pn=PhonePeMerchant&mc=0000&mode=02&purpose=00",
+   "brand": "PhonePe",
+   "handle": "ybl",
+   "mc": "0000",
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 26,
+   "payload": "upi://pay?pa=Q002598918@ybl&pn=PhonePeMerchant&mc=0000&mode=02&purpose=00",
+   "brand": "PhonePe",
+   "handle": "ybl",
+   "mc": "0000",
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 27,
+   "payload": "upi://pay?pa=Q071228787@ybl&pn=PhonePeMerchant&mc=0000&mode=02&purpose=00",
+   "brand": "PhonePe",
+   "handle": "ybl",
+   "mc": "0000",
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 28,
+   "payload": "upi://pay?pa=Q586482131@ybl&pn=PhonePeMerchant&mc=0000&mode=02&purpose=00",
+   "brand": "PhonePe",
+   "handle": "ybl",
+   "mc": "0000",
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 29,
+   "payload": "upi://pay?pa=Q708311274@ybl&pn=PhonePe&mode=02",
+   "brand": "PhonePe",
+   "handle": "ybl",
+   "mc": null,
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 30,
+   "payload": "upi://pay?pa=paytm.s20qsxj@pty&pn=Paytm",
+   "brand": "Paytm",
+   "handle": "pty",
+   "mc": null,
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 31,
+   "payload": "upi://pay?pa=Q466113046@ybl&pn=PhonePeMerchant&mc=0000&mode=02&purpose=00",
+   "brand": "PhonePe",
+   "handle": "ybl",
+   "mc": "0000",
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 32,
+   "payload": "upi://pay?pa=gpay-11217245912@okbizicici&mc=5399&pn=Google%20Pay%20Merchant&oobe=fos123&qrst=stn&tr=1217245912&cu=INR",
+   "brand": "Google Pay",
+   "handle": "okbizicici",
+   "mc": "5399",
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 34,
+   "payload": "upi://pay?pa=Q660427434@ybl&pn=PhonePeMerchant&mc=0000&mode=02&purpose=00",
+   "brand": "PhonePe",
+   "handle": "ybl",
+   "mc": "0000",
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 35,
+   "payload": "upi://pay?pa=BHARATPE.9Y0R0S1P0Z392132@unitype&pn=Verified Merchant&cu=INR&tn=Pay to BharatPe Merchant",
+   "brand": "BharatPe",
+   "handle": "unitype",
+   "mc": null,
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 36,
+   "payload": "upi://pay?pa=BHARATPE9K0G7L2U9Z117358@yesbankltd&pn=Verified Merchant&cu=INR&tn=Pay to BharatPe Merchant",
+   "brand": "BharatPe",
+   "handle": "yesbankltd",
+   "mc": null,
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 37,
+   "payload": "upi://pay?pa=BHARATPE90727582876@yesbankltd&pn=Verified Merchant&cu=INR&tn=Pay to BharatPe Merchant",
+   "brand": "BharatPe",
+   "handle": "yesbankltd",
+   "mc": null,
+   "signed": false,
+   "decodedBy": "raw/cv2"
+  },
+  {
+   "page": 38,
+   "payload": "upi://pay?pa=Q674288554@ybl&pn=PhonePeMerchant&mc=0000&mode=02&purpose=00",
+   "brand": "PhonePe",
+   "handle": "ybl",
+   "mc": "0000",
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 39,
+   "payload": "upi://pay?pa=Q884857999@ybl&pn=PhonePeMerchant&mc=0000&mode=02&purpose=00",
+   "brand": "PhonePe",
+   "handle": "ybl",
+   "mc": "0000",
+   "signed": false,
+   "decodedBy": "raw/cv2"
+  },
+  {
+   "page": 40,
+   "payload": "upi://pay?pa=Q41990425@ybl&pn=PhonePeMerchant&mc=0000&mode=02&purpose=00&orgid=180001&sign=MEYCIQCi88CnGRZfGSr0DBB4J2KYywu79rzo3tfmyC3Wv+kyfAIhAInnA+X1NrmKcc8/A2OgGmu8rBYQ78ZHXUKJl8BP2K/R",
+   "brand": "PhonePe",
+   "handle": "ybl",
+   "mc": "0000",
+   "signed": true,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 42,
+   "payload": "upi://pay?mode=02&pa=Q948252854@ybl&purpose=00&mc=0000&pn=PhonePeMerchant&orgid=180001&sign=MEUCIACxk1tPVPS5iKjZr8DUfKlDpQ8aSlRUjmW0URcUmVZeAiEAn8pr8lYuOmLaQEjNSkj7XvWu2LL5vqvNLuvnSbgKUBk=",
+   "brand": "PhonePe",
+   "handle": "ybl",
+   "mc": "0000",
+   "signed": true,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 43,
+   "payload": "upi://pay?pa=Q729781009@ybl&pn=PhonePeMerchant&mc=0000&mode=02&purpose=00",
+   "brand": "PhonePe",
+   "handle": "ybl",
+   "mc": "0000",
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 44,
+   "payload": "upi://pay?pa=paytm.s209l44@pty&pn=Paytm",
+   "brand": "Paytm",
+   "handle": "pty",
+   "mc": null,
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 45,
+   "payload": "upi://pay?pa=Q483827072@ybl&pn=PhonePeMerchant&mc=0000&mode=02&purpose=00",
+   "brand": "PhonePe",
+   "handle": "ybl",
+   "mc": "0000",
+   "signed": false,
+   "decodedBy": "morph/zbar"
+  },
+  {
+   "page": 46,
+   "payload": "upi://pay?mode=02&pa=Q306662583@ybl&purpose=00&mc=0000&pn=PhonePeMerchant&orgid=180001&sign=MEQCIA6jNizb3C5QrwfBJ06MfGlKzVvzpriyIEKsJEbNhrsRAiBjLJBuKWSIkXNxRrESTJVmzP5C5mHrWNxERYJVEg0g5A==",
+   "brand": "PhonePe",
+   "handle": "ybl",
+   "mc": "0000",
+   "signed": true,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 47,
+   "payload": "upi://pay?pa=Q037462245@ybl&pn=PhonePeMerchant&mc=0000&mode=02&purpose=00",
+   "brand": "PhonePe",
+   "handle": "ybl",
+   "mc": "0000",
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 48,
+   "payload": "upi://pay?pa=BHARATPE.9S0S0I1N0K649691@unitype&pn=Verified Merchant&cu=INR&tn=Pay to BharatPe Merchant",
+   "brand": "BharatPe",
+   "handle": "unitype",
+   "mc": null,
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 49,
+   "payload": "upi://pay?pa=paytmqr60riau@ptys&pn=Paytm",
+   "brand": "Paytm",
+   "handle": "ptys",
+   "mc": null,
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 50,
+   "payload": "upi://pay?pa=paytm.s31x134@pty&pn=Paytm",
+   "brand": "Paytm",
+   "handle": "pty",
+   "mc": null,
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 51,
+   "payload": "upi://pay?pa=paytm.s10l7qf@pta&pn=Paytm&tn=Verified Paytm Merchant",
+   "brand": "Paytm",
+   "handle": "pta",
+   "mc": null,
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  },
+  {
+   "page": 52,
+   "payload": "upi://pay?pa=paytmqr1fg50kckzw@paytm&pn=Paytm",
+   "brand": "Paytm",
+   "handle": "paytm",
+   "mc": null,
+   "signed": false,
+   "decodedBy": "raw/zbar"
+  }
+ ]
+}

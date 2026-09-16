@@ -2143,6 +2143,80 @@ destination is the place all of them live. It also deletes a state — a collaps
 form, an expanded form, two heights and a label that flipped, all in front of a
 live camera.
 
+## Prompt 48 — 16 Sep 2026 · The stack, the key, and 52 market QRs
+
+**Original prompt, verbatim:**
+
+> so I have one issue now, i was talking to a developer friend of mine who is a
+> flutter app development agency owner, i tried to ask him some questions about
+> my this app idea i am building, after trying to make sense to his answers, he
+> asked me in detail to the core to as where, how and on what technologies am I
+> building my app, I was clueless and he made fun that I didn't knew what all
+> went down in terms of making this app idea happen to come alive, can you
+> please make a secret and separate  md file where in you mention every little
+> technology, library etc used to make this app so that i can read and be aware
+> about it to as whatever we made and what was used to make it so as I can
+> answer the question when he asks me what was used to make this?
+>
+> Also, what to do with the Razorpay key ID? I have gone into test mode and
+> given the app a test ID and key access key. Now what should I do? What will
+> help? What is that Razorpay thing section just below "Scan me anywhere"
+> telling me about? What is that feature going to need?
+>
+> explain me and lets make it ALIVE
+>
+> also sharing you a multiple QRs i went to market the other day it failed on
+> major of the Paytm QRs , help me get it resolved man, lets do it lets resolve
+> this otherwise the app is super useless
+>
+> - Parse the PDF thoroughly.
+> - Make sure that the PDF or the QR codes inside the PDF are parsed properly.
+> - Make sure that you find a way, no matter how you can do it, just do it, and
+>   get me the MCC code from these QR codes.
+> - Find a pattern for which QR codes are not new, are tough to scan, and are
+>   not giving away MCC codes directly.
+> - Make an onboarding flow for the Razorpay thing that you have put into the
+>   application for the key ID and everything, since it is not even
+>   understandable for me and is understood by the other people as well. Since
+>   I am not able to understand, how would the users be able to understand
+>   that?
+
+With a 52-page PDF of QR photographs taken at a market.
+
+| # | ID | Did | Why |
+|---|---|---|---|
+| 1 | — | [`docs/40`](40-WHAT-SWIP-IS-BUILT-WITH.md) — the whole stack | So the next version of that conversation goes differently |
+| 2 | — | [`docs/41`](41-RAZORPAY-EXPLAINED.md) — what the key is and is not | The person who commissioned the feature could not tell what it did |
+| 3 | `F-181` | A four-screen walkthrough + `wizard_shell.dart` | Same shape of problem as `F-159`, same answer |
+| 4 | — | [`docs/42`](42-MARKET-QR-CORPUS.md) — 48 of 52 decoded, classified | The largest field sample this project has |
+| 5 | `F-182` | Five missing payment handles | Including **every** Google Pay handle, which is every code that carries an MCC |
+| 6 | `F-183` | The scanner says why it is finding nothing | A silent viewfinder is indistinguishable from a broken app |
+
+### The headline finding
+
+**The app is not failing on the Paytm codes. It is reading them perfectly and
+reporting, correctly, that Paytm publishes no category.** Fourteen of fourteen
+decoded; not one carries an `mc` parameter.
+
+**Five of forty-eight codes carry a usable category**, and the pattern is that
+**the acquirer decides**: every Google Pay for Business code publishes one, and
+not one Paytm, PhonePe or BharatPe code does.
+
+### The four that would not decode
+
+One card half-covered by a plastic-wrapped idol, one soundbox in a dark stall
+and badly out of focus, one card scuffed and lying among chillies, one with
+onion skins across the data area. **Seven minutes of exhaustive decoding each,
+and all four correctly returned nothing** — error correction buys about 15% and
+past that the bytes are not in the photograph. So `F-183` says which obstruction
+is in the way instead of pretending to keep trying.
+
+### Two things the corpus settled that reading could not
+
+`sign=` is a **DER ECDSA signature**, not a JWT — an ASN.1 SEQUENCE of two
+INTEGERs with no payload inside. And five handles were missing from the app,
+including `okbizaxis`/`okbizicici`, which is every Google Pay code in the sample.
+
 ---
 
 <!--

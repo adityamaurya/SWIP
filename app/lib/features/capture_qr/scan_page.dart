@@ -105,6 +105,35 @@ class _ScanPageState extends ConsumerState<ScanPage> {
   /// follow what actually happened.
   bool _torchOn = false;
 
+  /// `F-183`. True once the camera has been running a while with nothing read.
+  ///
+  /// ## Why this exists, and why the copy is what it is
+  ///
+  /// Fifty-two photographs from the owner's market walk; four of them do not
+  /// decode, and **none of the four is a software problem.** One Paytm card is
+  /// half-covered by a plastic-wrapped idol, one PhonePe soundbox is in a dark
+  /// stall and out of focus, one BharatPe card is lying in the chillies with
+  /// its modules scuffed off, and one has onion skins across the data area on
+  /// top of a printed centre logo that was already spending the error-
+  /// correction budget. See [`docs/42`](../../../../docs/42-MARKET-QR-CORPUS.md).
+  ///
+  /// A QR carries roughly 15% redundancy at the level these are printed at.
+  /// Past that the bytes are **not in the photograph**, and no amount of
+  /// preprocessing invents them — seven minutes of exhaustive binarisation,
+  /// rotation and windowing on those four returned nothing.
+  ///
+  /// So the fix is not a better decoder, it is telling the user which of those
+  /// four things is in their way, because three of the four they can fix by
+  /// moving something. A live camera that silently reads nothing is
+  /// indistinguishable from a broken app, and that is what got reported.
+  bool _stuck = false;
+  Timer? _stuckTimer;
+
+  /// How long to look before admitting it. Long enough not to nag somebody
+  /// still raising the phone, short enough to arrive while they are still
+  /// pointing it at the thing that will not read.
+  static const _patience = Duration(seconds: 7);
+
   @override
   void initState() {
     super.initState();
@@ -133,7 +162,24 @@ class _ScanPageState extends ConsumerState<ScanPage> {
         _refused = refused;
         _torchOn = torchOn;
       });
+      // `F-183`. Armed only while the camera is actually delivering frames.
+      // Starting it in `initState` would count the permission dialog and the
+      // primer sheet as time spent failing to read a code.
+      if (running) {
+        _armStuck();
+      } else {
+        _stuckTimer?.cancel();
+      }
     }
+  }
+
+  /// `F-183`. (Re)start the patience clock.
+  void _armStuck() {
+    _stuckTimer?.cancel();
+    if (_stuck) setState(() => _stuck = false);
+    _stuckTimer = Timer(_patience, () {
+      if (mounted) setState(() => _stuck = true);
+    });
   }
 
   /// Replace a controller that cannot be restarted. A `permissionDenied` error
@@ -200,6 +246,11 @@ class _ScanPageState extends ConsumerState<ScanPage> {
 
   @override
   void dispose() {
+    // `F-183`. Before anything else. A pending `Timer` outliving the widget
+    // tree is the failure `CLAUDE.md` records twice, and it surfaces as
+    // "A Timer is still pending" from whichever test ran next rather than
+    // from this screen.
+    _stuckTimer?.cancel();
     _controller.removeListener(_sync);
     unawaited(_controller.dispose());
     super.dispose();
@@ -209,6 +260,9 @@ class _ScanPageState extends ConsumerState<ScanPage> {
     if (_handling) return;
     final raw = capture.barcodes.isEmpty ? null : capture.barcodes.first.rawValue;
     if (raw == null || raw.isEmpty) return;
+    // `F-183`. Something read, so the clock starts again rather than leaving
+    // "having trouble?" on screen above a code that just worked.
+    _armStuck();
 
     setState(() => _handling = true);
     await _controller.stop();
@@ -471,12 +525,25 @@ class _ScanPageState extends ConsumerState<ScanPage> {
                         .copyWith(color: SwipColors.onCameraInk),
                   ),
                   const SizedBox(height: SwipSpace.sm),
-                  Text(
-                    'Point at any payment QR - UPI, BharatQR, PIX, QRIS,\n'
-                    'PayNow, PromptPay and thirty more.',
-                    textAlign: TextAlign.center,
-                    style: SwipType.bodyM.copyWith(
-                        color: SwipColors.onCameraInk.withValues(alpha: .72)),
+                  // `F-183`. The line becomes advice once looking has stopped
+                  // working. Crossfaded rather than swapped, because a caption
+                  // that changes under a steady camera reads as a glitch.
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 260),
+                    // Keyed on the state, not on the text: `CLAUDE.md` records
+                    // a duplicate-key crash from keying a switcher on a string
+                    // that can return to a previous value.
+                    child: _stuck
+                        ? const _StuckHint(key: ValueKey(true))
+                        : Text(
+                            'Point at any payment QR - UPI, BharatQR, PIX, '
+                            'QRIS,\nPayNow, PromptPay and thirty more.',
+                            key: const ValueKey(false),
+                            textAlign: TextAlign.center,
+                            style: SwipType.bodyM.copyWith(
+                                color: SwipColors.onCameraInk
+                                    .withValues(alpha: .72)),
+                          ),
                   ),
                 ],
               ),
@@ -484,6 +551,44 @@ class _ScanPageState extends ConsumerState<ScanPage> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// `F-183` — what to say when the camera has been looking and finding nothing.
+///
+/// **Every line here names a failure that actually happened**, in the order
+/// they occurred in the owner's 52-photograph market walk. Nothing is invented
+/// advice: one card was half-covered, one was in a dark stall, one had its
+/// modules scuffed away and one had onion skins lying across the data. Three
+/// of those four the user can fix by moving something, which is the entire
+/// reason for saying it out loud rather than letting a silent viewfinder be
+/// mistaken for a broken app.
+///
+/// It deliberately does **not** say "try again" or "make sure the QR is
+/// valid". A code that will not read is not a code the user typed wrong.
+class _StuckHint extends StatelessWidget {
+  const _StuckHint({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final ink = SwipColors.onCameraInk;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Still looking. Usually one of these:',
+          textAlign: TextAlign.center,
+          style: SwipType.bodyM.copyWith(color: ink.withValues(alpha: .9)),
+        ),
+        const SizedBox(height: SwipSpace.sm),
+        Text(
+          'Something is resting on the code  ·  the card is dirty or worn\n'
+          'it is too dark — try the torch  ·  hold a little steadier',
+          textAlign: TextAlign.center,
+          style: SwipType.bodyS.copyWith(color: ink.withValues(alpha: .66)),
+        ),
+      ],
     );
   }
 }

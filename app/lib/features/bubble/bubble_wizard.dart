@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/theme/swip_tokens.dart';
+import '../../widgets/wizard_shell.dart';
 
 /// `F-159` — **the one-time wizard that turns the floating button on.**
 ///
@@ -205,7 +206,7 @@ class _BubbleWizardState extends State<BubbleWizard>
                 icon: const Icon(Icons.arrow_back_rounded),
                 onPressed: () => _go(_step - 1),
               ),
-        title: _Progress(step: _step, total: _steps),
+        title: WizardProgress(step: _step, total: _steps),
         titleSpacing: 0,
       ),
       body: PageView(
@@ -245,158 +246,6 @@ class _BubbleWizardState extends State<BubbleWizard>
             onFinish: () => Navigator.of(context).pop(true),
             onReveal: _revealBubble,
           ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The segmented bar from the top of every Wispr Flow screen.
-///
-/// It is doing real work rather than decoration: a permission flow that sends
-/// you into Android Settings twice feels unbounded, and people abandon
-/// unbounded flows. Five filled segments are a promise that this ends.
-class _Progress extends StatelessWidget {
-  const _Progress({required this.step, required this.total});
-
-  final int step;
-  final int total;
-
-  @override
-  Widget build(BuildContext context) => Row(
-        children: List.generate(total, (i) {
-          return Expanded(
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 240),
-              height: 3,
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              decoration: BoxDecoration(
-                color: i <= step ? SwipColors.gold500 : SwipColors.hairline,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          );
-        }),
-      );
-}
-
-/// One screen: headline, scrollable body, and a button stuck to the bottom.
-///
-/// The button does not scroll. On a 5-inch phone with the text scale turned
-/// up, a "Continue" that has scrolled off the end of a permission explanation
-/// is a flow that dead-ends, and the user has no way to know there was ever a
-/// button there.
-class _Screen extends StatelessWidget {
-  const _Screen({
-    required this.title,
-    required this.body,
-    required this.action,
-    this.secondary,
-  });
-
-  final String title;
-
-  /// Named `body` rather than `children` deliberately. `children` is a widget
-  /// slot name, and the analyzer's `sort_child_properties_last` insists it be
-  /// the final argument — which would put the page's content *after* the
-  /// button that ends the page, in every one of these five constructors.
-  /// Renaming is the honest fix; suppressing the lint would not be.
-  final List<Widget> body;
-  final Widget action;
-  final Widget? secondary;
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(
-                  SwipSpace.gutter, SwipSpace.xxl, SwipSpace.gutter, 0),
-              children: [
-                Text(title,
-                    style: SwipType.display
-                        .copyWith(color: SwipColors.textPrimary)),
-                const SizedBox(height: SwipSpace.xl),
-                ...body,
-                const SizedBox(height: SwipSpace.xxxl),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(SwipSpace.gutter, SwipSpace.md,
-                SwipSpace.gutter, SwipSpace.lg),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                action,
-                if (secondary != null) ...[
-                  const SizedBox(height: SwipSpace.sm),
-                  secondary!,
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A numbered step whose payload is a **picture of the control** the user is
-/// about to look for.
-///
-/// This is the single most useful idea on page 12 of the owner's PDF. Written
-/// instructions make somebody parse a sentence and then search a screen;
-/// a picture of the row makes them match a shape. It is the difference
-/// between a flow people finish and one they abandon in Settings.
-class _NumberedStep extends StatelessWidget {
-  const _NumberedStep({
-    required this.n,
-    required this.text,
-    this.mock,
-    this.warn = false,
-  });
-
-  final int n;
-  final String text;
-  final Widget? mock;
-  final bool warn;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: SwipSpace.xl),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: 22,
-                child: Text('$n.',
-                    style: SwipType.bodyM
-                        .copyWith(color: SwipColors.textSecondary)),
-              ),
-              Expanded(
-                child: Text(
-                  text,
-                  style: SwipType.bodyM.copyWith(
-                    color: warn ? SwipColors.danger : SwipColors.textPrimary,
-                    fontWeight: warn ? FontWeight.w600 : null,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (mock != null)
-            Padding(
-              padding: const EdgeInsets.only(left: 22, top: SwipSpace.md),
-              child: mock,
-            ),
         ],
       ),
     );
@@ -555,7 +404,7 @@ class _WhatItIs extends StatelessWidget {
   final VoidCallback onNext;
 
   @override
-  Widget build(BuildContext context) => _Screen(
+  Widget build(BuildContext context) => WizardScreen(
         title: 'SWIP, on top of\nevery app',
         body: [
           Text(
@@ -647,21 +496,21 @@ class _OverlayStep extends StatelessWidget {
   final VoidCallback onNext;
 
   @override
-  Widget build(BuildContext context) => _Screen(
+  Widget build(BuildContext context) => WizardScreen(
         title: 'Allow SWIP to draw\nover other apps',
         body: [
-          const _NumberedStep(
+          const WizardStep(
             n: 1,
             text: 'Find SWIP in the list of apps',
             mock: _SettingsRowMock(label: 'SWIP', value: 'Not allowed'),
           ),
-          const _NumberedStep(
+          const WizardStep(
             n: 2,
             text: 'Turn this on',
             mock: _SettingsRowMock(
                 label: 'Allow display over other apps', on: true),
           ),
-          const _NumberedStep(
+          const WizardStep(
             n: 3,
             text: 'Come back here. SWIP picks it up on its own.',
           ),
@@ -702,7 +551,7 @@ class _NotificationStep extends StatelessWidget {
   final VoidCallback onSkip;
 
   @override
-  Widget build(BuildContext context) => _Screen(
+  Widget build(BuildContext context) => WizardScreen(
         title: 'The notice in\nyour shade',
         body: [
           Text(
@@ -757,7 +606,7 @@ class _KeepItRunningStep extends StatelessWidget {
   final VoidCallback onNext;
 
   @override
-  Widget build(BuildContext context) => _Screen(
+  Widget build(BuildContext context) => WizardScreen(
         title: 'Keeping it there,\nall day',
         body: [
           Text(
@@ -768,7 +617,7 @@ class _KeepItRunningStep extends StatelessWidget {
                 SwipType.bodyL.copyWith(color: SwipColors.textSecondary),
           ),
           const SizedBox(height: SwipSpace.xl),
-          const _NumberedStep(
+          const WizardStep(
             n: 1,
             text: 'Battery saving. Some phones — Xiaomi, Oppo, Vivo, '
                 'realme, Samsung — stop background apps hard. Find SWIP '
@@ -783,7 +632,7 @@ class _KeepItRunningStep extends StatelessWidget {
           // shortcut; SWIP's is Force stop. Same red X, same reason: a person
           // scanning this page will see the crossed-out row before they read
           // a word of it.
-          const _NumberedStep(
+          const WizardStep(
             n: 2,
             warn: true,
             text: 'Do not use Force stop.',
@@ -801,7 +650,7 @@ class _KeepItRunningStep extends StatelessWidget {
                   .copyWith(color: SwipColors.textSecondary),
             ),
           ),
-          const _NumberedStep(
+          const WizardStep(
             n: 3,
             text: 'Turning the permission off. The button disappears the '
                 'moment "display over other apps" is switched off.',
@@ -861,7 +710,7 @@ class _AllSetStep extends StatelessWidget {
     // itself is on screen, which is *exactly where the user is standing when
     // they finish this wizard*.
     if (!overlayGranted) {
-      return _Screen(
+      return WizardScreen(
         title: 'Not turned on yet',
         body: [
           Text(
@@ -881,7 +730,7 @@ class _AllSetStep extends StatelessWidget {
       );
     }
 
-    return _Screen(
+    return WizardScreen(
       title: 'You\'re all set',
       body: [
         Text('Here is what to expect.',

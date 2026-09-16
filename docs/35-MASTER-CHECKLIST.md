@@ -311,6 +311,13 @@ growing.
 | The snoozed bubble reappearing in the centre | 47 | ✅ `F-180` — it never moved there; `swallow` parked it there and nothing put it back |
 | One drag handle on the popup, not two | 47 | ✅ `F-180` — a theme-level `showDragHandle` plus the shell's own |
 | *View all* opens the app at the ledger | 47 | ✅ `F-180` — reverses `F-175`'s in-place expansion, on instruction, and the instruction was right |
+| Write down every technology used, for a developer conversation | 48 | ✅ [`40`](40-WHAT-SWIP-IS-BUILT-WITH.md) — and the honest note that nothing in a repo is secret |
+| Explain the Razorpay key and what to do with the test one | 48 | ✅ [`41`](41-RAZORPAY-EXPLAINED.md) — including that it never returns an MCC |
+| An onboarding flow for the Razorpay key | 48 | ✅ `F-181` — four screens, `wizard_shell.dart` shared with the bubble wizard |
+| Parse the market PDF and get the MCC out of the QRs | 48 | ✅ 48/52 decoded — and **5 of 48 carry a category**, which is the honest answer. [`42`](42-MARKET-QR-CORPUS.md) |
+| Find the pattern in which QRs give nothing | 48 | ✅ **The acquirer decides.** Google Pay publishes, Paytm/PhonePe/BharatPe do not |
+| The Paytm QRs that "failed" | 48 | ✅ 14/14 decoded. They carry no category — the app was right, the screen was unclear |
+| Say why the scanner is finding nothing | 48 | ✅ `F-183` — four causes, every one observed in the corpus |
 | The latest APK | 43 | ✅ link, not file — the artifact host is blocked by this environment's egress proxy, established by trying |
 | A survey of open-source floating-icon projects | 44 | ✅ [`39`](39-FLOATING-OVERLAY-PRIOR-ART.md) — every entry opened and verified, not recalled |
 | Why the bubble disappears | 42 | ✅ `F-178` — a lifecycle asymmetry, found by reading; **and half the report was by design**, said plainly rather than fixed |

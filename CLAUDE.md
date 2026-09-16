@@ -196,6 +196,11 @@ Each of these cost a broken build or a broken screen. Do not re-derive them.
 | **The two best-known chat-head libraries are both dead** | `springy-heads` is unmaintained and points at `google/hover`, which Google archived in Jan 2023. Taking either would have been inheriting abandoned code — which is a second, better reason for `F-170`'s choice of `androidx.dynamicanimation`. **Re-check maintenance status, not star counts.** `docs/39` §1 |
 | **Entering from the bottom edge is Android's grammar for "a new activity"** | However small the distance. A 6% `slideY` on the hover card was enough to read as an app opening. Motion with no direction — a 2% scale — resolves in place instead. `F-177` |
 | **The GitHub jobs API reports `conclusion: success` for every `continue-on-error` step** | Whatever actually happened. Reading step conclusions says a run is green when it is not — the same trap as the APK job, in a new disguise. The workflow's own Report step reads `outcome`, and it is the only thing in that job worth believing. `F-175` |
+| **Five QR codes in forty-eight carry a category, and the acquirer decides which** | Every Google Pay for Business code publishes `mc`; **not one** Paytm, PhonePe or BharatPe code does. Nineteen omit the field entirely, twenty-two set `mc=0000`. Same shop, different sticker, different answer. `docs/42` — 52 photographs from one market walk |
+| **PhonePe's `sign=` is a raw DER ECDSA signature, not a JWT** | An ASN.1 `SEQUENCE` of two `INTEGER`s (r, s). It carries **no payload**, so there is nothing to extract from it — its only use is as proof NPCI minted the code, and the verifying key is not published to developers. A presence signal, nothing more. `docs/42` §4 |
+| **A QR whose modules are physically covered is unrecoverable, and that is the correct answer** | Error correction buys roughly 15% at the level these are printed at; past that the bytes are not in the photograph. Four market codes got finder-pattern clustering plus an exhaustive rotated sliding-window sweep — seven minutes each — and returned nothing. **The fix is not a better decoder, it is telling the user which obstruction is in the way.** `F-183` |
+| **A gap in the middle of a family is the kind nobody finds by reading** | `pta` was missing from the handle map while `pty`, `ptys`, `ptsbi`, `ptaxis`, `pthdfc` and `ptyes` were all there — and `okbizaxis`/`okbizicici` were missing entirely, which is every Google Pay code in the corpus and therefore every code that carries an MCC. Fifty entries look exhaustive. `F-182` |
+| **No commercial API returns an MCC for a VPA** | Razorpay's `validate/vpa` returns a name and a boolean. The MCC lives in the acquirer's switch and reaches a phone only from the QR payload or the POS terminal. Also: **NPCI deprecated UPI Collect on 28 Feb 2026**, which was that endpoint's main customer — so it is built behind an injected transport and a 404 is treated as "no name". `docs/41` |
 | **CRED does not need a PSP licence to show a merchant name** | Resolving a VPA is a commercial API (Razorpay, Cashfree, Decentro, Juspay) sold to any business with KYC. No API returns the **MCC** — that lives in the acquirer's switch, which is why CRED writes *"may not"*. `F-157` |
 
 **The recurring mistake, twice over: checking the source instead of the
@@ -240,6 +245,8 @@ padding.** `docs/36` D-51.
   are one fact seen twice.
 * A **static Paytm sticker carries no MCC at all** — often just
   `pa` and `pn`. No app can read one out of it, CRED included.
+  **Measured: 14 of 14 in the market corpus, and 5 of 48 codes overall
+  carry a usable category.** `docs/42`
 * **`mc=` present-and-empty** is a bank that built a merchant QR and left the
   category blank. Different from absent, and worth saying.
 * **Netbanking has no MCC.** Not a card transaction, so there is nothing to read.
@@ -269,6 +276,9 @@ padding.** `docs/36` D-51.
 | **Omnipresence, the shortcut-clash answer, and the two blockers** | [`docs/37-OMNIPRESENCE-AND-THE-TWO-BLOCKERS.md`](docs/37-OMNIPRESENCE-AND-THE-TWO-BLOCKERS.md) |
 | **Every ask from every prompt, with status** | [`docs/35-MASTER-CHECKLIST.md`](docs/35-MASTER-CHECKLIST.md) |
 | **Every deviation from the original idea** | [`docs/36-DEVIATIONS.md`](docs/36-DEVIATIONS.md) |
+| **The whole stack, for explaining the app to a developer** | [`docs/40-WHAT-SWIP-IS-BUILT-WITH.md`](docs/40-WHAT-SWIP-IS-BUILT-WITH.md) |
+| **The Razorpay key: what it is, what it is not, how to set it up** | [`docs/41-RAZORPAY-EXPLAINED.md`](docs/41-RAZORPAY-EXPLAINED.md) |
+| **52 real market QRs, decoded, with the distribution** | [`docs/42-MARKET-QR-CORPUS.md`](docs/42-MARKET-QR-CORPUS.md) |
 
 ---
 

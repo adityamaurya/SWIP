@@ -163,15 +163,38 @@ abstract final class MerchantIdentifier {
     // Paytm
     'paytm': 'Paytm', 'ptys': 'Paytm', 'pty': 'Paytm', 'ptsbi': 'Paytm',
     'ptaxis': 'Paytm', 'pthdfc': 'Paytm', 'ptyes': 'Paytm',
+    // `F-182`. `pta` was missing while every other `pt…` was here, and it
+    // turned up on a real soundbox in the owner's market walk
+    // (`paytm.s10l7qf@pta`, carrying `tn=Verified Paytm Merchant`). A gap in
+    // the middle of a family is the kind nobody notices by reading.
+    'pta': 'Paytm',
     // PhonePe
     'ybl': 'PhonePe', 'ibl': 'PhonePe', 'axl': 'PhonePe',
     // Google Pay
     'okaxis': 'Google Pay', 'okhdfcbank': 'Google Pay',
     'okicici': 'Google Pay', 'oksbi': 'Google Pay',
+    // `F-182`. **Google Pay for Business**, which is a different handle family
+    // from the consumer one and was entirely absent. All three Google Pay
+    // codes in the market corpus are `gpay-…@okbizaxis` or `@okbizicici` —
+    // and they are also the only codes in that corpus that carry a real MCC,
+    // so these were the handles least affordable to miss.
+    'okbizaxis': 'Google Pay', 'okbizicici': 'Google Pay',
+    'okbizhdfcbank': 'Google Pay', 'okbizsbi': 'Google Pay',
     // Amazon Pay
     'apl': 'Amazon Pay', 'yapl': 'Amazon Pay', 'rapl': 'Amazon Pay',
     // BharatPe / others
     'bharatpe': 'BharatPe', 'yesbankltd': 'BharatPe',
+    // `F-182`. Two more BharatPe sponsor handles from the market corpus.
+    //
+    // **The sponsor bank behind each is not confirmed** — `unitype` reads as
+    // BharatPe's Unity Small Finance Bank joint venture and `fbpe` as some
+    // other sponsor, and neither is documented anywhere I could reach. So
+    // they are labelled by the payment company rather than by the bank, which
+    // is both what the user needs to see and the part that is actually
+    // provable: every one of these carries a `BHARATPE…` local part, which is
+    // minted at onboarding and which `_merchantHandlePatterns` already
+    // recognises independently of the handle.
+    'unitype': 'BharatPe', 'fbpe': 'BharatPe',
     'jupiteraxis': 'Jupiter', 'fam': 'Fampay', 'naviaxis': 'Navi',
     'superyes': 'super.money', 'slc': 'slice', 'timecosmos': 'CRED',
     'axisb': 'Axis Bank', 'idfcbank': 'IDFC First', 'kotak': 'Kotak',
