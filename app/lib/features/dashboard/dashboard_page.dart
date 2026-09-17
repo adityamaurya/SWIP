@@ -332,7 +332,9 @@ class _DashboardPageState extends State<DashboardPage> {
               child: _CaptureTile(
                 icon: Icons.qr_code_scanner_rounded,
                 label: 'Scan QR',
-                sublabel: 'The shop\'s code',
+                // `F-191`. Was "The shop's code", which names the thing you
+                // point at rather than what you get for pointing at it.
+                sublabel: 'Get MCC from any QR',
                 onTap: () => widget.onOpenCapture?.call(CaptureVector.qr),
               ),
             ),
@@ -340,9 +342,20 @@ class _DashboardPageState extends State<DashboardPage> {
             Expanded(
               flex: 3,
               child: _CaptureTile(
-                icon: Icons.contactless_rounded,
+                // `F-191`. **Outlined, not filled**, and that is the whole
+                // fix for *"the Tap POS icon is very bad-looking"*.
+                //
+                // `contactless_rounded` is a solid glyph and
+                // `qr_code_scanner_rounded` is line art, so the pair never
+                // matched — and in Paper it is worse than mismatched: the tint
+                // is `gold500`, which in Paper is **ink** (`#0B0B0D`, and
+                // `swip_palette.dart` says so on the line). A filled glyph
+                // tinted ink is a black disc, which is exactly what the
+                // screenshot shows. The outlined form is the same weight as
+                // its neighbour in both grounds.
+                icon: Icons.contactless_outlined,
                 label: 'Tap POS',
-                sublabel: 'The card machine',
+                sublabel: 'Get MCC from any POS machine',
                 enabled: widget.tapAvailable,
                 onTap: () => widget.onOpenCapture?.call(CaptureVector.nfc),
               ),
@@ -653,7 +666,17 @@ class _CaptureTile extends StatelessWidget {
       enabled: enabled,
       label: '$label. $sublabel',
       child: Material(
-        color: SwipColors.surface,
+        // `F-191`. `surfaceRaised`, not `surface`, and it fixes both grounds
+        // with one token.
+        //
+        // `surface` is `#FFFFFF` in Paper and `#0C0B0E` in Foil — in each case
+        // within a hair of the page behind it, so the tile was carried
+        // entirely by its 1 px border. The owner reported it twice, once per
+        // theme: *"the white mode is very much messed up"* and *"Scan QR and
+        // Tap POS in dark mode are simply invisible"*. Two complaints, one
+        // token. `surfaceRaised` is `#F6F6F7` and `#141216`: a step off the
+        // page in both, which is what the pair needed to read as buttons.
+        color: SwipColors.surfaceRaised,
         borderRadius: SwipRadius.cardAll,
         child: InkWell(
           // Still tappable when disabled. A dimmed tile says "not the thing you

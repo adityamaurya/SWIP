@@ -63,9 +63,17 @@ removal list. **`F-178` is confirmed by a real export**
 ([`docs/38`](docs/38-BUBBLE-TRACE.md) §6) — but each export since has found the
 next thing: `F-180`, and then `F-184` inside `F-180`'s own fix.
 [`docs/38` §8](docs/38-BUBBLE-TRACE.md) records the hold as a decision rather
-than an oversight. **Delete it, including its own gate check and after moving
-its escaping cases into `BlackboxTest`, once `F-184` is confirmed by an export
-where `bubble.restored` reports the edge the bubble was parked at.**
+than an oversight.
+
+**`F-184` is now CONFIRMED** — the prompt-51 export has six `bubble.restored`
+lines at six different positions, none of them the snooze target, including one
+at `x=931` on the *right* edge. The stated condition is met and the trace should
+come out. It is held **once more, for a new reason rather than the old one**:
+the same prompt reported two fresh bubble faults — a flicker on close and the
+glyph not staying a cross — and removing the only instrument that can read them
+in the round they were reported is the mistake §8 exists to avoid. **Delete it,
+including its own gate check and after moving its escaping cases into
+`BlackboxTest`, once those two are fixed.**
 
 `check_wiring.py` exists because **four times** a feature was built, tested and
 never connected — the floating bubble's switch wrote a preference nothing read
@@ -237,3 +245,106 @@ Each of these cost a broken build or a broken screen. Do not re-derive them.
 | **"Razorpay is not working" and "no MCC" cannot be the same fault** | The lookup returns a **name**, never a category. A working key would have changed the word *Paytm* on that screen into the shop's name and left the headline identical. When two complaints arrive in one sentence, check whether one of them is even capable of causing the other. `docs/46` §3 |
 | **A repo-relative markdown link is dead in a chat reply** | `[docs/43](docs/43-RAZORPAY-IN-PLAIN-WORDS.md)` resolves against the repository, and a chat client has no repository — it renders as a link, the owner taps it, and gets *"Unsupported link"*. **Worse than plain text**, because it looks like it works and the failure is silent until somebody tries. Every round's reply had been doing this. Absolute `blob/<branch>/` URLs in chat; relative paths only in files that live in the repo. `F-190` |
 | **When reversing a behaviour, grep for the *assertion*, not the test name** | `F-189` flipped "the result never shows its field table". One test was named for it and updated; a **second** asserted the same `findsNothing` inside a test about something else entirely — *"View all calls back rather than expanding in place"* — and cost a CI round on its own. A behaviour is encoded wherever it is asserted, and only one of those places is named after it. `grep` the string. `F-190` |
+| **A POS terminal can answer a whole EMV exchange and still have no category to give** | The Starbucks tap: `9F15`, `9F16`, `9F1C` and `9F4E` **all zeros**, while the amount, date, time, country, currency and terminal capabilities were correct to the byte. An MCC is assigned by the acquirer and lives in its switch; a terminal needs none of it to run a kernel, so many are never provisioned with one. `docs/34` assumed a terminal would carry it. **Sample of one — the number that matters is how many terminals publish `9F15`, and only taps answer it.** `docs/47` |
+| **`SW=6985` from a card reads on a terminal as "contactless limit exceeded"** | It means *conditions of use not satisfied*, and the common real-world cause is the tap ceiling, so terminals map it straight to that message. SWIP returns it deliberately after reading. The terminal is guessing at why a card refused and guessing the usual reason — nothing is paid, reserved or affected. `docs/47` §6 |
+| **`surface` is within a hair of the page in both grounds** | `#FFFFFF` on Paper and `#0C0B0E` on Foil, so a card using it is carried entirely by its 1 px border and reads as invisible. The owner reported it twice, once per theme, and it was **one token**. `surfaceRaised` (`#F6F6F7` / `#141216`) steps off the page. `F-191` |
+| **A filled glyph beside a line-art one is a black disc, not a mismatch** | `contactless_rounded` is solid where `qr_code_scanner_rounded` is a stroke — and the tint is `gold500`, which `swip_palette.dart` says on its own line is **ink** in Paper. *"The Tap POS icon is very bad-looking"* was a shape-and-token fact, not a taste one. Use the outlined form. `F-191` |
+| **A divider above a conditionally-rendered section is two dividers or none** | Settings drew one, the Diagnostics block drew its own, and on a **release** build — where that block renders `SizedBox.shrink()` — the two outer ones became adjacent. The debug bug was visible; the same bug shipped. Let the conditional block own its separator. `F-191` |
+| **A `python -c` one-liner that rebuilds a file can truncate it, and the gate cannot see that** | `s = s[:i] + s[i:j] + row` — with no `+ s[j:]` — silently dropped 91 lines from `CLAUDE.md`, including the whole doc index, and it was committed and pushed. `check_links` passed because the links that remained were fine. **After a scripted edit to a long file, diff it or count its lines**; "the script printed ok" is not evidence about the file. `F-191` |
+
+**The recurring mistake, twice over: checking the source instead of the
+artifact.** Read the built thing, not the code that should have built it.
+
+**The other recurring mistake: concluding instead of looking.** Three times —
+the floating bubble, the blockchain, and CRED's PSP licence — I reasoned from
+what I already believed, said it could not be done, and was overruled by the
+owner telling me to go and check. Each time the checking changed the answer.
+Before writing "that is not possible", go and look. `docs/36` §5.
+
+**And its worse form: labelling something "the owner's call".** Three more —
+the HTTP client our own gate forbids, three Razorpay constants, and CameraX
+surviving `bootstrap.sh` — were not positions I argued, they were things I
+handed over, which is how a wrong conclusion avoids being argued with at all.
+All three were mine to solve and none needed a decision from anybody.
+**Before writing "that is your call", check whether it is a genuine trade-off
+or just something not yet tried.** `docs/36` D-42..D-44.
+
+**And the quietest variant: a spec this project wrote, that the build drifted
+from, that nobody re-read.** `docs/32` §4 asked for a 56 dp bubble with
+"velocity-aware edge snapping". The build shipped 48 dp with a fixed 260 ms
+interpolator that never read a velocity, and stayed that way for four months
+until the owner felt it. **Before calling a feature finished, re-read the page
+that specified it.** `docs/36` D-47.
+
+**And the one that has now happened twice in two rounds: taking a description
+of how something *feels* literally.** *"Not prominent enough"* was a contrast
+failure, not a size one. *"Not smooth"* was a gesture that had to guess, not an
+easing curve. Both times the literal reading pointed at a polish job that would
+have produced a better-looking version of the same defect. **When the report is
+about how something feels, find the mechanism before touching the easing or the
+padding.** `docs/36` D-51.
+
+---
+
+## Domain facts that drive the product
+
+* **P2M** merchants have an MCC and can take a RuPay credit card on UPI.
+  **P2PM** (small-merchant) have **neither** — NPCI does not permit credit card
+  on UPI there. "This shop has no category" and "my RuPay card is greyed out"
+  are one fact seen twice.
+* A **static Paytm sticker carries no MCC at all** — often just
+  `pa` and `pn`. No app can read one out of it, CRED included.
+  **Measured: 14 of 14 in the market corpus, and 5 of 48 codes overall
+  carry a usable category.** `docs/42`
+* **`mc=` present-and-empty** is a bank that built a merchant QR and left the
+  category blank. Different from absent, and worth saying.
+* **Netbanking has no MCC.** Not a card transaction, so there is nothing to read.
+* The MCC **is** in the 3-D Secure `AReq` during a card payment, but that is
+  server-to-server and never reaches the phone.
+* CRED writes **"MERCHANT MAY NOT ACCEPT RUPAY CC"** — the word *may* is the
+  tell that they are inferring too. Match that hedge; never claim more.
+
+---
+
+## Where things are written down
+
+| Topic | File |
+|---|---|
+| Every prompt, verbatim, timestamped | [`docs/21-PROMPT-LEDGER.md`](docs/21-PROMPT-LEDGER.md) |
+| What was built each round | [`docs/CHANGELOG.md`](docs/CHANGELOG.md) |
+| What was *answered* each round | [`docs/28-CONVERSATION-LOG.md`](docs/28-CONVERSATION-LOG.md) |
+| Why the QRs would not scan | [`docs/29-QR-DETECTION-FORENSICS.md`](docs/29-QR-DETECTION-FORENSICS.md) |
+| The build gate | [`docs/30-PRE-LAUNCH-PARAMETERS.md`](docs/30-PRE-LAUNCH-PARAMETERS.md) |
+| iOS and `.ipa` | [`docs/31-IOS-AND-IPA.md`](docs/31-IOS-AND-IPA.md) |
+| The floating bubble — physics, the goodbye nobody saw, and the snooze target | [`docs/32-FLOATING-BUBBLE.md`](docs/32-FLOATING-BUBBLE.md) |
+| **The temporary bubble trace, and the checklist for deleting it** | [`docs/38-BUBBLE-TRACE.md`](docs/38-BUBBLE-TRACE.md) |
+| **Every open-source floating-overlay project worth reading, verified** | [`docs/39-FLOATING-OVERLAY-PRIOR-ART.md`](docs/39-FLOATING-OVERLAY-PRIOR-ART.md) |
+| Visual direction | [`docs/33-VISUAL-DIRECTION-PAPER.md`](docs/33-VISUAL-DIRECTION-PAPER.md) |
+| Account recovery | [`docs/25-CONTINUITY.md`](docs/25-CONTINUITY.md) |
+| The round-34 checklist, PPSE forensics, CRED vs SWIP | [`docs/34-ROUND-34-CHECKLIST.md`](docs/34-ROUND-34-CHECKLIST.md) |
+| **Omnipresence, the shortcut-clash answer, and the two blockers** | [`docs/37-OMNIPRESENCE-AND-THE-TWO-BLOCKERS.md`](docs/37-OMNIPRESENCE-AND-THE-TWO-BLOCKERS.md) |
+| **Every ask from every prompt, with status** | [`docs/35-MASTER-CHECKLIST.md`](docs/35-MASTER-CHECKLIST.md) |
+| **Every deviation from the original idea** | [`docs/36-DEVIATIONS.md`](docs/36-DEVIATIONS.md) |
+| **The whole stack, for explaining the app to a developer** | [`docs/40-WHAT-SWIP-IS-BUILT-WITH.md`](docs/40-WHAT-SWIP-IS-BUILT-WITH.md) |
+| **The Razorpay key: what it is, what it is not, how to set it up** | [`docs/41-RAZORPAY-EXPLAINED.md`](docs/41-RAZORPAY-EXPLAINED.md) |
+| **52 real market QRs, decoded, with the distribution** | [`docs/42-MARKET-QR-CORPUS.md`](docs/42-MARKET-QR-CORPUS.md) |
+| **The Razorpay key with the vocabulary removed** | [`docs/43-RAZORPAY-IN-PLAIN-WORDS.md`](docs/43-RAZORPAY-IN-PLAIN-WORDS.md) |
+| **Whether SWIP can ship to the App Store, and what dies there** | [`docs/44-CAN-THIS-SHIP-TO-THE-APP-STORE.md`](docs/44-CAN-THIS-SHIP-TO-THE-APP-STORE.md) |
+| **The seven ways a POS tap fails, and how to read the black box** | [`docs/45-WHY-A-POS-TAP-FAILS.md`](docs/45-WHY-A-POS-TAP-FAILS.md) |
+| **The Paytm QR that carries no category, decoded in full** | [`docs/46-THE-CODE-YOU-SENT.md`](docs/46-THE-CODE-YOU-SENT.md) |
+| **A real POS exchange decoded byte by byte, and why it had no MCC** | [`docs/47-THE-STARBUCKS-TERMINAL.md`](docs/47-THE-STARBUCKS-TERMINAL.md) |
+| **Every ask from prompt 51, quoted, with status** | [`docs/48-PROMPT-51-REGISTER.md`](docs/48-PROMPT-51-REGISTER.md) |
+| **The Razorpay key with the vocabulary removed** | [`docs/43-RAZORPAY-IN-PLAIN-WORDS.md`](docs/43-RAZORPAY-IN-PLAIN-WORDS.md) |
+| **Whether SWIP can ship to the App Store, and what dies there** | [`docs/44-CAN-THIS-SHIP-TO-THE-APP-STORE.md`](docs/44-CAN-THIS-SHIP-TO-THE-APP-STORE.md) |
+| **The seven ways a POS tap fails, and how to read the black box** | [`docs/45-WHY-A-POS-TAP-FAILS.md`](docs/45-WHY-A-POS-TAP-FAILS.md) |
+| **The Paytm QR that carries no category, decoded in full** | [`docs/46-THE-CODE-YOU-SENT.md`](docs/46-THE-CODE-YOU-SENT.md) |
+
+---
+
+## Style
+
+Long doc comments that explain **why**, especially where the reason is
+non-obvious or where a previous attempt failed. The owner reads the code as
+documentation. A comment that only restates the line beneath it is noise; a
+comment that records why the obvious approach does not work is the most valuable
+thing in the file.

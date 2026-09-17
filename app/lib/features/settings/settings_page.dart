@@ -269,7 +269,15 @@ class SettingsPage extends ConsumerWidget {
             },
           ),
 
-          const Divider(height: SwipSpace.xxl),
+          // `F-191`. **No divider here.** There used to be one, and with the
+          // Diagnostics block below drawing its own there were two rules back
+          // to back with nothing between them — which is what the owner saw.
+          //
+          // Worth noting the half nobody could see: on a **release** build the
+          // Diagnostics block returns `SizedBox.shrink()`, so this divider and
+          // the one after the block were adjacent there too. The visible bug
+          // was the debug build; the same bug shipped.
+          //
           // `F-187`, `F-188`. The two new recorders.
           //
           // A `FutureBuilder` rather than making this whole page stateful for

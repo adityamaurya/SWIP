@@ -2399,6 +2399,65 @@ stayed green.
 
 ---
 
+## Prompt 51 — 17 Sep 2026 · The Starbucks terminal, and 34 asks
+
+### The finding
+
+**A complete, successful EMV exchange in which every merchant-identity field
+came back as zeros.** `9F15` (category), `9F16` (merchant id), `9F1C` (terminal
+serial) and `9F4E` (merchant name) — all zero. The amount (₹504.00), date, time,
+country, currency and terminal capabilities were all correct to the byte.
+
+The terminal knew exactly what it was doing and had no category to give.
+[`47`](47-THE-STARBUCKS-TERMINAL.md) decodes it field by field.
+
+*"Contactless Limit exceed"* is the terminal guessing at why SWIP returned
+`SW=6985`; ₹504 is far under the ₹5,000 ceiling. Nothing was paid or reserved.
+
+### Screens changed
+
+| ID | Screen | Change | Serves |
+|---|---|---|---|
+| `S-07` | Settings | One divider, not two, above Diagnostics | prompt 51 C1 |
+| `S-01` | Dashboard | *Scan QR* / *Tap POS* tiles legible in **both** grounds | prompt 51 C5 |
+| `S-01` | Dashboard | Tap POS icon outlined, matching its neighbour | prompt 51 C2 |
+| `S-01` | Dashboard | "Get MCC from any QR" · "Get MCC from any POS machine" | prompt 51 C6 |
+
+### Code
+
+| File | Change |
+|---|---|
+| `settings_page.dart` | `F-191` — deleted the divider above the Diagnostics block, which drew its own. The same pair shipped **invisibly on release**, where that block renders nothing |
+| `dashboard_page.dart` | `F-191` — `_CaptureTile` uses `surfaceRaised`, not `surface`. `surface` is `#FFFFFF` in Paper and `#0C0B0E` in Foil, within a hair of the page in both |
+| `dashboard_page.dart` | `F-191` — `contactless_rounded` → `contactless_outlined`. A **filled** glyph tinted `gold500`, which is ink in Paper, is a black disc by construction |
+| `dashboard_page.dart` | `F-191` — both subtitles name  what you get, not what you point at |
+
+### Docs
+
+| File | |
+|---|---|
+| **[`47-THE-STARBUCKS-TERMINAL.md`](47-THE-STARBUCKS-TERMINAL.md)** | **New.** The PDOL request, the GPO response, and the four zero fields |
+| **[`48-PROMPT-51-REGISTER.md`](48-PROMPT-51-REGISTER.md)** | **New.** All 34 asks, quoted, with status. 8 done, 6 answered, 2 need a sentence, 18 planned |
+
+### What the three exports confirmed
+
+**`F-184` is confirmed.** Six `bubble.restored` lines at six different
+positions — `y=743, 814, 446, 1402, 1402` and one at `x=931` on the *right*
+edge — **none of them the snooze target**. Six snoozes, six restores, matched.
+
+**`F-189`'s arc is confirmed.** Every `fan.open` carries two distinct
+positions, differing in both axes, mirrored by the parked edge.
+
+**`F-189`'s `show()` fix holds.** Not one `unmatched` line in 284 battery
+entries, where the previous export had six.
+
+### Open
+
+18 asks planned and not built, 2 waiting on a sentence — [`48` §H](48-PROMPT-51-REGISTER.md)
+has the order and the reasoning.
+
+---
+
 <!--
 Template for the next entry:
 
