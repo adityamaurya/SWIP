@@ -334,10 +334,6 @@ padding.** `docs/36` D-51.
 | **The Paytm QR that carries no category, decoded in full** | [`docs/46-THE-CODE-YOU-SENT.md`](docs/46-THE-CODE-YOU-SENT.md) |
 | **A real POS exchange decoded byte by byte, and why it had no MCC** | [`docs/47-THE-STARBUCKS-TERMINAL.md`](docs/47-THE-STARBUCKS-TERMINAL.md) |
 | **Every ask from prompt 51, quoted, with status** | [`docs/48-PROMPT-51-REGISTER.md`](docs/48-PROMPT-51-REGISTER.md) |
-| **The Razorpay key with the vocabulary removed** | [`docs/43-RAZORPAY-IN-PLAIN-WORDS.md`](docs/43-RAZORPAY-IN-PLAIN-WORDS.md) |
-| **Whether SWIP can ship to the App Store, and what dies there** | [`docs/44-CAN-THIS-SHIP-TO-THE-APP-STORE.md`](docs/44-CAN-THIS-SHIP-TO-THE-APP-STORE.md) |
-| **The seven ways a POS tap fails, and how to read the black box** | [`docs/45-WHY-A-POS-TAP-FAILS.md`](docs/45-WHY-A-POS-TAP-FAILS.md) |
-| **The Paytm QR that carries no category, decoded in full** | [`docs/46-THE-CODE-YOU-SENT.md`](docs/46-THE-CODE-YOU-SENT.md) |
 
 ---
 
