@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -47,10 +48,25 @@ class CaptureRepository {
     String? acquirer,
     String? rawPayload,
   }) async {
-    // Fetched before the row is built, and never allowed to fail the capture:
-    // `current()` returns null for a refused permission, a disabled service, or
-    // a timeout indoors, and all three mean "no location", not "no capture".
-    final where = await _location.current();
+    // `F-192`. **The location is NOT fetched here any more.**
+    //
+    // It used to be the first line of this method, and it is the reason the
+    // owner reported *"it goes to a blank screen… it is still processing…
+    // takes a lot of time"* and, worse, *"if the user is in a hurry and he
+    // leaves the window, there would be no record in the ledger"*.
+    //
+    // Both were one mechanism. `current()` awaits a GPS fix with a **10 second**
+    // limit — which indoors, at a counter, is the normal case rather than the
+    // bad one — and then a reverse geocode, which is a **network call** to
+    // Android's `Geocoder` with no timeout at all. Nothing was written to the
+    // ledger until all of that returned, so a capture's survival depended on
+    // the user standing still in a shop watching a viewfinder.
+    //
+    // The row is written first now and the place arrives afterwards, through
+    // [_fillLocationLater]. That inverts the priority to match the product:
+    // **the capture is the thing, and where you were standing is a label on
+    // it.** A capture that is lost because a geocoder was slow is a capture
+    // the user has to go back to the counter for.
 
     var code = mcc;
     final noCode = code == null || code.length != 4 || code == '0000';
@@ -134,13 +150,48 @@ class CaptureRepository {
       terminalId: terminalId,
       acquirer: acquirer,
       rawPayload: rawPayload,
-      geohash: where?.geohash,
-      placeLabel: where?.label,
-      placeCountry: where?.countryCode,
+      // `F-192`. Blank on the way in, filled by [_fillLocationLater] if a fix
+      // ever arrives. Null here is not "no location" — it is "not yet".
+      geohash: null,
+      placeLabel: null,
+      placeCountry: null,
     );
 
     await _db.insertCapture(event);
+
+    // Deliberately **not** awaited: this is the whole fix. The caller gets its
+    // event on the next microtask and opens a sheet; the fix lands in the row
+    // whenever the platform gets round to it, and the ledger shows it on its
+    // next read. `unawaited` rather than a bare call so the intent is legible
+    // and `unawaited_futures` stays satisfied.
+    unawaited(_fillLocationLater(event.id));
+
     return event;
+  }
+
+  /// `F-192` — put the place on a capture that is already saved.
+  ///
+  /// Runs after [record] has returned, so nothing on screen is waiting for it.
+  /// Every failure mode ends the same way: the row keeps its blank columns,
+  /// which is exactly what it had a moment ago.
+  ///
+  /// There is no retry. A fix that did not arrive inside `current()`'s own
+  /// deadline is a fix the phone could not get from where it was standing, and
+  /// asking again from the same place costs battery to learn the same thing.
+  Future<void> _fillLocationLater(String id) async {
+    try {
+      final where = await _location.current();
+      if (where == null) return;
+      await _db.fillCaptureLocation(
+        id,
+        geohash: where.geohash,
+        placeLabel: where.label,
+        placeCountry: where.countryCode,
+      );
+    } catch (_) {
+      // A capture must never be harmed by where it happened — the rule this
+      // method exists to enforce, now that it runs where it cannot harm one.
+    }
   }
 
   /// `F-50` — teach SWIP from a bank statement.

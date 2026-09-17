@@ -74,6 +74,28 @@ class LocationService {
   Future<CaptureLocation?> current() async {
     if (!isEnabled) return null;
 
+    // `F-192`. **One deadline over the whole method.**
+    //
+    // `CLAUDE.md`: *a `MethodChannel` future completes when the platform
+    // replies, and never completes if it does not — `.timeout()` every
+    // platform read.* Every call below is a platform read and only one of them
+    // had a limit. `placemarkFromCoordinates` is the worst of them: it is a
+    // **network** call into Android's `Geocoder`, which is rate-limited and
+    // reports `IO_ERROR` when it cannot reach its server
+    // (Baseflow/flutter-geocoding#85), so in a shop with two bars of signal it
+    // is slow precisely when it is being asked.
+    //
+    // A deadline per call would still allow them to add up. One around the lot
+    // is the honest bound, and 12 s is `getCurrentPosition`'s own 10 s plus
+    // room for the geocode to answer or be given up on.
+    try {
+      return await _locate().timeout(const Duration(seconds: 12));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<CaptureLocation?> _locate() async {
     try {
       if (!await Geolocator.isLocationServiceEnabled()) return null;
 
@@ -106,7 +128,14 @@ class LocationService {
       if (position == null) return null;
 
       final hash = Geohash.encode(position.latitude, position.longitude);
-      final place = await _describe(position.latitude, position.longitude);
+
+      // `F-192`. The geohash is already earned at this point — it is arithmetic
+      // on a fix the phone has in hand. The label is a network lookup on top of
+      // it, so it gets its own shorter deadline and **its failure does not take
+      // the geohash with it**. A capture that knows roughly where it was is
+      // worth more than one that knows nothing because a geocoder was busy.
+      final place = await _describe(position.latitude, position.longitude)
+          .timeout(const Duration(seconds: 4), onTimeout: () => null);
 
       return CaptureLocation(
         geohash: hash,

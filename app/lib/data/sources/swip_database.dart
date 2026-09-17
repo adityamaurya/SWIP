@@ -262,6 +262,37 @@ class SwipDatabase {
     );
   }
 
+  /// `F-192` — fill in where a capture happened, **after** it was saved.
+  ///
+  /// The second update-in-place in this file, and the same justification as
+  /// [backfillMcc] above: the row was never wrong, it was *blank*. A capture
+  /// no longer waits for a GPS fix and a reverse geocode before it is written
+  /// (see `CaptureRepository.record`), so the place arrives seconds later or
+  /// never, and this is where it lands when it does.
+  ///
+  /// Guarded on the columns still being null. If a later capture or an import
+  /// has already put a place on this row, a fix that was in flight the whole
+  /// time must not overwrite it — the same "genuine disagreement" reasoning
+  /// [backfillMcc] uses.
+  Future<int> fillCaptureLocation(
+    String id, {
+    required String? geohash,
+    required String? placeLabel,
+    required String? placeCountry,
+  }) async {
+    if (geohash == null && placeLabel == null && placeCountry == null) return 0;
+    return _db.update(
+      'captures',
+      {
+        'geohash': geohash,
+        'place_label': placeLabel,
+        'place_country': placeCountry,
+      },
+      where: 'id = ? AND geohash IS NULL AND place_label IS NULL',
+      whereArgs: [id],
+    );
+  }
+
   Future<void> deleteCapture(String id) async =>
       _db.delete('captures', where: 'id = ?', whereArgs: [id]);
 

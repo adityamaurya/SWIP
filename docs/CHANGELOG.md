@@ -2458,6 +2458,72 @@ has the order and the reasoning.
 
 ---
 
+## Prompt 52 — 17 Sep 2026 · The capture that waited for a satellite
+
+> *"Plan, Research from the whole internet and Implement / Fix the code and
+> make the feature alive"*
+
+### The bug, and it was two bugs
+
+`CaptureRepository.record()` opened with `await _location.current()`. Inside
+that:
+
+* `Geolocator.getCurrentPosition(timeLimit: 10 s)` — indoors at a counter, the
+  **normal** outcome is the timeout, not a fix;
+* then `Geolocator.getLastKnownPosition()` — a platform read, untimed;
+* then `placemarkFromCoordinates()` — a **network** call into Android's
+  `Geocoder`, rate-limited, `IO_ERROR` when it cannot reach its server
+  ([Baseflow/flutter-geocoding#85](https://github.com/Baseflow/flutter-geocoding/issues/85)),
+  and **untimed**.
+
+**Nothing was written to the ledger until all of that returned.** So both of
+the owner's complaints were one mechanism:
+
+> *"it goes to a blank screen… it is still processing… takes a lot of time"*
+> *"if the user is in a hurry and he leaves the window, there would be no
+> record in the ledger"*
+
+`CLAUDE.md` has had the governing rule since `F-158` — *a `MethodChannel`
+future completes when the platform replies, and never completes if it does
+not; `.timeout()` every platform read.* Four platform reads sat in the capture
+path and one of them had a limit.
+
+### The fix
+
+**Write the row, then enrich it.** `record()` inserts with the place columns
+blank and returns; `_fillLocationLater()` runs unawaited and fills them in
+through the new `SwipDatabase.fillCaptureLocation`, whose `WHERE` refuses to
+overwrite a place the row already has.
+
+That inverts the priority to match the product: the capture is the thing, and
+where you were standing is a label on it.
+
+### Code
+
+| File | Change |
+|---|---|
+| `capture_repository.dart` | `F-192` — the location moves out of the capture path into `_fillLocationLater`, unawaited |
+| `swip_database.dart` | `F-192` — **new** `fillCaptureLocation`, guarded so a late fix cannot overwrite a place already there |
+| `capture_location.dart` | `F-192` — one 12 s deadline over the whole of `current()`, and a separate 4 s one on the geocode **so its failure does not take the geohash with it** |
+| **`test/capture_not_blocked_test.dart`** | **New.** Four cases against real SQLite |
+
+### The test is about time, which is the hard part
+
+Every field `record()` wrote was correct throughout — a test asserting on the
+row passed the whole time. What was wrong was **when**. So the fake location
+service **never answers at all**: if the await came back, the suite hangs
+rather than fails, which is the only honest statement about a hang.
+
+It also asserts the fix is still *requested* — a version that simply stopped
+collecting location would pass a weaker test.
+
+### Both vectors, one fix
+
+`tap_page.dart` calls the same `record()`, so the POS path stops waiting on a
+satellite too, without a second change.
+
+---
+
 <!--
 Template for the next entry:
 

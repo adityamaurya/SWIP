@@ -90,8 +90,8 @@ Every item here is quoted from the two identical passages in the prompt.
 | E4 | *"optimize the way we can save these images in local storage while not affecting the app's storage count"* | 📋 — needs a real answer; a cache directory is not free |
 | E5 | *"create an export log for the scans that we are doing… an exportable file"* | 📋 — a fourth black box, and the shortest path of anything in §E |
 | E6 | *"in low light… there is glare coming from the backside of the scanners, and thus the QR codes are not detected"* | 📋 — matches `docs/42`'s undecodable four |
-| E7 | *"I scan the QR code, and it goes to a blank screen… it is still processing… takes a lot of time"* | 📋 — **a real bug, and the worst one in §E** |
-| E8 | *"if the user is in a hurry and he leaves the window, there would be no record in the ledger"* | 📋 — the ledger write should not depend on the screen surviving |
+| E7 | *"I scan the QR code, and it goes to a blank screen… it is still processing… takes a lot of time"* | ✅ `F-192` — **the capture was awaiting a GPS fix and a network geocode.** Neither blocks it now |
+| E8 | *"if the user is in a hurry and he leaves the window, there would be no record in the ledger"* | ✅ `F-192` — same mechanism. The row is written **before** anything slow is attempted |
 | E9 | *"check some open-source API for the best QR code scanner… from open-source GitHub. Try to find that"* | 📋 research, like `docs/39` |
 | E10 | *"redirect to a desired set of payment apps that can make the payment on that QR code… 'Continue payment'"* | 📋 — changes what SWIP *is*; wants its own page before any code |
 | E11 | *"the same in the floater window… a button below in the very same window to continue the payment"* | 📋 |
@@ -139,16 +139,18 @@ screen-on stretches rather than leaks.
 
 ## H. The one thing to say plainly
 
-Thirty-four asks arrived in one prompt. **Eight are done, six are answered with
-evidence, two need a sentence from you, and eighteen are planned and not
-built.** Building eighteen UI and scanner changes in one round without a device
+Thirty-four asks arrived in one prompt. **Ten are done, six are answered with
+evidence, two need a sentence from you, and sixteen are planned and not
+built.** (`F-192` closed E7 and E8 — the two correctness bugs §H put first.) Building eighteen UI and scanner changes in one round without a device
 to test them on is how a round goes red twice and delivers nothing — which has
 already happened once this week.
 
 The order I would take them in, given that E is where the product actually is:
 
-1. **E7 and E8** — the scan that hangs and the capture that is lost if you walk
-   away. Those are correctness, and everything else in §E is polish on top.
+1. ~~**E7 and E8** — the scan that hangs and the capture that is lost if you
+   walk away.~~ **Done, `F-192`.** Both were one line: `record()` opened with
+   `await _location.current()`, a ten-second GPS wait followed by an untimed
+   network geocode, and nothing reached the ledger until it returned.
 2. **E5** — the scan black box. Shortest path, and it makes E1/E6 measurable
    instead of guessed.
 3. **E3/E4** — the screen grabs, once there is a file to put them in.
