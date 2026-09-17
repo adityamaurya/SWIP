@@ -320,10 +320,30 @@
 
     </application>
 
+    <!--
+      Package visibility. Android 11+ hides other apps by default, and these
+      two entries are the whole of what SWIP is allowed to see.
+
+      `F-194` added the second one. It is an INTENT SIGNATURE — "who can VIEW
+      a `upi:` URI" — and it is deliberately not `QUERY_ALL_PACKAGES`, which
+      would return the phone's entire installed-app inventory. Google Play
+      classes that as a restricted permission, granted only when broad
+      visibility IS the app's core purpose; SWIP's is a shop's category. The
+      same trade `docs/36` D-45 declined for the Doze exemption.
+
+      The consequence is worth stating rather than discovering: this query can
+      only ever return apps that have themselves declared they accept UPI
+      payments. It cannot enumerate anything else, which is the property that
+      makes `MainActivity`'s `upiApps` handler shippable.
+    -->
     <queries>
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="upi" />
         </intent>
     </queries>
 </manifest>

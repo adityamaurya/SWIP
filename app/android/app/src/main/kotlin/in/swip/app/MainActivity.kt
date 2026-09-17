@@ -7,7 +7,13 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.nfc.NfcAdapter
 import android.nfc.cardemulation.CardEmulation
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
 import android.os.Build
+import java.io.ByteArrayOutputStream
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
@@ -730,6 +736,115 @@ class MainActivity : FlutterFragmentActivity() {
                         }
                     }
 
+                    // `F-194`. Every installed app that can take a UPI
+                    // payment, so SWIP can draw its own "Pay with" list
+                    // instead of handing the user to the system chooser.
+                    //
+                    // ## The permission this deliberately does not use
+                    //
+                    // On Android 11+ an app cannot see other packages by
+                    // default. `QUERY_ALL_PACKAGES` would lift that wholesale
+                    // and Google Play treats it as a RESTRICTED permission,
+                    // granted only when broad visibility is the app's core
+                    // purpose. SWIP's core purpose is a shop's category. That
+                    // is the same trade `docs/36` D-45 declined for the Doze
+                    // exemption, and it is declined here for the same reason.
+                    //
+                    // What the manifest declares instead is a `<queries>`
+                    // INTENT SIGNATURE — "who can VIEW a `upi:` URI" — which
+                    // needs no permission and no review, and can see nothing
+                    // else on the phone. The list below is therefore
+                    // structurally incapable of being an inventory.
+                    //
+                    // ## Why the icon travels as PNG bytes
+                    //
+                    // Because the alternative is a package name and a
+                    // `PackageManager` lookup on the Flutter side, which does
+                    // not exist. The icons are ~40 dp; eight of them is a few
+                    // tens of kilobytes on one channel call, once per sheet.
+                    // A failed icon returns null rather than failing the row —
+                    // `PayWithSheet` draws a monogram, which still tells two
+                    // apps apart.
+                    "upiApps" -> {
+                        runCatching {
+                            val probe = Intent(
+                                Intent.ACTION_VIEW,
+                                android.net.Uri.parse("upi://pay")
+                            )
+                            val pm = packageManager
+                            val found = if (Build.VERSION.SDK_INT >= 33) {
+                                pm.queryIntentActivities(
+                                    probe,
+                                    PackageManager.ResolveInfoFlags.of(0L)
+                                )
+                            } else {
+                                @Suppress("DEPRECATION")
+                                pm.queryIntentActivities(probe, 0)
+                            }
+
+                            // `LinkedHashMap` rather than a list: several
+                            // launcher aliases of one app resolve the same
+                            // intent, and three identical PhonePe rows is a
+                            // list nobody trusts. First wins, order kept.
+                            val seen = LinkedHashMap<String, Map<String, Any?>>()
+                            for (ri in found) {
+                                val pkg = ri.activityInfo?.packageName ?: continue
+                                if (pkg == packageName) continue  // never offer SWIP
+                                if (seen.containsKey(pkg)) continue
+                                seen[pkg] = mapOf(
+                                    "package" to pkg,
+                                    "label" to ri.loadLabel(pm).toString(),
+                                    "icon" to iconBytes(ri.loadIcon(pm))
+                                )
+                            }
+                            seen.values.toList()
+                        }.fold(
+                            onSuccess = { result.success(it) },
+                            // An empty list, not an error. `PayWithSheet`
+                            // treats empty as "fall through to the system
+                            // chooser", which is a working hand-off; an error
+                            // would be a dead button.
+                            onFailure = { result.success(emptyList<Any>()) }
+                        )
+                    }
+
+                    // `F-194`. Open one named app on this URI.
+                    //
+                    // `setPackage` rather than a chooser, because the user has
+                    // already chosen — in SWIP's own sheet, one tap ago.
+                    "payWithApp" -> {
+                        val pkg = call.argument<String>("package")
+                        val uri = call.argument<String>("uri")
+                        if (pkg.isNullOrBlank() || uri.isNullOrBlank()) {
+                            result.error(
+                                "bad_args", "payWithApp needs package and uri", null)
+                        } else {
+                            runCatching {
+                                startActivity(
+                                    Intent(
+                                        Intent.ACTION_VIEW,
+                                        android.net.Uri.parse(uri)
+                                    )
+                                        .setPackage(pkg)
+                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
+                                // Same promise `forwardUpiIntent` keeps, and
+                                // for the same reason: handing a `upi://` to a
+                                // wallet is the one moment SWIP knows for
+                                // certain a payment is about to be on screen,
+                                // and the bubble must not be over it. `F-158`.
+                                SwipBubbleService.notePaymentStarted(
+                                    this@MainActivity)
+                            }.fold(
+                                onSuccess = { result.success(true) },
+                                // False, not an error. The sheet turns false
+                                // into the system chooser; an exception would
+                                // turn it into nothing happening.
+                                onFailure = { result.success(false) }
+                            )
+                        }
+                    }
+
                     else -> result.notImplemented()
                 }
             }
@@ -746,6 +861,36 @@ class MainActivity : FlutterFragmentActivity() {
                     events = null
                 }
             })
+    }
+
+    /**
+     * `F-194`. A launcher icon as PNG bytes, or null.
+     *
+     * `BitmapDrawable` is the common case and is unwrapped directly. Everything
+     * else — adaptive icons, vectors, layer lists — has no bitmap to take, so
+     * it is drawn into one at its own intrinsic size. An icon with no intrinsic
+     * size (some `ColorDrawable` placeholders report -1) would make
+     * `createBitmap` throw, so it is floored at 1 px and the row falls back to
+     * a monogram, which is the honest outcome for an icon that is one pixel.
+     */
+    private fun iconBytes(d: Drawable?): ByteArray? {
+        if (d == null) return null
+        return runCatching {
+            val bmp = if (d is BitmapDrawable && d.bitmap != null) {
+                d.bitmap
+            } else {
+                val w = d.intrinsicWidth.coerceAtLeast(1).coerceAtMost(192)
+                val h = d.intrinsicHeight.coerceAtLeast(1).coerceAtMost(192)
+                val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(out)
+                d.setBounds(0, 0, canvas.width, canvas.height)
+                d.draw(canvas)
+                out
+            }
+            val bytes = ByteArrayOutputStream()
+            bmp.compress(Bitmap.CompressFormat.PNG, 100, bytes)
+            bytes.toByteArray()
+        }.getOrNull()
     }
 
     private fun registerCaptureReceiver() {

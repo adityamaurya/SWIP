@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/pay/upi_handoff.dart';
 import '../core/runtime/surface.dart';
 import '../core/settings/home_market.dart';
 import '../core/theme/swip_tokens.dart';
@@ -12,6 +13,7 @@ import '../data/sources/rupay_outlook.dart';
 import 'capture_sheet.dart';
 import 'capture_sheet_shell.dart';
 import 'ledger_row.dart';
+import 'pay_with_sheet.dart';
 
 /// `F-180`. How a capture page ended, handed back through `Navigator.pop`.
 ///
@@ -232,6 +234,11 @@ class CaptureResultSheet extends StatelessWidget {
         onViewAll: onViewAll,
         posLabel: onPos == null ? null : 'Tap POS',
         onPos: onPos,
+        // `F-194`. Null on a POS tap and on any code that is not a payable
+        // UPI address — see `UpiHandoff.payUriFor`, which returns null far
+        // more often than it returns a string.
+        payUri: UpiHandoff.payUriFor(event),
+        payeeLabel: event.merchantName ?? event.merchantKey ?? 'this shop',
       ),
       child: condensed
           ? _CondensedResult(event: event, mcc: mcc)
@@ -320,6 +327,8 @@ class _Footer extends StatelessWidget {
     required this.onViewAll,
     required this.posLabel,
     required this.onPos,
+    this.payUri,
+    this.payeeLabel,
   });
 
   final bool known;
@@ -327,8 +336,26 @@ class _Footer extends StatelessWidget {
   final String? posLabel;
   final VoidCallback? onPos;
 
+  /// `F-194` — the scanned code, forwarded unchanged, or null when this
+  /// capture cannot be paid from here.
+  ///
+  /// **Null is the common case and it renders nothing**, which is the point.
+  /// A POS tap has no payee address (`docs/47`), and a QR that is not a UPI
+  /// code has none either. A *Continue payment* button that appeared on every
+  /// capture and failed on most of them would be worse than no button, because
+  /// the failure would arrive after the tap, at a counter, with somebody
+  /// waiting.
+  final String? payUri;
+  final String? payeeLabel;
+
   @override
   Widget build(BuildContext context) {
+    // `F-194`. When *Continue payment* is on screen it is the only filled
+    // button. Two filled buttons is not a stronger call to action, it is an
+    // absent one — the whole information carried by a filled button is that
+    // the others are not it.
+    final hasPay = payUri != null;
+
     final viewAll = _Action(
       label: 'View all',
       // `F-180`. An arrow that leaves, not a chevron that unfolds. The label
@@ -336,16 +363,43 @@ class _Footer extends StatelessWidget {
       // else entirely, so the icon is the only thing on the row that can say
       // so before it is pressed.
       icon: Icons.north_east_rounded,
-      filled: known,
+      filled: known && !hasPay,
       onPressed: onViewAll,
     );
+
+    final uri = payUri;
+    final pay = uri == null
+        ? null
+        : SizedBox(
+            height: 52,
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () => PayWithSheet.open(
+                context,
+                payUri: uri,
+                payeeLabel: payeeLabel ?? 'this shop',
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.arrow_outward_rounded, size: 18),
+                  SizedBox(width: SwipSpace.sm),
+                  Flexible(
+                    child: Text('Continue payment',
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ),
+                ],
+              ),
+            ),
+          );
 
     final pos = posLabel == null
         ? null
         : _Action(
             label: posLabel!,
             icon: Icons.contactless_outlined,
-            filled: !known,
+            filled: !known && !hasPay,
             onPressed: onPos,
           );
 
@@ -359,6 +413,16 @@ class _Footer extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // `F-194`. Full width and above the pair, not a third seat on the
+          // row. Three buttons across a phone at a large text scale is the
+          // overflow `F-174` already paid for once — and the hierarchy is
+          // real rather than cosmetic: *View all* and *Tap POS* are about the
+          // category, and this one is about the thing the user actually came
+          // to the counter to do.
+          if (pay != null) ...[
+            pay,
+            const SizedBox(height: SwipSpace.md),
+          ],
           Row(
             children: [
               Expanded(child: viewAll),

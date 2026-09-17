@@ -145,8 +145,21 @@ def check_channel() -> list[str]:
 
     called = set()
     for f in dart_files():
+        # `F-194`. The generic part is `[^()']*`, not `[^>]*`.
+        #
+        # It used to be `<[^>]*>`, which stops at the FIRST `>` — so a nested
+        # generic like `invokeListMethod<Map<Object?, Object?>>('upiApps')`
+        # did not match and the call was invisible. The gate then reported a
+        # correctly wired handler as dead platform code, which is the gate
+        # crying wolf about working code and is how a check gets switched off.
+        #
+        # Widened rather than worked around: a nested generic is ordinary Dart
+        # and `CLAUDE.md` already records the cost of writing tidier code the
+        # gate cannot see (`F-187`, the channel names moved into an enum). The
+        # new class excludes `(`, `)` and `'`, so it still cannot run past the
+        # end of one call and pick up a literal from the next.
         for m in re.finditer(
-                r"""invoke\w*Method(?:<[^>]*>)?\(\s*'([a-zA-Z]\w*)'""",
+                r"""invoke\w*Method\s*(?:<[^()']*>)?\s*\(\s*'([a-zA-Z]\w*)'""",
                 f.read_text()):
             called.add(m.group(1))
 
