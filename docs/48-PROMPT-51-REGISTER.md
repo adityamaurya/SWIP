@@ -52,7 +52,7 @@ of taps rather than one.
 | C1 | *"in the settings screen, there are two separator lines just below… 'Show all explanations again'"* | ✅ `F-191`. And the same pair shipped **invisibly on release builds**, where the Diagnostics block between them draws nothing |
 | C2 | *"can you change the tab POS icon, which is very bad-looking?"* | ✅ `F-191` — it was a **filled** glyph beside a line-art one, tinted `gold500`, which in Paper is ink. A black disc by construction |
 | C3 | *"the icon opacity has to be 100% so that it's visible"* | ✅ covered by C2 — nothing was ever transparent; the shape was the problem |
-| C4 | *"add a border to that icon, like half of the last circle that you have put in"* | ❓ two readings: a ring around the glyph, or the tile's own border. Not guessed |
+| C4 | *"add a border to that icon, like half of the last circle that you have put in"* → *"so this is basically a bit of black border to the launcher icon"* | ✅ `F-193` — a **2 dp ink rim** on the bubble, from a **new** token. The old one is ink at 25% and is shared with `swip_snooze_target`, whose fill is already ink |
 | C5 | *"the white mode is very much messed up… Scan QR and Tap POS in the dark mode are simply invisible"* | ✅ `F-191` — **one token, both complaints.** The tiles used `surface`, which is within a hair of the page in *both* grounds |
 | C6 | *"change the copy for Scan QR… 'Get MCC from any QR'. For Tap POS, 'Get MCC from any POS machine'"* | ✅ `F-191` |
 | C7 | *"the swipe-by logo is messed up… not only saying dark mode and white mode-friendly"* | 📋 needs the wordmark asset checked against both grounds |
@@ -69,7 +69,7 @@ of taps rather than one.
 | D1 | *"skip the chevron or pull chevron, plus pull or tap, for the bit nobody reads at the very bottom"* | 📋 |
 | D2 | *"the chevron has to be shimmering from gold to grey in white and dark mode"* | 📋 |
 | D3 | *"the hero and full tap for the bit nobody reads has to be stuck at the very bottom of the screen. The viewport has to be aligned based on that"* | 📋 |
-| D4 | *"fix the text: 'Crafted on a 4-hour daily commute to the office from Talaja MRDC'"* | ❓ the place name did not survive dictation. Current line is *"Crafted on a four-hour daily commute, in Thane."* — **tell me the exact wording and I will set it verbatim** |
+| D4 | *"fix the text: 'Crafted on a 4-hour daily commute to the office from Talaja MRDC'"* → *"a 4hour daily commute to & fro to office daily - or something that comes in one line but sounds empathic and very impactful"* | ✅ `F-193` — **"Crafted on a four-hour commute, there and back."** 47 characters, because the line it replaces was 46 and *"comes in one line"* was half the ask |
 | D5 | *"make the icon something animated, like a hand trying to scan, or… trying to raise up the mobile"* | 📋 |
 | D6 | *"change 'Hold your phone up to a code' to 'Raise your phone to a QR code'"* | 📋 |
 | D7 | *"'Tap to scan anywhere' and 'Double tap to square up' could be in the same pill… merge the line and the design"* | 📋 |
@@ -139,9 +139,11 @@ screen-on stretches rather than leaks.
 
 ## H. The one thing to say plainly
 
-Thirty-four asks arrived in one prompt. **Ten are done, six are answered with
-evidence, two need a sentence from you, and sixteen are planned and not
-built.** (`F-192` closed E7 and E8 — the two correctness bugs §H put first.) Building eighteen UI and scanner changes in one round without a device
+Thirty-four asks arrived in one prompt. **Twelve are done, six are answered
+with evidence, none is waiting on you, and sixteen are planned and not built.**
+(`F-192` closed E7 and E8 — the two correctness bugs §H put first. `F-193`
+closed C4 and D4, the two that were waiting on a sentence from you, which
+arrived.) Building eighteen UI and scanner changes in one round without a device
 to test them on is how a round goes red twice and delivers nothing — which has
 already happened once this week.
 
@@ -151,9 +153,11 @@ The order I would take them in, given that E is where the product actually is:
    walk away.~~ **Done, `F-192`.** Both were one line: `record()` opened with
    `await _location.current()`, a ten-second GPS wait followed by an untimed
    network geocode, and nothing reached the ledger until it returned.
-2. **E5** — the scan black box. Shortest path, and it makes E1/E6 measurable
+2. ~~**C4 and D4** — the two that were waiting on a sentence from you.~~
+   **Done, `F-193`**, in the round the sentences arrived.
+3. **E5** — the scan black box. Shortest path, and it makes E1/E6 measurable
    instead of guessed.
-3. **E3/E4** — the screen grabs, once there is a file to put them in.
-4. **§C and §D** — the screens, as one pass.
-5. **E10/E11** — the payment handoff, after a page arguing what it does to
+4. **E3/E4** — the screen grabs, once there is a file to put them in.
+5. **§C and §D** — the screens, as one pass.
+6. **E10/E11** — the payment handoff, after a page arguing what it does to
    SWIP's promise.

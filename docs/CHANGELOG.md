@@ -2524,6 +2524,93 @@ satellite too, without a second change.
 
 ---
 
+## Prompt 53 — 17 Sep 2026 · A border, and a line about a commute
+
+Two answers to questions I had left open, and both were small on purpose: one
+is four characters of XML, the other is a sentence. Both had been blocked on a
+guess I refused to make, which is why they are here rather than two rounds ago.
+
+### Element changes
+
+| Where | Before | After | Why |
+|---|---|---|---|
+| `swip_bubble_bg.xml` | `1dp` stroke, `@color/swip_bubble_edge` | `2dp` stroke, `@color/swip_bubble_border` | *"so this is basically a bit of black border to the launcher icon"* |
+| `colors.xml` | — | **new** `swip_bubble_border` = `#060507` | Full ink. `swip_bubble_edge` is `#40060507` — ink at **25%** |
+| `dashboard_page.dart` | *"Crafted on a four-hour daily commute, in Thane."* | *"Crafted on a four-hour commute, there and back."* | *"this meant … a 4hour daily commute to & fro to office daily"* |
+
+### Why the border is a second token rather than a changed one
+
+`swip_bubble_edge` is not only the bubble's. `swip_snooze_target.xml` — the ring
+the bubble is dragged into to snooze it — strokes itself with the same colour
+over a fill of `#B8060507`, which is ink at 72%.
+
+So repointing that one token to solid ink would have given the bubble the border
+the owner asked for **and** taken the snooze target's outline away in the same
+edit: ink on ink, invisible, and nothing in the build would have said so. The
+target is on screen for about half a second during a gesture, which is exactly
+how long it takes for a missing outline to go unnoticed for a month.
+
+**Two drawables sharing a colour is not the same as two drawables wanting the
+same colour.** They are separate tokens now and `colors.xml` says why.
+
+### This is not a reversal of `F-189`
+
+`F-189` deleted a **9 dp ink field** that the mark sat inside, because the owner
+asked for *"less black bordered and more yellow"*. This adds a **2 dp line** at
+the rim. The circle is still gold, the mark is still ink, and the floating
+button still looks like the app icon rather than its negative — which was the
+whole reason that ring went.
+
+It also does the one job the 25% hairline was too faint for. A gold disc over a
+bright app has nothing separating it from the screenshot behind it; `F-172`
+settled the same argument for the hover chrome by compositing the layers and
+reading the WCAG ratio rather than by making the control bigger.
+
+### Code
+
+| File | Change |
+|---|---|
+| `res/values/colors.xml` | `F-193` — **new** `swip_bubble_border`, with the reason the shared token was left alone |
+| `res/drawable/swip_bubble_bg.xml` | `F-193` — `2dp` of it |
+| `dashboard_page.dart` | `F-193` — the sign-off subtitle, and the length budget written down beside it |
+| `tool/check_wiring.py` | `F-193` — two new rules on the existing bubble-shape check |
+
+### The gate rule, and why it earns its place
+
+The two colour names differ by one word and sit four lines apart. Pointing the
+bubble back at the faint one produces a build that is green, a screenshot that
+looks plausible, and a complaint a month later — which is precisely the shape
+`F-191` had, where the dashboard tiles used `surface` instead of `surfaceRaised`
+and read as invisible in **both** grounds from **one** token.
+
+So `check_bubble_radius` now also fails if the stroke stops naming
+`swip_bubble_border`, or if that token gains an alpha channel below `FF`. Both
+were run against a deliberately broken tree before being kept — a check that
+cannot fail is worse than no check, which `F-176` taught this project the
+expensive way.
+
+### The commute line, and why it is 47 characters
+
+> *"this meant Crafted on a 4hour daily commute to & fro to office daily - or
+> something that comes in one line but sounds empathic and very impactful"*
+
+*"Talaja MRDC"* never survived dictation and the owner has now said the place
+was not the point: the **round trip** is. So the town is out and *there and
+back* is in.
+
+The length is a constraint rather than a preference. The subtitle is `bodyS`,
+left-aligned in a full-gutter column, and the line it replaces was 46 characters
+and fitted on one. That is the budget, and it is why the line is not the longer
+and more obvious *"to the office and back, every day"* — which would have
+wrapped, and *"comes in one line"* was half the ask.
+
+### Open
+
+`docs/48` C4 and D4 are now ✅. The count moves to **twelve done, six answered
+with evidence, none waiting on the owner, and sixteen planned**.
+
+---
+
 <!--
 Template for the next entry:
 

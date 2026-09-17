@@ -183,7 +183,24 @@ class _DashboardPageState extends State<DashboardPage> {
               SliverToBoxAdapter(
                 child: PullToReveal(
                   signOff: 'Check.\nPay.\nGet rewarded.',
-                  subtitle: 'Crafted on a four-hour daily commute, in Thane.',
+                  // `F-193`. The owner's own correction, twice:
+                  //
+                  //   *"fix the text: 'Crafted on a 4-hour daily commute to
+                  //   the office from Talaja MRDC'"* — prompt 51
+                  //   *"this meant … a 4hour daily commute to & fro to office
+                  //   daily — or something that comes in one line but sounds
+                  //   empathic and very impactful"*
+                  //
+                  // The place name never survived dictation and he has now
+                  // said it is not the point: the **round trip** is. So the
+                  // town is gone and *there and back* is in.
+                  //
+                  // Length is a constraint rather than a preference — this is
+                  // `bodyS`, left-aligned in a full-gutter column, and the
+                  // line it replaces was 46 characters and fitted. 47 is the
+                  // budget, which is why it is not the longer and more
+                  // obvious *"to the office and back, every day"*.
+                  subtitle: 'Crafted on a four-hour commute, there and back.',
                   pull: _pull.pull,
                   revealed: _pull.revealed,
                   onTapReveal: _pull.openNow,

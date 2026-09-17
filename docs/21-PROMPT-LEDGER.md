@@ -2454,6 +2454,252 @@ the log before it was written down.
 
 ---
 
+## Prompt 51 — 17 Sep 2026 · 19:41 IST · The Starbucks terminal, and 34 asks
+
+**Original prompt, verbatim** — the raw APDU log the owner pasted is part of
+the prompt and is kept in it, because it is the evidence
+[`docs/47`](47-THE-STARBUCKS-TERMINAL.md) is decoded from:
+
+> @"/root/.claude/uploads/afe199af-8f37-59f8-b4bb-28fececcb91e/c9d2768a-SWIP_BubbleTrace_2026-09-17_19-29-04.jsonl" @"/root/.claude/uploads/afe199af-8f37-59f8-b4bb-28fececcb91e/bb540480-SWIP_PosTrace_2026-09-17_19-30-28.jsonl" @"/root/.claude/uploads/afe199af-8f37-59f8-b4bb-28fececcb91e/d9d3c340-SWIP_PowerTrace_2026-09-17_19-30-49.jsonl" @"/root/.claude/uploads/afe199af-8f37-59f8-b4bb-28fececcb91e/4edc50bf-1000117915.pdf" << 00A404000E325041592E5359532E444446303100
+> >> 6F69840E325041592E5359532E4444463031A557BF0C54610C4F07A0000000031010870101610C4F07A0000000041010870102610C4F07A0000005241010870103610B4F06A00000002501870104610C4F07A0000000651010870105610D4F08A0000003330101018701069000
+> << 00A4040007A000000003101000
+> >> 6F3A8407A0000000031010A52F5004535749508701019F38239F15029F160F9F1C089F1A025F2A029F02069A039F21039F35019F33039F37049F4E149000
+> << 00A4040007A000000004101000
+> >> 6F3A8407A0000000041010A52F5004535749508701019F38239F15029F160F9F1C089F1A025F2A029F02069A039F21039F35019F33039F37049F4E149000
+> << 80A80000478345000000000000000000000000000000000000000000000000000356035600000005040026091718580122E000C85A9C1D3B000000000000000000000000000000000000000000
+>
+>
+> So, a few things just happened. The scenario is that I went to Starbucks and tried to tap at the POS terminal. When I tried to push the QR, it did not go well. I have a set of screenshots attached for proof.
+>
+> The problem with the whole scenario is:
+> 1. You can see from the POS tap machine that, as of now, the contactless limit has been exceeded. I'm not sure what that error is or why I faced this.
+> 2. This is the POS feedback. Once I went ahead and checked what the actual is, you can see from the second screenshot. I will mark that as number 2.
+>
+>
+> Next, I'm trying to identify the terminal. In the second screenshot, I am checking: once again, what is that? The terminal did not identify itself. I'm not sure why those details came in. Also, why did that happen? Let's make and share the POS black box as well. That is one way to check. Also, I'm sharing the code behind what I saw. This is the code which I created. These are the technical details.
+>
+> Next, as you can see from the code screenshot, this is the automated test for both Chrome and Chromium. I am tired of seeing it portray as if there are two applications being open. Can we find out and research something that doesn't feel like two applications are open at the same time?
+>
+> You can see:
+> - The area I have circled, which is a region that contains software and other builds, which is very hard and comes up.
+> - The whole window scanner comes up, which is B.
+> - I can see this third region, which I have tried to run these 9 items which I have pointed out as C.
+>
+>
+> That is very weird. Can we find a way to experience the animation of the fade-in/fade-out rather than going to the following problem button?
+>
+>
+> I am attaching the fifth screenshot. The fifth screenshot is basically a remember screen. You can see the art is very misaligned. The art is super misaligned, and it is messed up on the right-side part.
+> - Can you change the tab POS icon, which is very bad-looking? It is very wrong on the right side. The POS icon is fine. Also, the icon opacity has to be 100% so that it's visible. Anything that is below it is not visible. Can you add a border to that icon, like half of the last circle that you have put in?
+> - The white mode is very much messed up. The colours are misaligned. You can see the swipe button from the sixth screenshot, the swipe-by logo, is messed up. It's not only saying dark mode and white mode-friendly.
+> - Whenever I tap on this in these recent cards, the popup doesn't come up like in the full ledger screen.
+> - For this area in the sixth screenshot, the area covered is that thing.
+> - The C area is about the chevron. This is there. I need to style the above two screenshots, which are asking to come down when pushing down, so that I have noted down another one thing.
+>
+> For the second seventh screenshot, can you skip the chevron or pull chevron, plus pull or tap, for the bit nobody reads at the very bottom? The chevron has to be shimmering from gold to grey in white and dark mode. Fix that.
+>
+> Also fix the text: "Crafted on a 4-hour daily commute to the office from Talaja MRDC."
+>
+> Next is the hero and full tap for the bit nobody reads, which has to be stuck at the very bottom of the screen. The viewport has to be aligned based on that. That is one thing to check out.
+>
+> Also, for the screenshot about the holder in the seventh region, the seventh, this text: "Hold your phone up to a code or QR code."
+> 1. Make the change: make the icon something animated, like a hand trying to scan, or make it like it's trying to raise up the mobile.
+> 2. Change the text "Hold your phone up to a code" to "Raise your phone to a QR code." "Tap to scan anywhere" and "Double tap to square up" could be in the same pill.
+>
+>
+> Just stop anyway. Second, I'll fix that.
+> The copy should be in such a way that, let's say, if I keep an angle of maybe 75° (or, as of now, don't keep it around 90°), the scanner should scan, and the overlay should go away. It should be at least above. Maybe if this is 0, then it should be in 2045°. It should show the camera automatically, and the overlay should hide itself.
+>
+> Can we merge the line and the design of "Tap to scan" anyway?
+> - Tap to square up
+> - Double tap for full screen
+>
+>
+> so that it is more intuitive and more understandable.
+>
+> Change the copy for "Scan QR" (the short subtitle above it) to "Get Scan QR", and just below it, write it as "Get MCC from any QR". For "Tap POS", have "Get MCC from any POS machine".
+>
+>
+>
+> Also, the other day, since we started working again on the project, the first important thing I noticed is that when I started a project, I had a few observations for which I had drafted a verbatim. Can you make sure you go through this specifically and very attentively?
+> 1. Plan what is asked.
+> 2. Research about it.
+> 3. Build it.
+> 4. Document it as the rituals.
+>
+>
+> Also, I hope you have drafted and compiled and, what do you say, kept a note of every sort of ritual that was aligned to this, which was put up into this chart, right? Also, I'll give you the black box JSON files of it.
+>
+> So, a few observations with the scanner:
+> 1. The alignment and the ratio of images of the scanner are not proper in the viewfinder.
+>  Whenever I view the QR through the screen of my application, it is not in the ratio. Honestly, whenever I point towards the QR, it should firstly zoom to the QR code and capture it as early as possible so that it fastens up, like Google Pay does in its app.
+> Another observation from the QR code board is that it is divided majorly into:
+> 1. The cardboard-based QR code, which lies between BharatPay, Paytm, and PhonePe. These are the major players I can see from the onfield observation.
+> 2. The QR codes are mentioned either on the sound box or on the paper cardboard-based
+>
+>
+> One of the interactions that I have seen is when someone pays through Google Pay. Firstly, the QR code is detected very smoothly and automatically. As soon as it points to the QR code, it zooms to the QR code, grabs the data from it, and translates the merchant name from it.
+>
+> Second, we need to start keeping a log of images of the screen. What do you say? The QR codes that we take in whatever direction we take, so that whenever, let's say, the QR code is put into scanning (let's say I open the camera and open the QR code), it instantly, while scanning the QR code, takes the screen grab (as in the actual photo of how the scanning was done). That way, we can know for sure how it was taken. It was either half-scanned, so that the app doesn't come up with the fault that it couldn't scan. In that sense, we will have visual proof.
+>
+> We need to optimize the way we can save these images in local storage while not affecting the app's storage count towards local storage.
+>
+> Also, we need to create an export log for the scans that we are doing. Whenever I scan a QR code, whatever information you are grabbing from the QR code and translating the merchant category code from it, we need to create an exportable file. That way, I can give you that export file while coding, and you can go through that whole file and understand, despite translating through it, how it couldn't grab the merchant category code from it.
+>
+>
+> Are two more observations:
+> 1. When in low light, there are QR code scanners. Let's say there is a QR code, and behind that there is a lamp. The QR codes are generally not detected due to low light exposure, due to which there is glare coming from the backside of the scanners, and thus the QR codes are not detected. That is one of the important issues.
+>
+> One important aspect I have understood is that, let's say, we can do one more thing. There is some bug: I scan the QR code, and what happens is it goes to a blank screen. The QR code finder is still there, but the pop-up doesn't come up. It is still processing this QR code, but it takes a lot of time. I have to stay on the full-screen QR code scanner, and only then does it show after a while.
+>
+> Otherwise, if the user is in a hurry and he leaves the window, there would be no record in the ledger that it has detected it, or it shows the pop-up because the user has left the QR code screen.
+>
+> The next important thing I have understood is maybe the flow of payment. First, let's say the person scans the QR code. The system grabs the screen, the picture of the screen. What could happen is, let's say there is a QR code from PhonePe, BharatPay, Paytm, or DotPay. It will scan the QR code and get a capture of how exactly the scanner had scanned the whole QR code into the viewer viewfinder.
+>
+> The first important change maybe would be that, wherever the QR code is, the QR code scanner will try to subtly zoom in after 12 seconds. You can check some open-source API for the best QR code scanner and which one would be best from open-source GitHub. Try to find that.
+>
+> It will scan the QR code. Let's say it will start scanning the QR code, take a screen grab of it (maybe a screenshot, or maybe whatever type of screenshot or photo of it), and then it will try to check if the QR code is visible in the QR code scanner. 1. Area: it will try to zoom in and get the capture of it. If there's low light, it will adjust accordingly and try to grab the screenshot, whatever it is, so that it doesn't miss the actual real screenshot.
+> 2. QR code: once the QR code is detected, it will get the QR code. MCC will do whatever you guys are doing under the background and give me the popup of the current MCC. It will give me the current MCC code of it.
+> 3. It will sort of
+>  Next, once the MCC is detected, the way you are redirecting while grabbing the MCC code on redirection payment links, you can maybe redirect to a desired set of payment apps that can make the payment on that QR code. It will have the same CT: "Continue the payment" or "Continue payment" (whatever you do in the links thing).
+>
+> So, that is the token, and it will go to the QR code payment. It will carry what is needed so that we can directly do the payment without the user having to leave the SWIP app and scan the QR code again and make the payment. This is one of the good features that the user could have.
+>
+> One important thing I would say is this: let's say the user creates the floater icon. If he clicks on the floater icon, a small window pops up to scan the QR code. He gets a QR code, and the MCC is filled in through the very same window. The window closes, but now, in this very same scenario, you have to take the screenshot.
+>
+> Also, if possible, we can introduce a button below in the very same window to continue the payment. It will be a super, super best scenario! If we can do that, it would be very great. The app would be foolproof for all types of payments, and it will also help in the case where the QR codes are foolproof and the payments will go through.
+>
+>
+>
+> please find them below
+>
+> So, a few observations with the scanner:
+> 1. The alignment and the ratio of images of the scanner are not proper in the viewfinder.
+>  Whenever I view the QR through the screen of my application, it is not in the ratio. Honestly, whenever I point towards the QR, it should firstly zoom to the QR code and capture it as early as possible so that it fastens up, like Google Pay does in its app.
+> Another observation from the QR code board is that it is divided majorly into:
+> 1. The cardboard-based QR code, which lies between BharatPay, Paytm, and PhonePe. These are the major players I can see from the onfield observation.
+> 2. The QR codes are mentioned either on the sound box or on the paper cardboard-based
+>
+>
+> One of the interactions that I have seen is when someone pays through Google Pay. Firstly, the QR code is detected very smoothly and automatically. As soon as it points to the QR code, it zooms to the QR code, grabs the data from it, and translates the merchant name from it.
+>
+> Second, we need to start keeping a log of images of the screen. What do you say? The QR codes that we take in whatever direction we take, so that whenever, let's say, the QR code is put into scanning (let's say I open the camera and open the QR code), it instantly, while scanning the QR code, takes the screen grab (as in the actual photo of how the scanning was done). That way, we can know for sure how it was taken. It was either half-scanned, so that the app doesn't come up with the fault that it couldn't scan. In that sense, we will have visual proof.
+>
+> We need to optimize the way we can save these images in local storage while not affecting the app's storage count towards local storage.
+>
+> Also, we need to create an export log for the scans that we are doing. Whenever I scan a QR code, whatever information you are grabbing from the QR code and translating the merchant category code from it, we need to create an exportable file. That way, I can give you that export file while coding, and you can go through that whole file and understand, despite translating through it, how it couldn't grab the merchant category code from it.
+>
+>
+> Are two more observations:
+> 1. When in low light, there are QR code scanners. Let's say there is a QR code, and behind that there is a lamp. The QR codes are generally not detected due to low light exposure, due to which there is glare coming from the backside of the scanners, and thus the QR codes are not detected. That is one of the important issues.
+>
+> One important aspect I have understood is that, let's say, we can do one more thing. There is some bug: I scan the QR code, and what happens is it goes to a blank screen. The QR code finder is still there, but the pop-up doesn't come up. It is still processing this QR code, but it takes a lot of time. I have to stay on the full-screen QR code scanner, and only then does it show after a while.
+>
+> Otherwise, if the user is in a hurry and he leaves the window, there would be no record in the ledger that it has detected it, or it shows the pop-up because the user has left the QR code screen.
+>
+> The next important thing I have understood is maybe the flow of payment. First, let's say the person scans the QR code. The system grabs the screen, the picture of the screen. What could happen is, let's say there is a QR code from PhonePe, BharatPay, Paytm, or DotPay. It will scan the QR code and get a capture of how exactly the scanner had scanned the whole QR code into the viewer viewfinder.
+>
+> The first important change maybe would be that, wherever the QR code is, the QR code scanner will try to subtly zoom in after 12 seconds. You can check some open-source API for the best QR code scanner and which one would be best from open-source GitHub. Try to find that.
+>
+> It will scan the QR code. Let's say it will start scanning the QR code, take a screen grab of it (maybe a screenshot, or maybe whatever type of screenshot or photo of it), and then it will try to check if the QR code is visible in the QR code scanner. 1. Area: it will try to zoom in and get the capture of it. If there's low light, it will adjust accordingly and try to grab the screenshot, whatever it is, so that it doesn't miss the actual real screenshot.
+> 2. QR code: once the QR code is detected, it will get the QR code. MCC will do whatever you guys are doing under the background and give me the popup of the current MCC. It will give me the current MCC code of it.
+> 3. It will sort of
+>  Next, once the MCC is detected, the way you are redirecting while grabbing the MCC code on redirection payment links, you can maybe redirect to a desired set of payment apps that can make the payment on that QR code. It will have the same CT: "Continue the payment" or "Continue payment" (whatever you do in the links thing).
+>
+> So, that is the token, and it will go to the QR code payment. It will carry what is needed so that we can directly do the payment without the user having to leave the SWIP app and scan the QR code again and make the payment. This is one of the good features that the user could have.
+>
+> One important thing I would say is this: let's say the user creates the floater icon. If he clicks on the floater icon, a small window pops up to scan the QR code. He gets a QR code, and the MCC is filled in through the very same window. The window closes, but now, in this very same scenario, you have to take the screenshot.
+>
+> Also, if possible, we can introduce a button below in the very same window to continue the payment. It will be a super, super best scenario! If we can do that, it would be very great. The app would be foolproof for all types of payments, and it will also help in the case where the QR codes are foolproof and the payments will go through.
+>
+>
+> Also, I have noticed that a few of the things that I had mentioned earlier in the very early chats, you guys have missed or maybe just lost the context about it. Let's check once if we have missed out on anything.
+> 1. The major issue is not getting the MCC, which is very important for us. That is a very high priority for everything that we do as of now.
+> 2. Can you also put up an MD file that gives us a timeline of which prompt you could document how I progressed in creating the features of this application? Maybe first, the first day, first prompt you got done with, which thing. Second, what did you sort of compile and have the prompt quoted as well, with any proofs attached to it, with an artefact link, even though it has expired or not? In that sense, that is one way.
+>
+>
+> I'll give you some more things first. I'm creating them. I'll just check. Meanwhile, I have a few things in my head about the PO and the QR code not getting scanned. We'll go through them individually and have them sorted. I am trying to put up some research. If something aligns, we can inculcate it in our plans and then get this thing implemented so that we get the MCC first, because that is our very first, very important motor of the whole project.
+>
+> Let's do that, and never ever ever defy whichever things that I have told you in this prompt. It has to be noted, acknowledged, implemented, rechecked, and then documented. Also, make me aware that these have been done, with a quotation of what and where I have mentioned it in the prompt.
+>
+> Also, I'm sharing the black box JSON files. Go through them thoroughly and find what happened. Why did it fail? The majorly failed POS was very shameful, so was the QRs. Also, check the battery logs and the scan-from-anywhere logs.
+>
+> Also, in the settings screen, there are two separator lines just below the explanations, as in "Show all explanations again." I'm not sure why there are two lines just above Diagnostics and Explanations. Check and remove that.
+>
+>
+> Also, the QR scan text: as you can see in the seventh screenshot, the white mode seems not compatible. We can see the QR scan could be fit just below the 1:01 pm, so that can be checked.
+>
+> Second, the important thing is that keywords should be aligned in one line. Next, the card should be tapable and expandable. If I click on that PTM thing, it should open and show me the full card. That is one thing.
+>
+> Also, one more thing to notice is that whenever I tap on the launcher icons and close it, it bounces a lot, as in, it flickers on closure. I'm not sure what the issue is. Whenever I click on it, you can also see that the icon goes from the swipe logo to the swipe logo again and doesn't keep it as the X icon. What is the very big issue?
+>
+> The next important thing which I recently noticed is the overlap of images and the text over the QR code, and SWP stops looking when you put the phone down. We can maybe merge that whole scenario into one and keep only one message concise.
+>
+> Also, the "Scan QR" and "Tap US" in the dark mode are simply invisible because there is only a foundation. Can we have some background just a bit lighter than the current full dark mode? That is one thing we need to change in, I guess, the ninth screenshot which I attached.
+>
+> Also, I might have messed up the numbers based on the prompt that I have written, so maybe you can recheck the line and let me know. Hope the PDF is attached as well. One-second check.
+
+With `SWIP_BubbleTrace_2026-09-17_19-29-04.jsonl`,
+`SWIP_PosTrace_2026-09-17_19-30-28.jsonl`,
+`SWIP_PowerTrace_2026-09-17_19-30-49.jsonl`, a PDF and eight screenshots.
+
+**This prompt contains 34 separate asks.** They are quoted individually, each
+with a status, in [`docs/48`](48-PROMPT-51-REGISTER.md) — which exists because
+the instruction *"it has to be noted, acknowledged, implemented, rechecked, and
+then documented"* cannot be honoured by a chat reply that lists whichever ones
+happened to get done.
+
+| # | ID | Did | Why |
+|---|---|---|---|
+| 1 | — | Decoded the POS exchange byte by byte — [`docs/47`](47-THE-STARBUCKS-TERMINAL.md) | `9F15`, `9F16`, `9F1C` and `9F4E` **all zeros**, while the amount, date, time, country and currency were correct to the byte |
+| 2 | — | Answered the contactless-limit message | `SW=6985` is *conditions of use not satisfied*; terminals map it to their tap-limit string because that is its usual cause |
+| 3 | — | [`docs/48`](48-PROMPT-51-REGISTER.md) — every ask quoted, numbered, with a status | Ten done, six answered with evidence, two needing a sentence, sixteen planned |
+| 4 | `F-191` | Settings' double separator, the Tap POS glyph, and both tiles invisible in **both** grounds | The last was **one token** — `surface` is within a hair of the page in Paper and Foil alike |
+| 5 | `F-191` | Copy: *"Get MCC from any QR"* / *"Get MCC from any POS machine"* | Quoted verbatim from the prompt |
+
+---
+
+## Prompt 52 — 17 Sep 2026 · 20:07 and 20:10 IST · The capture that waited for a satellite
+
+**Original prompts, verbatim.** Two messages three minutes apart, taken as one
+round:
+
+> whats the status of all task?
+
+> Plan , Research from the whole internet  and Implement / Fix the code and make the feature alive
+
+| # | ID | Did | Why |
+|---|---|---|---|
+| 1 | — | Answered the status question from [`docs/48`](48-PROMPT-51-REGISTER.md) rather than from memory | A list written from memory is the thing prompt 51 forbade |
+| 2 | `F-192` | **`record()` no longer awaits a GPS fix or a network geocode** | *"it goes to a blank screen"* and *"if the user is in a hurry and he leaves the window, there would be no record in the ledger"* were **one mechanism** |
+| 3 | `F-192` | `fillCaptureLocation`, guarded so a late fix cannot overwrite a place already there | A fix can be twelve seconds in flight, which is long enough for something else to have written one |
+| 4 | `F-192` | `test/capture_not_blocked_test.dart` — a location service that **never answers** | The defect was in the timing, not in any value, so a test asserting on the row passed throughout |
+
+---
+
+## Prompt 53 — 17 Sep 2026 · 20:36 IST · A border, and a line about a commute
+
+**Original prompts, verbatim.** Two replies to questions I had left open, the
+second arriving mid-round:
+
+> <!-- reply -->
+> > What "a border on that icon, like half of the last circle" means — ring around the glyph, or the tile's border?
+>
+> so this is basically a bit of black border to the launcher icon
+
+> > Crafted on a 4-hour daily commute to the office from Talaja MRDC
+>
+> this meant Crafted on a 4hour daily commute to & fro to office daily - or something that comes in one line but sounds empathic and very impactful
+
+| # | ID | Did | Why |
+|---|---|---|---|
+| 1 | `F-193` | A **2 dp ink border** on the floating bubble, from a new `swip_bubble_border` token | The existing `swip_bubble_edge` is ink at 25% — a hairline, and deliberately too faint to read as a border |
+| 2 | `F-193` | Left `swip_bubble_edge` alone, so `swip_snooze_target` keeps its ring | Its fill is already ink at 72%; repointing the shared token would have been ink on ink |
+| 3 | `F-193` | `check_wiring.py` now fails if the bubble's stroke goes back to the faint token, or if the new one gains an alpha | Two names one word apart, four lines apart in `colors.xml` — the `F-191` *"one token"* shape exactly |
+| 4 | `F-193` | The sign-off line is now *"Crafted on a four-hour commute, there and back."* | **`docs/48` D4 closed.** The place name never survived dictation and the owner has said the round trip was the point |
+
+---
+
 <!--
 Template for the next entry:
 

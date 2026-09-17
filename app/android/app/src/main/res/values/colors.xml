@@ -32,4 +32,31 @@
     -->
     <color name="swip_bubble_ground">#C9A227</color>
     <color name="swip_bubble_edge">#40060507</color>
+
+    <!--
+      `F-193`. **The bubble's own border, separate from `swip_bubble_edge`.**
+
+      > *"add a border to that icon, like half of the last circle that you have
+      > put in"* — prompt 51
+      > *"so this is basically a bit of black border to the launcher icon"*
+
+      `swip_bubble_edge` above is ink at **25%**, which is a hairline that keeps
+      a gold circle from dissolving into a white screenshot and is deliberately
+      too faint to read as a border. That is the right value for the snooze
+      target — a dim ring around a near-opaque ink disc — and the wrong value
+      for the thing the owner is asking to see.
+
+      So this is a second token rather than a change to the first. Repointing
+      `swip_bubble_edge` would have put a solid ink ring on `swip_snooze_target`
+      too, where the fill is already ink at 72%: ink on ink, and the target
+      would have lost its outline in the same edit that gave the bubble one.
+      **Two drawables sharing a colour is not the same as two drawables wanting
+      the same colour.**
+
+      Full ink, not a tint. `F-189` deleted a **9 dp** ink ring because the
+      owner asked for *"less black bordered and more yellow"*; 2 dp of it is a
+      border you can see without going back to a bubble that is mostly ring.
+      The field stays gold, which was the point of that change.
+    -->
+    <color name="swip_bubble_border">#060507</color>
 </resources>

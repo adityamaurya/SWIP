@@ -1938,6 +1938,164 @@ the dead floating bubble was hiding behind for four months.
 
 ---
 
+## Prompt 51 — 17 Sep 2026 · The Starbucks terminal, and 34 asks
+
+**You asked:** thirty-four things. That is not a complaint — it is the reason
+this round produced [`docs/48`](48-PROMPT-51-REGISTER.md) before it produced any
+code.
+
+> *"never ever ever defy whichever things that I have told you in this prompt.
+> It has to be noted, acknowledged, implemented, rechecked, and then documented.
+> Also, make me aware that these have been done, with a quotation of what and
+> where I have mentioned it in the prompt."*
+
+That instruction cannot be honoured by a chat reply. A reply that listed the
+asks I happened to finish would be exactly the thing it forbids, so every one of
+the thirty-four is quoted, numbered and given an honest status on its own page.
+
+### The headline: the terminal answered everything except who it was
+
+Your APDU log is the most complete POS exchange SWIP has ever recorded, and it
+answers this project's central question with bytes instead of reasoning.
+
+```
+9F15  merchant category   ← 0000
+9F16  merchant id         ← 000000000000000000000000000000
+9F1C  terminal serial     ← 0000000000000000
+9F4E  merchant name       ← 0000000000000000000000000000000000000000
+
+9F1A  country  = 0356 India      ✓
+5F2A  currency = 0356 INR        ✓
+9F02  amount   = 504.00          ✓
+9A    date     = 2026-09-17      ✓
+9F21  time     = 18:58:01        ✓
+```
+
+**Eight fields answered truthfully. The four that say who the shop is came back
+as zeros** — and the amount matches the terminal's own screen to the paisa, so
+this is not a terminal that was confused. It knew exactly what it was doing.
+
+**The category is not the terminal's to give.** An MCC is assigned by the
+acquiring bank and lives in the acquirer's switch; it is attached during
+authorisation, on the network, after the card has gone. A terminal needs the
+amount, the currency, the date and its own capabilities to run an EMV kernel. It
+does not need its own category to take a payment, so many are never provisioned
+with one.
+
+So *"This terminal did not identify itself"* was not a failure message and not a
+guess. It is the only honest thing that could be said about those bytes, and it
+is now provable to the byte — [`docs/47`](47-THE-STARBUCKS-TERMINAL.md).
+
+### And the contactless-limit error was the expected ending
+
+₹504 is far below India's ₹5,000 tap ceiling, so that message is not literally
+true. SWIP read the response and then declined with `SW=6985` — EMV's
+*conditions of use not satisfied*. The overwhelmingly common real-world cause of
+that code **is** the tap limit, so terminals map it straight to their limit
+string. The terminal is guessing at why a card refused and guessing the usual
+reason. Nothing was paid, nothing was reserved, and dipping the card afterwards
+works normally.
+
+**I answered:** and shipped five of the screen fixes as `F-191`, of which the
+one worth naming is that *"the white mode is very much messed up"* and *"Scan QR
+and Tap POS in the dark mode are simply invisible"* were **one token**. The
+tiles used `surface`, which is `#FFFFFF` on Paper and `#0C0B0E` on Foil — within
+a hair of the page in both grounds, so the card was carried entirely by its 1 px
+border. You reported it twice, once per theme, and it was a single word.
+
+**Still open:** sixteen asks, in the order [`docs/48`](48-PROMPT-51-REGISTER.md)
+§H argues for.
+
+---
+
+## Prompt 52 — 17 Sep 2026 · The capture that waited for a satellite
+
+**You asked:** *"whats the status of all task?"*, and then *"Plan, Research from
+the whole internet and Implement / Fix the code and make the feature alive"*.
+
+**I answered:** the status from [`docs/48`](48-PROMPT-51-REGISTER.md) rather than
+from memory, and then built the two things on it that were correctness bugs
+rather than polish.
+
+### Your two complaints were one mechanism
+
+> *"I scan the QR code, and it goes to a blank screen… it is still processing…
+> takes a lot of time"*
+> *"if the user is in a hurry and he leaves the window, there would be no record
+> in the ledger"*
+
+`record()` opened with `await _location.current()`. That waits on
+`getCurrentPosition` for up to **ten seconds** — which indoors, at a counter, is
+the normal case rather than the bad one — and then on `placemarkFromCoordinates`,
+a **network** call into Android's `Geocoder` with **no timeout at all**.
+
+Nothing reached the ledger until both returned. So the blank screen and the lost
+capture were the same line: the spinner was waiting on a satellite, and a
+capture's survival depended on you standing still in a shop watching a
+viewfinder.
+
+**A capture must never wait on the world to describe where it happened.** The
+row is written first now, and the place is filled in afterwards if it arrives —
+`F-192`.
+
+### The test is the part I would point at
+
+Every field `record()` wrote was correct the whole time. What was wrong was
+**when** — and a test asserting on the row passed throughout, which is why
+nothing caught this.
+
+So `test/capture_not_blocked_test.dart` uses a location service that **never
+answers at all**. If `record()` still awaited it, the suite would not fail on an
+assertion; it would hang and die on a timeout. That is the only honest statement
+available about a hang, and it is the strongest one: a capture that completes
+against a service which never answers cannot be waiting on one.
+
+**Shipped:** `F-192` — and `tap_page.dart` calls the same `record()`, so the POS
+path stopped waiting on a satellite too without a second change.
+
+---
+
+## Prompt 53 — 17 Sep 2026 · A border, and a line about a commute
+
+**You asked:** two things I had left as questions rather than guesses.
+
+> *"so this is basically a bit of black border to the launcher icon"*
+
+**Done.** The bubble has a 2 dp ink rim now. What it had was ink at **25%** —
+a hairline that keeps a gold circle from dissolving into a white screenshot and
+is far too faint to read as a border, which is why it looked like nothing.
+
+**And the part worth telling you about:** I did not change that faint colour. It
+is also the snooze target's — the ring you drag the bubble into — and that ring
+is drawn over a fill which is already ink at 72%. Repointing the one token would
+have given you the border you asked for and taken the snooze target's outline
+away in the same edit, invisibly, with nothing in the build saying so. There are
+two tokens now, and the gate fails if the bubble is ever pointed back at the
+faint one.
+
+**This is not a reversal of the last round.** What went in `F-189` was a **9 dp
+field** of ink that the mark sat inside — *"less black bordered and more
+yellow"*. What is here is a **2 dp line** at the rim. The circle is still gold
+and still looks like your app icon rather than its negative.
+
+> *"this meant Crafted on a 4hour daily commute to & fro to office daily - or
+> something that comes in one line but sounds empathic and very impactful"*
+
+**Done, and set verbatim to the sense rather than the words**, because *"to & fro
+to office daily"* does not read the way you want it to hear:
+
+> **Crafted on a four-hour commute, there and back.**
+
+Forty-seven characters. That number is the whole constraint — the line it
+replaces was forty-six and fitted on one line in that column, and *"comes in one
+line"* was half of what you asked for. It is why it is not the longer and more
+obvious *"to the office and back, every day"*, which would have wrapped. If you
+want different words, they have the same budget and I will set them exactly.
+
+**Still open:** sixteen asks from prompt 51, and nothing now waiting on you.
+
+---
+
 <!--
 Template:
 

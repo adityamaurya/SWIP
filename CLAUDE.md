@@ -96,7 +96,8 @@ written but never read, widget callbacks that a widget invokes as `name?.call(`
 while no caller supplies one, `swip_bubble_bg.xml` still declaring
 `android:shape="oval"` and no `<corners>` (`F-185` — this was a radius-versus-
 diameter comparison, and a shape cannot drift out of step with a number the way
-a radius can), `BubbleTrace.enabled()` **and
+a radius can) **and its stroke still naming `swip_bubble_border` rather than the
+25%-alpha `swip_bubble_edge` four lines above it in `colors.xml`** (`F-193`), `BubbleTrace.enabled()` **and
 `Blackbox.enabled()`** still testing `FLAG_DEBUGGABLE` — two separate checks on
 purpose, because `docs/38` §4 step 9 deletes the first and the second must
 outlive it — and **a widget test that builds a capture with a category and
@@ -253,6 +254,8 @@ Each of these cost a broken build or a broken screen. Do not re-derive them.
 | **A `python -c` one-liner that rebuilds a file can truncate it, and the gate cannot see that** | `s = s[:i] + s[i:j] + row` — with no `+ s[j:]` — silently dropped 91 lines from `CLAUDE.md`, including the whole doc index, and it was committed and pushed. `check_links` passed because the links that remained were fine. **After a scripted edit to a long file, diff it or count its lines**; "the script printed ok" is not evidence about the file. `F-191` |
 | **A capture must never wait on the world to describe where it happened** | `record()` opened with `await _location.current()` — a 10 s `getCurrentPosition` and then `placemarkFromCoordinates`, which is a **network** call into Android's `Geocoder` with no timeout. Nothing reached the ledger until both returned, so *"it goes to a blank screen"* and *"if the user leaves, there is no record"* were **one mechanism**. Write the row first; enrich after. The capture is the product and the place is a label on it. `F-192` |
 | **A defect can be in the *timing* rather than in any value, and ordinary tests cannot see it** | Every field `record()` wrote was correct throughout; what was wrong was *when*. A test asserting on the row passed the whole time. The test that catches it uses a fake that **never answers** — if the await came back, the suite hangs rather than fails, which is the only honest statement about a hang. `test/capture_not_blocked_test.dart`, `F-192` |
+| **Two drawables sharing a colour is not the same as two drawables wanting the same colour** | `swip_bubble_edge` is ink at 25% and is strokes on **both** the bubble and `swip_snooze_target`, whose fill is already ink at 72%. Giving the bubble the visible border the owner asked for by repointing that token would have taken the snooze target's outline away in the same edit — ink on ink, invisible, nothing failing. A second token, and a gate rule, because the two names differ by one word and sit four lines apart. `F-193` |
+| **A length budget is a fact about a line of copy and belongs beside it** | *"something that comes in one line"* was half the ask, and the subtitle is `bodyS` left-aligned in a full-gutter column where nothing measures it. The only evidence available is that the line being replaced was 46 characters and fitted. Write the number down or the next edit is a guess that wraps. `F-193` |
 
 **The recurring mistake, twice over: checking the source instead of the
 artifact.** Read the built thing, not the code that should have built it.

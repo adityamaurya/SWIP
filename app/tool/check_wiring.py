@@ -74,6 +74,7 @@ KOTLIN = ROOT / "android/app/src/main/kotlin/in/swip/app/MainActivity.kt"
 KOTLIN_HOVER = ROOT / "android/app/src/main/kotlin/in/swip/app/SwipHoverActivity.kt"
 BUBBLE_KT = ROOT / "android/app/src/main/kotlin/in/swip/app/SwipBubbleService.kt"
 BUBBLE_BG = ROOT / "android/app/src/main/res/drawable/swip_bubble_bg.xml"
+COLORS_XML = ROOT / "android/app/src/main/res/values/colors.xml"
 TRACE_KT = ROOT / "android/app/src/main/kotlin/in/swip/app/BubbleTrace.kt"
 
 # `F-187`. The other two recorders — the POS black box and the battery
@@ -366,6 +367,47 @@ def check_bubble_radius() -> list[str]:
         return ["swip_bubble_bg.xml is an oval but still declares <corners>. "
                 "Android ignores it, so the file says two different things and "
                 "only one of them is true."]
+
+    # `F-193`. The border the owner asked for, and the near-identical token
+    # that would silently take it away again.
+    #
+    # > *"add a border to that icon, like half of the last circle that you have
+    # > put in"* … *"so this is basically a bit of black border to the launcher
+    # > icon"*
+    #
+    # `swip_bubble_edge` is ink at **25%** and belongs to `swip_snooze_target`,
+    # whose fill is already ink at 72%. `swip_bubble_border` is full ink and
+    # belongs to the bubble. The two names differ by one word, sit four lines
+    # apart in `colors.xml`, and pointing the bubble at the wrong one produces
+    # a hairline nobody can see — which is exactly the *"one token, both
+    # complaints"* shape `F-191` had, where the dashboard tiles used `surface`
+    # instead of `surfaceRaised` and read as invisible in both grounds.
+    #
+    # Nothing fails when that happens. The build is green, the screenshot looks
+    # plausible, and the owner reports it a month later.
+    if not re.search(r'<stroke\b[^>]*?@color/swip_bubble_border', bg, re.S):
+        return ["swip_bubble_bg.xml's <stroke> does not use "
+                "`@color/swip_bubble_border`. `F-193` — the bubble's border "
+                "was asked for explicitly and `swip_bubble_edge`, the "
+                "near-identical token four lines above it in colors.xml, is "
+                "ink at 25% and reads as no border at all."]
+
+    if COLORS_XML.exists():
+        colours = COLORS_XML.read_text(encoding="utf-8")
+        token = re.search(
+            r'<color name="swip_bubble_border">#([0-9A-Fa-f]{6,8})</color>',
+            colours)
+        if not token:
+            return ["`swip_bubble_border` is referenced by swip_bubble_bg.xml "
+                    "and not declared in colors.xml"]
+        # An 8-digit Android colour is #AARRGGBB, so alpha is the first pair.
+        # A 6-digit one is opaque by definition.
+        value = token.group(1)
+        if len(value) == 8 and value[:2].upper() != "FF":
+            return [f"`swip_bubble_border` is #{value}, which is alpha "
+                    f"0x{value[:2]} — that is a tint, not the border `F-193` "
+                    f"asked for. If a translucent edge is genuinely wanted "
+                    f"again, use `swip_bubble_edge` and say so here."]
     return []
 
 
