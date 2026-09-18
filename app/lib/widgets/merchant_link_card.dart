@@ -51,12 +51,24 @@ class MerchantLinkCard extends StatelessWidget {
           ]),
           const SizedBox(height: SwipSpace.md),
 
+          // `F-198`. **"apart", not "later".**
+          //
+          // `minutesApart` is an `.abs()` — it has never known which capture
+          // came first — and the sentence claimed an order anyway. That was
+          // survivable while this only ever fired on a tap and a scan, where
+          // the tap usually is first. It is not survivable now that two
+          // stickers can propose a link: either order is equally common, so
+          // the sentence was going to be backwards about half the time.
+          //
+          // This is a prompt whose entire job is to help somebody decide
+          // whether two things are the same shop. Being confidently wrong
+          // about the sequence in it is worse than saying less.
           Text(
             'You read ${proposal.mcc} from ${proposal.teacherLabel}'
             '${place == null ? '' : ' in $place'}, and scanned '
             '${proposal.learnerLabel} '
             '${proposal.minutesApart == 0 ? 'moments' : '${proposal.minutesApart} min'} '
-            'later in the same place.',
+            'apart in the same place.',
             style: SwipType.bodyM.copyWith(color: SwipColors.textPrimary),
           ),
           const SizedBox(height: SwipSpace.sm),
