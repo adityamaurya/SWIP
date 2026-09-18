@@ -2717,12 +2717,63 @@ research document checked rather than agreed with. Two corrections matter:
   has **no MCC field** — nine attributes, and a category appears only inside
   free-text narration, in whatever format a bank chose.
 
+### And then the round kept going — `F-196` and `F-197`
+
+**`F-196` — the fix that was safe and also wrong.** `F-195` made the suite
+green by rejecting every merchant key containing a colon. One line, no risk,
+and it quietly disabled the compose-from-address fallback for *every row SWIP
+writes* — because `CaptureResolver` writes `upi:<vpa>` as the canonical key
+(`capture_resolver.dart:76`). Nothing failed, because nothing covered it.
+
+**A green suite is not evidence that a guard guards the right thing.** Strip
+the one prefix you wrote yourself; refuse the ones you did not.
+
+That flipped the two sheet tests back, correctly this time — a third action
+re-prices the two beside it, and *Continue payment* takes the filled slot. The
+repair was not to re-pin the widget: *"View all is disabled, not hidden"* is a
+test about `onPressed` being null, so it asserts on `ButtonStyleButton` now.
+**Pin the property under test, not the widget that happens to carry it.**
+
+**`F-197` — the scan black box, closing E5.** The fourth recorder, and the
+first one in Dart, because the thing it watches is: QR decoding happens behind
+`mobile_scanner`'s Dart API and there is no Kotlin moment where a scan
+succeeds or fails.
+
+**The ledger records what was found. This records what was looked at.** The
+successes were already covered; the failures were invisible — a viewfinder
+held on a code for eleven seconds, a scanner opened and abandoned, the torch
+being reached for. Those three are exactly what *"it should zoom like Google
+Pay"* and *"the glare beats it"* are claims about, and every answer to them
+was a guess.
+
+Its privacy rule is a signature, like `TapTrace`'s: `decoded` does not take a
+`String`. It takes a `ScanShape` of counts and closed sets, and an
+unrecognised handle returns `other` rather than itself — a privacy decision,
+not a tidiness one.
+
+### Two CI rounds, and what each one actually was
+
+| Run | Result | What it was |
+|---|---|---|
+| 117 | red | A missing import, **and a real bug** the sheet tests caught |
+| 120 | red | **My test helper.** `find.widgetWithText` resolves through `find.byType`, which matches `runtimeType ==` and finds **nothing** for an abstract base class — the failure reads as *the button is missing* |
+| 121 | red | **One `warning` among 29 analyzer lines**, all tests green. `return f()` inside a `try` leaves the block before the failure can reach the `catch` |
+
+The 121 reading is worth keeping as a habit: twenty-eight of those lines were
+`info` and predate the branch. **Sorting by severity rather than by filename
+found it in one pass.**
+
 ### Open
 
 Seventeen asks from prompt 54 are registered in
-[`50`](50-PROMPT-54-REGISTER.md). The next one is not code: **tap twenty
-terminals.** The instrument is built, it costs nothing, and it decides how much
-of SWIP rests on the POS route.
+[`50`](50-PROMPT-54-REGISTER.md); prompt 51's register
+[`48`](48-PROMPT-51-REGISTER.md) is down to **thirteen** with E5, E10 and E11
+closed. Next is **E3/E4**, the screen grabs, which now have a file to be
+indexed from.
+
+The one that is not code has not moved: **tap twenty terminals.** The
+instrument is built, it costs nothing, and it decides how much of SWIP rests
+on the POS route.
 
 ---
 

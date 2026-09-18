@@ -88,13 +88,13 @@ Every item here is quoted from the two identical passages in the prompt.
 | E2 | *"the QR code scanner will try to subtly zoom in after 12 seconds"* | 📋 |
 | E3 | *"we need to start keeping a log of images of the screen… it instantly, while scanning the QR code, takes the screen grab"* | 📋 — **the single biggest new feature in this prompt** |
 | E4 | *"optimize the way we can save these images in local storage while not affecting the app's storage count"* | 📋 — needs a real answer; a cache directory is not free |
-| E5 | *"create an export log for the scans that we are doing… an exportable file"* | 📋 — a fourth black box, and the shortest path of anything in §E |
+| E5 | *"create an export log for the scans that we are doing… an exportable file"* | ✅ `F-197` — **the scan black box.** The ledger records what was *found*; this records what was *looked at*. Five events, and `scan.stuck` is the low-light signal E6 needs |
 | E6 | *"in low light… there is glare coming from the backside of the scanners, and thus the QR codes are not detected"* | 📋 — matches `docs/42`'s undecodable four |
 | E7 | *"I scan the QR code, and it goes to a blank screen… it is still processing… takes a lot of time"* | ✅ `F-192` — **the capture was awaiting a GPS fix and a network geocode.** Neither blocks it now |
 | E8 | *"if the user is in a hurry and he leaves the window, there would be no record in the ledger"* | ✅ `F-192` — same mechanism. The row is written **before** anything slow is attempted |
 | E9 | *"check some open-source API for the best QR code scanner… from open-source GitHub. Try to find that"* | 📋 research, like `docs/39` |
-| E10 | *"redirect to a desired set of payment apps that can make the payment on that QR code… 'Continue payment'"* | 📋 — changes what SWIP *is*; wants its own page before any code |
-| E11 | *"the same in the floater window… a button below in the very same window to continue the payment"* | 📋 |
+| E10 | *"redirect to a desired set of payment apps that can make the payment on that QR code… 'Continue payment'"* | ✅ `F-194` — and it needed no licence, only a manifest entry. **The scanned payload is forwarded byte for byte**, because a signed QR rebuilt from `pa`+`pn` loses its signature |
+| E11 | *"the same in the floater window… a button below in the very same window to continue the payment"* | ✅ `F-194` — the footer is shared by both windows |
 | E12 | *"the cardboard-based QR code… BharatPe, Paytm and PhonePe… either on the sound box or on paper cardboard"* | 🔬 already measured — [`42`](42-MARKET-QR-CORPUS.md) |
 
 ---
@@ -139,11 +139,12 @@ screen-on stretches rather than leaks.
 
 ## H. The one thing to say plainly
 
-Thirty-four asks arrived in one prompt. **Twelve are done, six are answered
-with evidence, none is waiting on you, and sixteen are planned and not built.**
-(`F-192` closed E7 and E8 — the two correctness bugs §H put first. `F-193`
-closed C4 and D4, the two that were waiting on a sentence from you, which
-arrived.) Building eighteen UI and scanner changes in one round without a device
+Thirty-four asks arrived in one prompt. **Fifteen are done, six are answered
+with evidence, none is waiting on you, and thirteen are planned and not
+built.** (`F-192` closed E7 and E8 — the two correctness bugs §H put first.
+`F-193` closed C4 and D4, the two that were waiting on a sentence from you.
+`F-194` closed E10 and E11, and `F-197` closed E5 — the three §H put next.)
+Building eighteen UI and scanner changes in one round without a device
 to test them on is how a round goes red twice and delivers nothing — which has
 already happened once this week.
 
@@ -155,9 +156,15 @@ The order I would take them in, given that E is where the product actually is:
    network geocode, and nothing reached the ledger until it returned.
 2. ~~**C4 and D4** — the two that were waiting on a sentence from you.~~
    **Done, `F-193`**, in the round the sentences arrived.
-3. **E5** — the scan black box. Shortest path, and it makes E1/E6 measurable
-   instead of guessed.
-4. **E3/E4** — the screen grabs, once there is a file to put them in.
-5. **§C and §D** — the screens, as one pass.
-6. **E10/E11** — the payment handoff, after a page arguing what it does to
-   SWIP's promise.
+3. ~~**E5** — the scan black box.~~ **Done, `F-197`.** It makes E1 and E6
+   measurable instead of argued about: `scan.stuck` fires when the viewfinder
+   has been looking at something it cannot read, and `scan.close` says whether
+   anything was read at all.
+4. ~~**E10/E11** — the payment handoff.~~ **Done, `F-194`.** It was moved
+   forward from last place, and the reason is worth recording: the page this
+   list wanted written first turned out to be `docs/49`, which argues that a
+   hand-off is an `Intent` rather than a payment — SWIP renders no amount,
+   holds no funds and is not a PSP. That settled the promise question, and
+   what was left was a manifest entry.
+5. **E3/E4** — the screen grabs, which now have a file to be indexed from.
+6. **§C and §D** — the screens, as one pass.
