@@ -736,6 +736,31 @@ class MainActivity : FlutterFragmentActivity() {
                         }
                     }
 
+                    // `F-195`. The phone, for the master export's header.
+                    //
+                    // Everything here is about the DEVICE, never the user:
+                    // model, manufacturer, Android version, and which SWIP
+                    // build is running. No identifiers — not `ANDROID_ID`, not
+                    // the advertising id, not the serial. A black box that is
+                    // meant to be exported and mailed must not carry anything
+                    // that survives being forwarded, which is the same rule
+                    // `TapTrace.tagFields` enforces through its signature.
+                    "deviceReport" -> {
+                        runCatching {
+                            val pkg = packageManager.getPackageInfo(packageName, 0)
+                            mapOf(
+                                "device" to "${Build.MANUFACTURER} ${Build.MODEL}",
+                                "androidRelease" to Build.VERSION.RELEASE,
+                                "androidSdk" to Build.VERSION.SDK_INT,
+                                "appVersion" to (pkg.versionName ?: "?"),
+                                "debuggable" to Blackbox.enabled(this@MainActivity)
+                            )
+                        }.fold(
+                            onSuccess = { result.success(it) },
+                            onFailure = { result.success(emptyMap<String, Any>()) }
+                        )
+                    }
+
                     // `F-194`. Every installed app that can take a UPI
                     // payment, so SWIP can draw its own "Pay with" list
                     // instead of handing the user to the system chooser.

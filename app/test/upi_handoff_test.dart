@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:swip/core/pay/upi_handoff.dart';
 import 'package:swip/data/models/capture_event.dart';
+import 'package:swip/data/models/mcc.dart';
 import 'package:swip/widgets/pay_with_sheet.dart';
 
 /// `F-194` — **the hand-off from a scanned code to the app that pays it.**
@@ -95,6 +96,14 @@ void main() {
         expect(UpiHandoff.isPayable(junk), isFalse, reason: junk);
         expect(UpiHandoff.payUriFor(_event(raw: junk)), isNull, reason: junk);
       }
+    });
+
+    test('a merchant key with a scheme prefix is not an address', () {
+      // `upi:WFMLMH2@ybl` — a real fixture from the sheet's own test file. One
+      // `@`, text either side, no spaces: it passes every obvious check and is
+      // not an address. Composing from it would open a payment app on a payee
+      // no PSP can resolve. A VPA never contains a colon.
+      expect(UpiHandoff.payUriFor(_event(key: 'upi:WFMLMH2@ybl')), isNull);
     });
 
     test('a raw payload that is junk still composes from a known address', () {

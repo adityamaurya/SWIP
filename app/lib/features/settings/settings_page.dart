@@ -24,6 +24,7 @@ import '../../data/sources/ledger_seal.dart';
 import '../backup/recovery_phrase.dart';
 import '../backup/recovery_phrase_page.dart';
 import '../bubble/blackbox_page.dart';
+import '../bubble/master_export.dart';
 import '../bubble/bubble_settings.dart';
 import '../bubble/bubble_wizard.dart';
 import '../lookup/lookup_settings_page.dart';
@@ -325,6 +326,22 @@ class SettingsPage extends ConsumerWidget {
                       builder: (_) => const BlackboxPage(box: Blackbox.power),
                     )),
                   ),
+                  // `F-195`. Last row in the block, which is where it was
+                  // asked to be — *"at the very end, at the very lowest part
+                  // of it"* — and where it belongs: it is the three rows above
+                  // it, taken together, so it reads as their total rather than
+                  // as a fourth sibling.
+                  ListTile(
+                    leading: const Icon(Icons.archive_outlined),
+                    title: const Text('Master export'),
+                    subtitle: Text(
+                      'All three black boxes and this phone, in one file. '
+                      'No captures — the ledger is not in it',
+                      style: SwipType.bodyS
+                          .copyWith(color: SwipColors.textSecondary),
+                    ),
+                    onTap: () => _masterExport(context, ref),
+                  ),
                 ],
               );
             },
@@ -569,6 +586,41 @@ class SettingsPage extends ConsumerWidget {
           'no. $serial, taken ${_stamp(now)}.\n'
           'It opens only with your twelve-word recovery phrase. Save it to '
           'Google Drive; without the phrase nobody can read it, including us.',
+    );
+  }
+
+  /// `F-195` — every recorder and the phone, in one file.
+  ///
+  /// > *"can you help me create a master export file for all the types of
+  /// > exports about this system … so that you have a mega export file"*
+  ///
+  /// Reads the capture count and hands it to [MasterExport.compose], which
+  /// does everything else and cannot throw. The count is the **only** thing
+  /// the ledger contributes — see that file for why the captures themselves
+  /// are deliberately absent.
+  Future<void> _masterExport(BuildContext context, WidgetRef ref) async {
+    final db = await ref.read(databaseProvider.future);
+    final rows = await db.exportRows();
+
+    final now = DateTime.now();
+    final text = await MasterExport.compose(
+      captureCount: rows.length,
+      now: now,
+    );
+
+    final dir = await getTemporaryDirectory();
+    // `.txt`, not `.jsonl`. This one is read by a person start to finish
+    // rather than parsed, and a novel extension is how an attachment gets
+    // refused by a mail client — `F-128`'s reasoning for `.swipbox.json`.
+    final file = File('${dir.path}/SWIP_Master_${_stamp(now)}.txt');
+    await file.writeAsString(text);
+
+    if (!context.mounted) return;
+    await Share.shareXFiles(
+      [XFile(file.path)],
+      subject: 'SWIP master export',
+      text: 'SWIP diagnostics: all three black boxes and the phone they ran '
+          'on. No captures are in this file.',
     );
   }
 

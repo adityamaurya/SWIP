@@ -118,16 +118,31 @@ class UpiHandoff {
     return 'upi://pay?$encoded';
   }
 
-  /// `something@handle`, loosely. One `@`, non-empty on both sides, no spaces.
+  /// `something@handle`, loosely. One `@`, non-empty on both sides, no spaces,
+  /// **and no colon.**
   ///
-  /// Loose on purpose: `docs/42` catalogued fifty handles across six PSPs and
-  /// `F-182` found the map still had a hole in the middle of one family.
-  /// A validator that knows the list of handles would reject a new one, and
-  /// the cost of being wrong here is one extra chooser, where the cost of
+  /// Loose on the handle, on purpose: `docs/42` catalogued fifty handles across
+  /// six PSPs and `F-182` still found a hole in the middle of one family. A
+  /// validator that knows the list of handles would reject the fifty-first, and
+  /// the cost of being wrong that way is one extra chooser, where the cost of
   /// being strict is a shop nobody can pay.
+  ///
+  /// **The colon is not loose, and it is the interesting rule.** A merchant key
+  /// in the ledger can carry a scheme prefix — `upi:WFMLMH2@ybl` is a real one,
+  /// from `capture_result_sheet_test.dart`'s own fixture — and that string has
+  /// exactly one `@` with text either side, so every other check here passes
+  /// it. Composing from it would produce `pa=upi%3AWFMLMH2%40ybl`, which is
+  /// not an address any PSP can resolve: a payment app opening on a payee it
+  /// cannot find, at a counter.
+  ///
+  /// A VPA never contains a colon. Found by two existing tests failing on the
+  /// button emphasis rather than on the address — which is `CLAUDE.md`'s
+  /// *grep for the assertion, not the test name* arriving from the other
+  /// direction: a test named for one thing catching a different, worse one.
   static bool _looksLikeVpa(String s) {
     final at = s.indexOf('@');
     if (at <= 0 || at != s.lastIndexOf('@') || at == s.length - 1) return false;
+    if (s.contains(':')) return false;
     return !s.contains(' ') && !s.contains('\n');
   }
 }
