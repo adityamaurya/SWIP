@@ -2835,6 +2835,35 @@ acquiring, and a Zwitch explainer on QR structure:
 
 ---
 
+## Prompt 55 — 18 Sep 2026 · Convert the QR into a pay-by-app intent
+
+**Original prompt, verbatim:**
+
+> Based on the applications that we are trying to push into the app code,
+> first, since we are having a tough time translating these QR codes for our
+> payment purposes, can we translate these QR codes in such a way that they
+> convert into pay-by-app intent? It's because, by using pay-by-app intent, it
+> is getting the merchant category codes inside it properly detected. Can you
+> maybe check through it, convert these QR codes into pay-by-app intent, and
+> get the merchant category codes from these QR codes?
+>
+> Can you convert this whole process? Try to reverse engineer it and get the
+> merchant category code. You can maybe put pay-by-intent UPI intent MC and all
+> these methods. Convert these QR codes into pay-by-intent and get the merchant
+> category codes into it. Get it done by researching it thoroughly and getting
+> this done.
+
+| # | ID | Did | Why |
+|---|---|---|---|
+| 1 | — | [`51`](51-CAN-AN-INTENT-CARRY-AN-MCC-A-QR-DOES-NOT.md) — **the premise, checked against NPCI's own spec** | `mc` is **optional** in both the static and dynamic columns, its wording is *"if present then needs to be passed as it is"*, and the spec lists *"QR, intent, NFC, BLE, UHF"* as carriers of one URL. An intent forwards a category; it cannot mint one |
+| 2 | — | Confirmed the **observation** behind the question | Intents in the wild do carry `mc` more often — because online aggregators onboard merchants properly. The acquirer decides, not the envelope. Same finding as [`42`](42-MARKET-QR-CORPUS.md), from the other side |
+| 3 | `F-198` | **Two `upi:` captures can now teach each other** when the acquirers differ | The category for a sticker-only shop is very often on the shop's **other** sticker. `MerchantReconciler` refused this exact case |
+| 4 | `F-198` | Guards: different acquirers, **null refuses**, three minutes not twenty, same cell, one category between them, user confirms | Merging two shops is still the worst thing this app can do |
+| 5 | `F-198` | A new route in the no-category guidance — *"Look for the shop's other code"*, **second on the list** | It is the only route there that needs nothing from anybody: not their terminal, not the cashier, not a payment first |
+| 6 | `F-198` | Rewrote the hand-off route's copy | *"the category usually travels with it"* was carrying more weight than *usually* can hold, and is where this round's premise came from |
+
+---
+
 <!--
 Template for the next entry:
 

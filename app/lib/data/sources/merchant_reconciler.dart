@@ -39,8 +39,11 @@ import '../models/capture_event.dart';
 ///   1. **Same place** — the same ~1 km geohash cell.
 ///   2. **Same visit** — inside a short window. You do not tap a terminal and
 ///      scan a sticker at two different shops ninety seconds apart.
-///   3. **Different identity spaces** — one `emv:`, one `upi:`. Two QRs in one
-///      cell are two shops in a market; a tap and a QR are one counter.
+///   3. **Different identities that cannot be the same sticker** — one `emv:`
+///      and one `upi:`, or two `upi:` keys **from different payment
+///      companies**. Two Paytm codes in one cell are two shops in a market; a
+///      tap and a QR are one counter, and so is a Google Pay sticker beside a
+///      Paytm one. See `F-198` below for why the second case was opened up.
 ///   4. **Complementary** — exactly one of them carries a category. There is no
 ///      point linking two blanks, and two different categories is a conflict to
 ///      surface, not a link to make.
@@ -75,6 +78,13 @@ class MerchantLinkProposal {
   String get teacherLabel => switch (teacher.vector) {
         CaptureVector.nfc => "the card machine you tapped",
         CaptureVector.statement => 'your bank statement',
+        // `F-198`. Name the payment company on a sticker pair. The question
+        // being asked is *are these the same shop*, and "the Google Pay
+        // sticker" is something a person standing at a counter can look up and
+        // check. A VPA is not — `identityLine` renders `paytm.s27l8o9@pty`,
+        // which answers a question nobody asked.
+        CaptureVector.qr when teacher.acquirer != null =>
+          'the ${teacher.acquirer} code you just scanned',
         _ => teacher.identityLine ?? 'an earlier capture',
       };
 
@@ -145,10 +155,68 @@ abstract final class MerchantReconciler {
     final apart = teacher.capturedAt.difference(learner.capturedAt).abs();
     if (apart > window) return false;
 
-    // 3 — different identity spaces. Two `upi:` keys in one cell are two shops
-    // in a market, not one shop twice.
-    return _space(teacherKey) != _space(learner.merchantKey!);
+    // 3 — the two identities must be ones that cannot be the same sticker.
+    final learnerKey = learner.merchantKey!;
+    if (_space(teacherKey) != _space(learnerKey)) return true;
+
+    // ── `F-198`. **One counter, two stickers.** ──────────────────────────
+    //
+    // > *"can we translate these QR codes in such a way that they convert into
+    // > pay-by-app intent? … by using pay-by-app intent, it is getting the
+    // > merchant category codes inside it properly detected"* — prompt 55
+    //
+    // The transport cannot add a category — NPCI's linking spec marks `mc`
+    // optional and says *"if present then needs to be passed as it is"*, and
+    // QR, intent, NFC and BLE all carry the same string. `docs/51` is the
+    // long answer.
+    //
+    // But the question underneath it has a real answer, and this is it. The
+    // category **is** on that counter; it is on a different sticker.
+    // `docs/42` measured 48 codes from one market walk: every Google Pay for
+    // Business code published `mc`, and **not one** Paytm, PhonePe or
+    // BharatPe code did. A shop with both has the answer taped to it.
+    //
+    // This rule used to refuse that outright, and the reason given was
+    // sound — *two `upi:` keys in one cell are two shops in a market*. It is
+    // sound for two codes from the **same** payment company: that is a row of
+    // Paytm stickers down a street. It is not sound for a Google Pay code and
+    // a Paytm code ninety seconds apart in one cell, which is one till.
+    //
+    // ## Two guards, because merging two shops is still the worst thing here
+    //
+    // **Different acquirers.** A shop does not print two stickers from the
+    // same PSP; two neighbours very much do. `acquirer` is read off the
+    // payload by `MerchantIdentifier`, so this is a fact about the code and
+    // not a similarity score.
+    //
+    // **A much tighter window.** Twenty minutes is right for a tap that
+    // errored and a conversation with the cashier — one physical device, one
+    // queue. Two stickers on one board are scanned deliberately, one after the
+    // other, and `_stickerWindow` says so.
+    //
+    // And the user still confirms, which is the guard that actually carries
+    // the weight. The person was standing at the counter looking at both.
+    final ta = teacher.acquirer?.trim().toLowerCase();
+    final la = learner.acquirer?.trim().toLowerCase();
+
+    // Unknown acquirer on either side is a refusal, not a maybe. A null here
+    // means `MerchantIdentifier` could not name the PSP, and "I do not know
+    // who issued this" is the one state in which "they are different" must
+    // not be assumed.
+    if (ta == null || ta.isEmpty || la == null || la.isEmpty) return false;
+    if (ta == la) return false;
+
+    return apart <= _stickerWindow;
   }
+
+  /// `F-198`. How close two **stickers** must be to count as one counter.
+  ///
+  /// Three minutes, against [window]'s twenty. The long window exists for a
+  /// sequence with a human in it — a tap that failed, a word with the cashier,
+  /// then the QR. Reading the second code on a board is not that sequence: it
+  /// is a deliberate act taken within a few seconds of being told to, and
+  /// widening it buys nothing except the chance of swallowing the next shop.
+  static const _stickerWindow = Duration(minutes: 3);
 
   static String _space(String key) {
     final i = key.indexOf(':');

@@ -2243,6 +2243,98 @@ shortcut.
 
 ---
 
+## Prompt 55 — 18 Sep 2026 · One counter, two stickers
+
+**You asked:** whether converting a scanned QR into a pay-by-app intent would
+get the category out of it, because the intent path seems to detect MCCs
+properly.
+
+### The direct answer is no, and the spec says so in one sentence
+
+**A UPI intent and a UPI QR are the same string in a different envelope.**
+NPCI's linking specification defines one URL format and then lists the things
+that may carry it — *"QR, intent, NFC, BLE, UHF"*. They are alternative
+couriers for one letter.
+
+And the spec's own description of the category field is the whole answer:
+
+> *"Payee merchant code **If present then needs to be passed as it is**"*
+
+**Passed as it is.** Forwarded, never written. It is also marked *optional* in
+both columns, so nothing obliges a QR or an intent to carry it.
+
+The 39-byte Paytm code you sent two rounds ago, fired as an intent, is still 39
+bytes. SWIP already does exactly that every time *Continue payment* is pressed —
+and forwards it byte for byte on purpose, because rebuilding it would destroy
+the signature. There is no step in that path where a category could appear.
+
+### But you were right about what you saw, and it matters
+
+Intents **do** carry categories more often. The cause is not the transport.
+
+An online checkout fires its intent through a payment aggregator that onboarded
+that merchant with documents and a category — so the category is in the string
+it builds. A sticker printed for a shop that signed up on a phone in four
+minutes carries a payee address and nothing else.
+
+**The acquirer decides, not the envelope.** Which is the same finding your own
+market walk produced: every Google Pay for Business code publishes the
+category, not one Paytm, PhonePe or BharatPe code does.
+
+**And one sentence in SWIP was making this worse.** The app's own advice said
+*"when a checkout hands the payment over, the category usually travels with
+it"* — *usually* carrying far more weight than it can hold, and quite possibly
+where this round's question came from. It now says which case is which.
+
+### What I built instead, because the question underneath has an answer
+
+You want the category for a shop whose sticker does not carry one. **Very often
+it is on that shop's other sticker**, a foot away on the same counter — because
+Google Pay codes publish it and the others do not, and plenty of shops have
+both.
+
+SWIP already had the machinery for this: when two captures share a place and a
+visit, it proposes joining them and you confirm. But it carried a rule that
+refused this exact case — *"two QRs in one cell are two shops in a market"*.
+
+That rule is right for two codes from the **same** payment company. A row of
+Paytm stickers down a street is a row of different shops. It is wrong for a
+Google Pay code and a Paytm code ninety seconds apart at one till.
+
+**So that case is open now**, behind two guards: the two payment companies must
+differ, and the two scans must be within three minutes rather than twenty. The
+long window exists for a tap that failed and a word with the cashier; reading
+the code beside it is not that sequence.
+
+One guard was easy to get wrong and is worth knowing about. The link turns on
+the acquirers **differing** — and an unknown acquirer would satisfy "different"
+while actually meaning *I cannot tell who issued this*. That is the one state
+where difference must not be assumed, so an unknown refuses the link outright.
+
+You still confirm every join. That is the guard carrying the weight: you were
+standing at the counter looking at both stickers, and you are a better source
+than any rule.
+
+### And the app now tells you to look
+
+When a scan finds no category, there is a new suggestion, **second on the
+list**:
+
+> **Look for the shop's other code** — *Google Pay stickers carry the category
+> and Paytm, PhonePe and BharatPe ones do not. Scan the other code on the
+> counter and SWIP will offer to join them.*
+
+Second, because it is the only thing on that list that needs nothing from
+anybody. A tap needs their terminal. A dynamic QR needs the cashier to ring it
+up. A statement needs a payment first. This needs a second scan.
+
+**Still open:** the same thing as last round, and it is still not code. **Tap
+twenty terminals.** `docs/47` is a sample of one, and how many publish a
+category is the number that decides how much of this product rests on that
+route.
+
+---
+
 <!--
 Template:
 

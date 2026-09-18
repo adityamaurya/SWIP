@@ -19,6 +19,7 @@ void main() {
     required CaptureVector vector,
     String? geohash = 'te7ud2',
     Duration offset = Duration.zero,
+    String? acquirer,
   }) =>
       CaptureEvent(
         id: id,
@@ -30,6 +31,7 @@ void main() {
         merchantKey: key,
         geohash: geohash,
         placeLabel: 'Kasarvadavali, Thane',
+        acquirer: acquirer,
       );
 
   final tap = event(
@@ -157,4 +159,140 @@ void main() {
           reason: 'asking twice about one sticker gets both dismissed');
     });
   });
+
+  // ── `F-198`. One counter, two stickers ────────────────────────────────
+  //
+  // > *"can we translate these QR codes in such a way that they convert into
+  // > pay-by-app intent? … it is getting the merchant category codes inside it
+  // > properly detected"* — prompt 55
+  //
+  // The transport cannot add a category. What CAN is the other sticker on the
+  // same counter: `docs/42` counted 48 codes and every Google Pay for Business
+  // one published `mc`, while not one Paytm, PhonePe or BharatPe one did.
+  //
+  // This group is mostly negative cases, for the reason the file opens with —
+  // a wrong link is inherited by every future scan of that sticker, and
+  // opening up QR-to-QR is the riskiest change this file has had.
+  group('one counter, two stickers', () {
+    final gpay = event(
+      id: 'gpay',
+      key: 'upi:shopname@okbizaxis',
+      mcc: '5411',
+      vector: CaptureVector.qr,
+      acquirer: 'Google Pay',
+    );
+    final paytm = event(
+      id: 'paytm',
+      key: 'upi:paytm.s233ffl@pty',
+      vector: CaptureVector.qr,
+      offset: const Duration(minutes: 1),
+      acquirer: 'Paytm',
+    );
+
+    test('a Google Pay code teaches the Paytm one beside it', () {
+      final proposals = MerchantReconciler.propose([paytm, gpay]);
+      expect(proposals, hasLength(1));
+      expect(proposals.single.canonicalKey, 'upi:shopname@okbizaxis');
+      expect(proposals.single.aliasKey, 'upi:paytm.s233ffl@pty');
+      expect(proposals.single.mcc, '5411');
+    });
+
+    test('and it names the payment company, not the VPA', () {
+      // The question is *are these the same shop*, and "the Google Pay code"
+      // is something a person at a counter can look up and check.
+      // `paytm.s233ffl@pty` answers a question nobody asked.
+      final p = MerchantReconciler.propose([paytm, gpay]).single;
+      expect(p.teacherLabel, contains('Google Pay'));
+      expect(p.teacherLabel.contains('@'), isFalse);
+    });
+
+    test('two codes from the SAME company are never linked', () {
+      // A row of Paytm stickers down a street is the case the original rule
+      // was written for, and it is still right. A shop does not print two
+      // stickers from one PSP; two neighbours very much do.
+      final other = event(
+        id: 'paytm2',
+        key: 'upi:paytm.zzz999@pty',
+        mcc: '5812',
+        vector: CaptureVector.qr,
+        offset: const Duration(minutes: 1),
+        acquirer: 'Paytm',
+      );
+      expect(MerchantReconciler.propose([paytm, other]), isEmpty);
+    });
+
+    test('an unknown acquirer on either side refuses the link', () {
+      // "I do not know who issued this" is the one state in which *they are
+      // different* must not be assumed. A null is a refusal, not a maybe.
+      final unknown = event(
+        id: 'unknown',
+        key: 'upi:something@newpsp',
+        mcc: '5411',
+        vector: CaptureVector.qr,
+        offset: const Duration(minutes: 1),
+      );
+      expect(MerchantReconciler.propose([paytm, unknown]), isEmpty);
+
+      final learnerUnknown = event(
+        id: 'learner',
+        key: 'upi:mystery@handle',
+        vector: CaptureVector.qr,
+        offset: const Duration(minutes: 1),
+      );
+      expect(MerchantReconciler.propose([learnerUnknown, gpay]), isEmpty);
+    });
+
+    test('stickers get three minutes, not twenty', () {
+      // The long window exists for a sequence with a human in it — a tap that
+      // failed, a word with the cashier, then the QR. Reading the second code
+      // on a board is not that sequence.
+      final late = event(
+        id: 'late',
+        key: 'upi:paytm.s233ffl@pty',
+        vector: CaptureVector.qr,
+        offset: const Duration(minutes: 8),
+        acquirer: 'Paytm',
+      );
+      expect(MerchantReconciler.propose([late, gpay]), isEmpty);
+
+      // And a tap still gets the full twenty, unchanged.
+      final lateScan = event(
+        id: 'lateScan',
+        key: 'upi:paytm.s233ffl@pty',
+        vector: CaptureVector.qr,
+        offset: const Duration(minutes: 8),
+        acquirer: 'Paytm',
+      );
+      expect(MerchantReconciler.propose([lateScan, tap]), hasLength(1));
+    });
+
+    test('a different place is still a different shop', () {
+      // The geohash guard is untouched by `F-198` and this proves it, because
+      // opening up QR-to-QR is exactly the change that would make losing it
+      // expensive.
+      final elsewhere = event(
+        id: 'elsewhere',
+        key: 'upi:paytm.s233ffl@pty',
+        vector: CaptureVector.qr,
+        offset: const Duration(minutes: 1),
+        geohash: 'ttnfuc',
+        acquirer: 'Paytm',
+      );
+      expect(MerchantReconciler.propose([elsewhere, gpay]), isEmpty);
+    });
+
+    test('a code that already has a category learns nothing', () {
+      final known = event(
+        id: 'known',
+        key: 'upi:paytm.s233ffl@pty',
+        mcc: '5812',
+        vector: CaptureVector.qr,
+        offset: const Duration(minutes: 1),
+        acquirer: 'Paytm',
+      );
+      // Two different categories is a conflict to surface, not a link to make.
+      expect(MerchantReconciler.propose([known, gpay]), isEmpty);
+    });
+  });
+
 }

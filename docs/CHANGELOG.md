@@ -2777,6 +2777,96 @@ on the POS route.
 
 ---
 
+## Prompt 55 — 18 Sep 2026 · One counter, two stickers
+
+A premise to check, and an answer underneath it that turned out to be buildable.
+
+### The premise: no, and here is the spec
+
+> *"by using pay-by-app intent, it is getting the merchant category codes
+> inside it properly detected … convert these QR codes into pay-by-intent and
+> get the merchant category codes into it"*
+
+**A UPI intent and a UPI QR are the same string in a different envelope.**
+NPCI's linking specification defines one URL format and lists *"QR, intent,
+NFC, BLE, UHF"* as carriers of it. `mc` is **optional** in both the static and
+dynamic columns, and its own description reads:
+
+> *"Payee merchant code **If present then needs to be passed as it is**"*
+
+*Passed as it is.* Forwarded, never generated. The 39-byte Paytm code from
+[`46`](46-THE-CODE-YOU-SENT.md) fired as an intent is still 39 bytes — and
+`F-194` already forwards payloads byte for byte on purpose, so there is no step
+in that path where a category could appear.
+
+[`51`](51-CAN-AN-INTENT-CARRY-AN-MCC-A-QR-DOES-NOT.md) is the long version.
+
+### But the observation was right, and it points somewhere
+
+Intents in the wild **do** carry `mc` more often. The cause is not the
+transport — it is that an online aggregator onboards a merchant with documents
+and a category, so the category is in the string it builds. A sticker printed
+for a shop that signed up on a phone in four minutes has a payee address and
+nothing else.
+
+**The acquirer decides, not the envelope.** Which is [`42`](42-MARKET-QR-CORPUS.md)'s
+finding arriving from the other side.
+
+### `F-198` — what does work
+
+The question underneath the ask is *get the MCC for a shop whose sticker does
+not carry one*, and this project had already measured the answer: every Google
+Pay for Business code publishes `mc`; **not one** Paytm, PhonePe or BharatPe
+code does. **A shop with two stickers has the answer taped a foot from the code
+that was scanned.**
+
+`MerchantReconciler` already proposes a link when two captures share a place
+and a visit — and carried a rule that refused this exact case:
+
+> *"Two QRs in one cell are two shops in a market"*
+
+Right for two codes from the **same** payment company: a row of Paytm stickers
+down a street is a row of different shops. Wrong for a Google Pay code and a
+Paytm code ninety seconds apart at one till.
+
+### Element changes
+
+| Where | Before | After | Why |
+|---|---|---|---|
+| `merchant_reconciler.dart` | `upi:`↔`upi:` refused outright | Allowed when **acquirers differ** | The measured case, from `docs/42` |
+| same | one 20-minute window | **3 minutes** for a sticker pair | Twenty is for a tap that failed and a word with the cashier. Reading the code beside it is not that sequence |
+| `mcc_route.dart` | 4 routes on a blank sticker | **5**, with *"Look for the shop's other code"* **second** | It is the only one needing nothing from anybody |
+| same | *"the category usually travels with it"* | *"An online checkout usually puts the category in… A sticker on a counter usually does not"* | *Usually* was carrying more weight than it can hold — and it is where this round's premise came from |
+
+### The guard that is easy to get wrong
+
+The link turns on the two acquirers **differing**. An unknown acquirer would
+satisfy `a != b` while meaning *I do not know who issued this* — which is the
+one state in which difference must not be assumed. **A null is a refusal, not a
+maybe**, and it is checked before the comparison rather than after.
+
+Everything else is untouched: same 1 km cell, exactly one side carrying a
+category, and the user confirms. That last guard carries the weight — the
+person was standing at the counter looking at both stickers.
+
+### Tests
+
+Seven new cases in `merchant_reconciler_test.dart`, and **six of them are
+negative**, which is the right ratio for this file: a wrong link is inherited
+by every future scan of that sticker. Same PSP refused, unknown acquirer
+refused on either side, eight minutes refused, a different cell refused, a code
+that already has a category refused — and the tap's twenty-minute window
+asserted unchanged, because opening up QR-to-QR is exactly the change that
+would make losing it expensive.
+
+### Open
+
+Unchanged, and still not code: **tap twenty terminals.** `docs/47` is a sample
+of one, and how many publish `9F15` is the number that decides how much of this
+product rests on that route.
+
+---
+
 <!--
 Template for the next entry:
 

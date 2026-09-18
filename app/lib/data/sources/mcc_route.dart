@@ -106,8 +106,35 @@ class MccAbsence {
   static const _handover = MccRoute(
     kind: MccRouteKind.appHandover,
     title: 'Pay through SWIP next time',
-    detail: 'When a checkout hands the payment over, the category usually '
-        'travels with it.',
+    // `F-198`. *"usually"* is doing real work in this sentence and it is worth
+    // knowing what it means, because the sentence has been read as a promise.
+    //
+    // A checkout hand-off carries a category when the merchant's payment
+    // aggregator put one in the string — which online aggregators mostly do,
+    // because they onboard merchants properly. It is **not** a property of the
+    // hand-off. NPCI's linking spec marks `mc` optional and says *"if present
+    // then needs to be passed as it is"*: an intent forwards a category, it
+    // never mints one. `docs/51`.
+    detail: 'An online checkout usually puts the category in the payment it '
+        'hands over. A sticker on a counter usually does not.',
+  );
+
+  /// `F-198` — **the answer that is taped to the same counter.**
+  ///
+  /// `docs/42` counted 48 codes from one market walk. Every Google Pay for
+  /// Business code published `mc`; **not one** Paytm, PhonePe or BharatPe code
+  /// did. A shop with more than one sticker is a shop where the category is
+  /// already on the board — just not on the code that was scanned.
+  ///
+  /// This is the cheapest route on the list by a wide margin. It needs no
+  /// terminal, no payment, no statement and no network: a second scan, and a
+  /// confirmation that the two are the same shop.
+  static const _otherSticker = MccRoute(
+    kind: MccRouteKind.dynamicQr,
+    title: 'Look for the shop\'s other code',
+    detail: 'Google Pay stickers carry the category and Paytm, PhonePe and '
+        'BharatPe ones do not. Scan the other code on the counter and SWIP '
+        'will offer to join them.',
   );
 
   /// Work out why there is no category, and what would get one.
@@ -137,7 +164,9 @@ class MccAbsence {
           reason: 'Their bank wrote the category field into this QR and left '
               'it empty. The shop has a category; its acquirer did not print '
               'it.',
-          routes: [_tap, _dynamic, _statement],
+          // `F-198`. **This acquirer** left it empty — which says nothing
+          // about the one who printed the other sticker on the same counter.
+          routes: [_tap, _otherSticker, _dynamic, _statement],
         );
 
       case MccPublication.malformed:
@@ -165,7 +194,18 @@ class MccAbsence {
           reason: 'This is a printed sticker. It carries who gets paid and '
               'nothing else - the category lives on the shop\'s terminal and '
               'on their bank\'s servers, never on the sticker.',
-          routes: [_tap, _dynamic, _handover, _statement],
+          // `F-198`. `_otherSticker` goes **second**, above the dynamic QR and
+          // the hand-off, and the order is the argument: it is the only route
+          // on this list that needs nothing from anybody. A tap needs their
+          // terminal, a dynamic QR needs the cashier to ring it up, a
+          // statement needs a payment first. Scanning the code next to this
+          // one needs a second scan.
+          //
+          // It stays below the tap because a tap is *deterministic* where this
+          // is a link the user confirms — and `docs/47` notwithstanding, when
+          // a terminal does publish `9F15` it is the shop's own category
+          // rather than a neighbour's.
+          routes: [_tap, _otherSticker, _dynamic, _handover, _statement],
         );
     }
   }
