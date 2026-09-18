@@ -2700,6 +2700,141 @@ second arriving mid-round:
 
 ---
 
+## Prompt 54 — 17 Sep 2026 · 23:45 IST · Five routes to an MCC, and the payment hand-off
+
+**Original prompt, verbatim** — with `UPI_Merchant_Category_Code_Solutions.rtf`
+(a commissioned research document, read in full), a blog post on powering UPI
+QRs through a payment gateway, three M2P articles on card issuing and merchant
+acquiring, and a Zwitch explainer on QR structure:
+
+> There are a few things that I'm trying to aim for here:
+> 1. I try to do a bit of research from my end as well. What could be the
+>    possibilities for how we could get the motion category for the person? …
+>    The whole scenario I'm trying to aim for is that the whole situation is
+>    that we are trying to get MCC from these QR codes, right?
+> 2. I'm not sure how that Razorpay thing that you are trying to get done, the
+>    system, or another POS Razorpay thing that you have built into the
+>    settings app, works. I'm unable to use it. Not sure how this actually
+>    helps. That is not helping, first of all.
+> 3. … let's say we have a wallet system for the users. He simply loads the
+>    wallet, and he can do these types of UPI payments … While he is just about
+>    to make the payment, we just get verified by some person or company who
+>    facilitates payments …
+>
+> … we could simply get him to make a payment of ₹1 to that QR code, and as
+> soon as the payment is done, we get the MCC code right from this payment
+> confirmation.
+>
+> I'm not sure how the banks do this. For Federal Bank, whenever we make a
+> payment, if we extract the statement from them … I get to see the merchant
+> category code extension at the very end of each statement line, so we could
+> capture that in that sense.
+>
+> This is a generalised solution for all the cases:
+> - We have the QR code merchant category codes.
+> - We have the merchant category codes embedded into the QR code, or we do not
+>   have them.
+>
+> If it has an MCC, we show it. If it doesn't, let the user make a dummy
+> payment and get an MCC code.
+>
+> Also, I'm not sure how we could get these refunded because he's paying the
+> merchant directly. Let's say the person … comes across 1,000 merchants in a
+> day. He scans all those merchants … He simply makes a ₹1 payment or a ₹2
+> payment into it and checks the merchant credit card. He loses the payment …
+>
+> It is very important for us to close the payment and get the MCC code. Since
+> we have prepaid cards facilitated for this wallet, we could get these cards
+> tapped under this POS. When we do the POS tap, we could get the machine
+> category code triggered onto our platform.
+>
+> … As a vendor who has got the licence through aggregators to enable wallet
+> payment systems, it could get lagged 2-minute decline payments or
+> subscription balance and stuff. Obviously, the wallet will have a set limit
+> balance of maybe ₹100 or maybe ₹2,000 …
+>
+> Tell me one way that we could get out of it.
+>
+> … I'll attach a set of resources that I have put forth. I'll put in the link.
+> Go through those links. Maybe you can check how this whole system works. You
+> can find me a set of vendors who are very easy to partner with.
+>
+> Go ahead with the whole scenario, get these things done, and have the app
+> live on the Play Store as early as possible. Also, I hope you are updating
+> the lectures wherein these functionalities are being documented.
+>
+> … can you help me create a master export file for all the types of exports
+> about this system whenever I upload, so that you have a mega export file? …
+> Have it in the build debug APK at the very end, at the very lowest part of
+> it.
+>
+> Also, do not stick to only one vendor because we are not sure if that is best
+> or not. Just go through the actual data or the blogs that people have written
+> and that I'm sharing … On GitHub, there are open-source projects surrounding
+> this card thing or a wallet thing, and very detailed documentation. Help me
+> get guided through because I'm a very newb in all these scenarios.
+>
+> My biggest fear with the wallet system or GPR cards, probably, is that credit
+> has this wallet system. Any day, it could simply start showing the MCC codes
+> in its wallet system. Anyone can reload it, and people can have advantages to
+> it. That is one very vulnerable state to be in for an app that's just trying
+> to get the MCC code, no matter how.
+>
+> … whenever I scan this QR code, I could also have the amount, or maybe be
+> redirected to the credit, or maybe to any of the other apps to pay …
+> I scan the QR code, get the merchant ID code, and a pop-up comes up with an
+> answer. I get another button below it, "Continue Payment," which leads me to
+> maybe this set of options, which makes a pop-up. It gives an option of a list
+> of apps which can make payment to this giver. This payment address will then
+> be fetched into other apps when I click "Choose" or "Choose to pay with
+> them."
+>
+> When I say priorities of getting MCC, it doesn't mean you have to discard it,
+> queue it, keep it, or procrastinate it. You have to first implement the
+> features surrounding this MCC port, get it implemented, and then you have to
+> start building the very same session.
+>
+> For now, let them first get redirected to the list of payment sheet apps
+> available in their system … select the application from this list of apps,
+> and then put their amount into that chosen app.
+>
+> … in the later stages … they start putting their credit cards and the
+> details, maybe by tapping, like how Zomato or district does … We tap the
+> card, get the whole data from the card, and then save these cards.
+>
+> Later on … we start recommending which cards would be the best … what the
+> priority is: airlines or air miles … how much the limits are … whether they
+> might have achieved some milestones …
+>
+> If a recommended card is rejected, maybe we can ask them in a pop-up, "Did
+> you accept and go ahead and pay it?" … we could also have … agents will start
+> crawling, firstly, into the messages, keeping track and mapping the expenses
+> and the POS taps we have done …
+>
+> … we could have an agent which is keeping a type of offers going on in the
+> entire world of credit cards … the next agent would be keeping track of the
+> credit cards that that person should have instead if he doesn't have them.
+>
+> Attach an RTF file as well from the research that I pulled out. I gave the
+> context to Google Gemini, and it gave me research around it … go through the
+> RTF file extensively, and get me an output. Also, help me understand what you
+> did as well.
+
+**Every ask is quoted individually with a status in**
+[`50`](50-PROMPT-54-REGISTER.md).
+
+| # | ID | Did | Why |
+|---|---|---|---|
+| 1 | `F-194` | **Continue payment** on the capture result, in both windows, opening SWIP's own list of UPI apps | Quoted verbatim, and it is the first thing that makes SWIP useful at a counter whether or not a category was found |
+| 2 | `F-194` | The scanned payload is forwarded **byte for byte** | `sign=` is a DER signature over the rest of the string; rebuilding from `pa`+`pn` destroys it |
+| 3 | `F-194` | A `<queries>` intent signature, **not** `QUERY_ALL_PACKAGES` | Play classes the broad permission as restricted. Same trade `docs/36` D-45 declined for Doze |
+| 4 | `F-195` | **Master export** — three recorders and the phone, one file, last row of Diagnostics | *"at the very end, at the very lowest part of it"* |
+| 5 | `F-195` | A VPA with a scheme prefix is refused | Found by two existing tests failing on *button emphasis*. `upi:WFMLMH2@ybl` would have opened a payment app on an unresolvable payee |
+| 6 | — | [`49`](49-EVERY-ROUTE-TO-AN-MCC.md) — five routes, priced, with the licence each needs | The research was checked rather than agreed with, and **three of its claims were wrong** |
+| 7 | — | [`50`](50-PROMPT-54-REGISTER.md) — every ask, quoted, with a status | *"don't keep it logged simply and keep it piled up"* |
+
+---
+
 <!--
 Template for the next entry:
 

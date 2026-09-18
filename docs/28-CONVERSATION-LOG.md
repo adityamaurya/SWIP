@@ -2096,6 +2096,153 @@ want different words, they have the same budget and I will set them exactly.
 
 ---
 
+## Prompt 54 — 17 Sep 2026 · Five routes to an MCC, and the payment hand-off
+
+**You asked:** a great deal, and the centre of it was a research document you
+had commissioned and wanted checked. So the honest headline of this round is
+not the two features that shipped — it is that **two of the three routes you
+were most hopeful about cannot be built**, and I would rather say that now than
+after a quarter spent on one.
+
+### First, the ₹1 probe. It cannot work, and not because it is hard
+
+> *"we could simply get him to make a payment of ₹1 to that QR code, and as
+> soon as the payment is done, we get the MCC code right from this payment
+> confirmation"*
+
+**The MCC is never sent to the paying app.** A UPI response to an app like SWIP
+carries the transaction status, an RRN and a reference — not a category. The
+category is attached by the **acquiring bank** during settlement and travels
+from the acquirer to the issuer, on the network. It goes *around* your phone,
+not through it.
+
+So the rupee would be spent and nothing would come back. Not a little data —
+nothing.
+
+And you had already found the deeper problem yourself: *"I'm not sure how we
+could get these refunded because he's paying the merchant directly."* You
+cannot. A UPI push to a merchant has **no reversal available to the payer** — a
+refund is the merchant's decision, not a mechanism.
+
+**The instinct underneath it was right, though**, and worth keeping: a
+*completed* transaction does know the category. That leads straight to the next
+one.
+
+### Second, the bank statement. Also blocked, for a reason I had to go and check
+
+> *"For Federal Bank … I get to see the merchant category code extension at the
+> very end of each statement line"*
+
+What you are seeing is real. The route your research proposes for reading it
+programmatically — the RBI's Account Aggregator framework — is the right idea
+and SWIP is not allowed to use it.
+
+Sahamati, the AA ecosystem's own regulatory body, states the rule flatly:
+
+> *"you cannot be an FIU or FIP if you are not a regulated entity"* — meaning
+> regulated by RBI, SEBI, IRDAI, PFRDA or the Department of Revenue.
+
+SWIP does not touch money. **That is its defining property, the reason it can
+ship at all, and exactly what disqualifies it here.** And "partner with a
+licensed FIU" is not a way around it — the FIU is the entity the consent is
+granted *to*.
+
+There is a second problem underneath. Your document claims AA data *"frequently
+includes … the MCC"*. I checked the schema. A ReBIT deposit transaction carries
+nine fields — `type, mode, amount, currentBalance, transactionTimestamp,
+valueDate, txnId, narration, reference` — and **none of them is a category**.
+When a bank shows one, it is inside the free-text `narration` column in that
+bank's own format, obliged by no standard. Federal Bank does it; an app built
+on that would break on the next bank, silently.
+
+### Third, the wallet. This one works — and it is a company, not a feature
+
+> *"since we have prepaid cards facilitated for this wallet, we could get these
+> cards tapped under this POS"*
+
+**You are right about the mechanism.** An authorisation message reaching the
+issuer's switch carries the MCC whether it is approved or declined. That is a
+real route and it is the only one that gets a category from a failed
+transaction legitimately.
+
+The catch is that you have to *be* the issuer. That means a Certificate of
+Authorisation under the Payment and Settlement Systems Act, and **₹5 crore of
+net worth at application, rising to ₹15 crore within three years.** A BIN
+sponsor — riding an existing issuer's licence, which is the model your M2P
+articles describe — removes the licence requirement and none of the capital,
+the KYB or the compliance function.
+
+Worth wanting. Not worth confusing with a sprint.
+
+### Your CRED fear, answered directly
+
+> *"CRED has this wallet system. Any day, it could simply start showing the MCC
+> codes."*
+
+**It could, and the fear is pointed at the wrong risk.** CRED already has
+everything needed: the users, the registered entity, the card rails, the
+prepaid instrument. If they decide to show MCCs, they will.
+
+So SWIP cannot win on *having* the data. Two things are still true. Nobody has
+done it — not CRED, not GPay, not any bank — and the reason is not technical:
+showing a category invites *"why can't I use my card here"*, which is a support
+cost none of them sells the answer to. And SWIP's position is the one they
+cannot copy without giving something up: no account, no server, nothing
+uploaded. A company built on knowing what you spend cannot credibly ship the
+app that knows nothing about you.
+
+The defensible asset is **the corpus** — 5 QR codes in 48, and the number for
+terminals, which nobody has measured.
+
+### What was built
+
+**Continue payment.** Exactly as you described it: the result pop-up now has a
+third button, full width, which opens SWIP's own list of the UPI apps on your
+phone with their real icons. Tap one and the scanned code goes straight to it.
+No closing the modal, no rescanning. It is in the hovering card too.
+
+One thing I did that you did not ask for and should know about: **the scanned
+code is forwarded byte for byte, never rebuilt.** The obvious version reads the
+address and the name out and composes a fresh `upi://` string. That quietly
+destroys the `sign=` block — a signature computed over the whole payload —
+which at best loses the merchant's verified status and at worst gets the code
+refused.
+
+No amount is sent, as you asked. The parameter exists so the day you want it
+prefilled is one argument.
+
+**Master export.** All three black boxes and the phone they ran on, in one
+file, last row of Diagnostics on a debug build. You have exported three
+separate files from three places for five rounds running; this is one tap.
+
+**The ledger is deliberately not in it**, and I want to flag that rather than
+have you discover it. The three recorders were built to be sent to somebody —
+the POS one literally *cannot* record a merchant identifier, because the
+function that writes tags is never handed a value. Your shop history is the
+opposite, and it already has an encrypted export. Bundling it into a file
+called "master export" — the kind of file someone forwards without reading —
+would have quietly undone that. It contributes one number: how many captures
+exist.
+
+### And CI went red, which was useful
+
+Two existing tests failed on which button was filled. The tempting move was to
+update them. **They were right and my code was wrong**: their fixture's
+merchant key is `upi:WFMLMH2@ybl`, a scheme-prefixed shape, and my address
+check passed it. Composing from it would have opened a payment app on a payee
+no bank can resolve — at a counter, after the tap.
+
+A UPI address never contains a colon. Fixed, with its own test.
+
+**Still open:** [`50`](50-PROMPT-54-REGISTER.md) has all seventeen asks with a
+status. The next step is not code. **Tap twenty card machines.** The instrument
+is already built and costs nothing, and `docs/47` is a sample of one — the
+number of terminals that publish a category decides how much of this product
+rests on that route, and it is the only question here neither of us can
+shortcut.
+
+---
+
 <!--
 Template:
 

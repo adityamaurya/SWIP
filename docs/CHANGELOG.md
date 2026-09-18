@@ -2611,6 +2611,121 @@ with evidence, none waiting on the owner, and sixteen planned**.
 
 ---
 
+## Prompt 54 — 17 Sep 2026 · Continue payment, the master export, and five routes to an MCC
+
+The round's shape: **one feature the owner asked for and can use tomorrow, one
+piece of apparatus that removes a recurring chore, and a page that checks a
+research document rather than agreeing with it.**
+
+### Screens changed
+
+| ID | Screen | Change | Serves |
+|---|---|---|---|
+| S-14 | Capture result (both windows) | **Continue payment**, full width above the View all / Tap POS pair | E10 |
+| S-14b | Pay with (new) | SWIP's own list of the phone's UPI apps | E10/E11 |
+| S-09 | Settings · Diagnostics | **Master export** as the last row | prompt 54 |
+
+### Code
+
+| File | Change |
+|---|---|
+| **`core/pay/upi_handoff.dart`** | **New.** `payUriFor`, `isPayable`, `compose`, and the `UpiApps` platform reads |
+| **`widgets/pay_with_sheet.dart`** | **New.** Three states, and the empty one falls through to Android's chooser |
+| `widgets/capture_result_sheet.dart` | `F-194` — the third action, and one filled button rather than two |
+| **`features/bubble/master_export.dart`** | **New.** Three recorders and the phone, in one file |
+| `features/settings/settings_page.dart` | `F-195` — the row, last in the block |
+| `MainActivity.kt` | `upiApps`, `payWithApp`, `deviceReport`, and an icon-to-PNG helper |
+| `AndroidManifest.xml` | A `<queries>` intent signature for the `upi` scheme |
+| `tool/check_wiring.py` | `F-194` — the channel regex now sees nested generics |
+| **`test/upi_handoff_test.dart`** | **New**, 14 cases |
+| **`test/master_export_test.dart`** | **New**, 8 cases |
+
+### The rule worth keeping: forward the payload, do not rebuild it
+
+The obvious implementation of *Continue payment* reads `pa` and `pn` out of the
+scanned code and composes a fresh `upi://pay?pa=…&pn=…`. That is wrong, and
+quietly so.
+
+A merchant QR minted by an onboarding flow carries `mode=02`, `orgid`, `mc` and
+a `sign=` block which is a raw DER ECDSA signature **over the rest of the
+payload** ([`42` §4](42-MARKET-QR-CORPUS.md)). Rebuilding from two fields drops
+all four. At best the receiving app loses the merchant's verified status and
+files a shop as a person; at worst the signature no longer matches what it
+signs and the code is refused.
+
+So the raw payload goes on byte for byte, and composition is the fallback for a
+row that holds an address and no original string.
+
+### The permission this deliberately does not ask for
+
+Listing the phone's UPI apps needs package visibility on Android 11+, and there
+are two ways. `QUERY_ALL_PACKAGES` returns the whole installed-app inventory and
+Google Play classes it as a **restricted permission**, granted only when broad
+visibility *is* the app's core purpose. SWIP's is a shop's category.
+
+Declined, for the same reason [`36`](36-DEVIATIONS.md) D-45 declined the Doze
+exemption. What the manifest declares instead is a `<queries>` **intent
+signature** — "who can VIEW a `upi:` URI" — which needs no permission and is
+structurally incapable of being an inventory.
+
+### CI went red and found a real bug rather than a stale test
+
+Run 117 failed three ways. One was mine and trivial: `MccConfidence` lives in
+`models/mcc.dart` and the new test imported only `capture_event.dart`.
+
+The other two were `capture_result_sheet_test`'s button-emphasis assertions, and
+**they were right and the code was wrong.** Its fixture's `merchantKey` is
+`upi:WFMLMH2@ybl` — a scheme-prefixed shape — which has exactly one `@` with
+text either side and passed every check in `_looksLikeVpa`. So *Continue
+payment* rendered, took the filled slot, and flipped *View all* to outlined.
+
+Composing from that string would have produced `pa=upi%3AWFMLMH2%40ybl`: a
+payment app opening on a payee no PSP can resolve, at a counter, after the tap.
+**A VPA never contains a colon.**
+
+`CLAUDE.md`'s rule is *grep for the assertion, not the test name.* This is the
+same rule from the other side — a test named for one thing catching a different
+and worse one.
+
+### The master export, and the line it does not cross
+
+All three recorders and the phone, in one file, last in the Diagnostics block.
+It removes a real chore: five rounds running, three JSONL files have been
+exported from three places and attached one at a time.
+
+**The ledger is deliberately not in it.** The recorders were built to be
+exported and sent — `TapTrace.tagFields` *cannot* emit a value because it is
+never handed one, and a test proves it. The ledger is the opposite: the user's
+own shop history, with two exports of its own, one encrypted behind a
+twelve-word phrase. Folding it in would silently undo that. It contributes one
+integer.
+
+That rule is **asserted rather than commented**, because `compose` takes strings
+and no signature can carry it: six real-looking capture fields go in and the
+test proves none comes out.
+
+### Docs
+
+[`49-EVERY-ROUTE-TO-AN-MCC.md`](49-EVERY-ROUTE-TO-AN-MCC.md) — the owner's
+research document checked rather than agreed with. Two corrections matter:
+
+* **The ₹1 probe cannot work.** The MCC is never returned to the paying app —
+  it is attached by the acquirer during settlement and travels acquirer to
+  issuer, around the phone.
+* **SWIP cannot be an Account Aggregator FIU.** Sahamati: *"you cannot be an
+  FIU or FIP if you are not a regulated entity."* And the ReBIT deposit schema
+  has **no MCC field** — nine attributes, and a category appears only inside
+  free-text narration, in whatever format a bank chose.
+
+### Open
+
+Seventeen asks from prompt 54 are registered in
+[`50`](50-PROMPT-54-REGISTER.md). The next one is not code: **tap twenty
+terminals.** The instrument is built, it costs nothing, and it decides how much
+of SWIP rests on the POS route.
+
+---
+
 <!--
 Template for the next entry:
 
