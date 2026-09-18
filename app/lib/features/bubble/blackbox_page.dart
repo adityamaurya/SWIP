@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/diagnostics/scan_trace.dart';
 import '../../core/theme/swip_tokens.dart';
 
 /// `F-187`, `F-188` — **one screen for all three black boxes. Temporary.**
@@ -70,6 +71,21 @@ enum Blackbox {
         'It measures duration, which is what actually costs a battery.',
     contains: 'Subsystem names and durations. Nothing about what was captured '
         'while they were awake.',
+  ),
+
+  /// `F-197`. Every time the viewfinder was opened, and what happened next.
+  scan(
+    title: 'Scan black box',
+    blurb: 'Every time the scanner was opened: how long until a code was '
+        'read, whether the torch was reached for, whether the "having '
+        'trouble" message appeared, and whether the scanner was closed with '
+        'nothing read at all.\n\n'
+        'The ledger already records what was FOUND. This records what was '
+        'LOOKED AT — which is the only way "it should zoom like Google Pay" '
+        'and "the glare beats it" become numbers rather than arguments.',
+    contains: 'Timings, outcomes, and the payment company a code belonged to '
+        '(Paytm, PhonePe, Google Pay) — never the code, the shop or the '
+        'address.',
   );
 
   const Blackbox({
@@ -88,6 +104,7 @@ enum Blackbox {
         Blackbox.bubble => 'BubbleTrace',
         Blackbox.tap => 'PosTrace',
         Blackbox.power => 'PowerTrace',
+        Blackbox.scan => 'ScanTrace',
       };
 }
 
@@ -182,10 +199,19 @@ class _BlackboxPageState extends State<BlackboxPage> {
   /// find, and so is one a person reading the file cannot find either.
   Future<String> _dump() async {
     try {
+      // `F-197`. The scan box is the one recorder that is not behind the
+      // channel — it watches a Flutter widget, so it lives in Dart. Returned
+      // before the switch rather than as a case in it, because there is no
+      // `Future<String?>` from a channel to await.
+      if (widget.box == Blackbox.scan) return ScanTrace.dump();
+
       final call = switch (widget.box) {
         Blackbox.bubble => _channel.invokeMethod<String>('traceDump'),
         Blackbox.tap => _channel.invokeMethod<String>('tapTraceDump'),
         Blackbox.power => _channel.invokeMethod<String>('powerTraceDump'),
+        // Unreachable — returned above. Kept so the switch stays exhaustive
+        // and a fifth recorder cannot be added without deciding this.
+        Blackbox.scan => Future<String?>.value(''),
       };
       return await call.timeout(const Duration(seconds: 4)) ?? '';
     } catch (_) {
@@ -260,11 +286,20 @@ class _BlackboxPageState extends State<BlackboxPage> {
       ),
     );
     if (yes != true) return;
+    // `F-197`. Same split as `_dump`: the scan box is in Dart, so there is no
+    // channel call to make. Cleared and reloaded here, before the switch.
+    if (widget.box == Blackbox.scan) {
+      await ScanTrace.clear();
+      if (mounted) await _load();
+      return;
+    }
     try {
       final call = switch (widget.box) {
         Blackbox.bubble => _channel.invokeMethod<bool>('traceClear'),
         Blackbox.tap => _channel.invokeMethod<bool>('tapTraceClear'),
         Blackbox.power => _channel.invokeMethod<bool>('powerTraceClear'),
+        // Unreachable — handled above. Kept so the switch stays exhaustive.
+        Blackbox.scan => Future<bool?>.value(true),
       };
       await call.timeout(const Duration(seconds: 3));
     } catch (_) {

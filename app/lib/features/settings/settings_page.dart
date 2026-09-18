@@ -326,6 +326,23 @@ class SettingsPage extends ConsumerWidget {
                       builder: (_) => const BlackboxPage(box: Blackbox.power),
                     )),
                   ),
+                  // `F-197`. The fourth recorder. Placed after the two
+                  // Android ones and before the master export, which stays
+                  // last because it is all of them taken together.
+                  ListTile(
+                    leading: const Icon(Icons.qr_code_scanner_rounded),
+                    title: const Text('Scan black box'),
+                    subtitle: Text(
+                      'How long the scanner took, and how often it read '
+                      'nothing at all. Scan a few codes, then export',
+                      style: SwipType.bodyS
+                          .copyWith(color: SwipColors.textSecondary),
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const BlackboxPage(box: Blackbox.scan),
+                    )),
+                  ),
                   // `F-195`. Last row in the block, which is where it was
                   // asked to be — *"at the very end, at the very lowest part
                   // of it"* — and where it belongs: it is the three rows above

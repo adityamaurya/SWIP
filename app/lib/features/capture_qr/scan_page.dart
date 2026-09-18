@@ -8,6 +8,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../../core/diagnostics/scan_trace.dart';
 import '../../core/onboarding/primers.dart';
 import '../../core/settings/home_market.dart';
 import '../../core/theme/swip_tokens.dart';
@@ -129,6 +130,25 @@ class _ScanPageState extends ConsumerState<ScanPage> {
   bool _stuck = false;
   Timer? _stuckTimer;
 
+  /// `F-197`. When the camera actually started delivering frames — not when
+  /// the screen opened.
+  ///
+  /// The distinction is the whole value of the number. Timing from `initState`
+  /// would count the primer sheet and the permission dialog as *time spent
+  /// failing to read a code*, which is the thing the recorder exists to
+  /// measure and would be wrong by whole seconds. `_armStuck` already makes
+  /// exactly this distinction for the "having trouble?" copy, for the same
+  /// reason — see `F-183`.
+  DateTime? _sawFirstFrame;
+
+  /// So the close line can say whether anything was read. A scanner opened and
+  /// abandoned is the finding; a scanner that produced a capture is not.
+  bool _decodedSomething = false;
+
+  int get _msSinceOpen => _sawFirstFrame == null
+      ? 0
+      : DateTime.now().difference(_sawFirstFrame!).inMilliseconds;
+
   /// How long to look before admitting it. Long enough not to nag somebody
   /// still raising the phone, short enough to arrive while they are still
   /// pointing it at the thing that will not read.
@@ -156,6 +176,7 @@ class _ScanPageState extends ConsumerState<ScanPage> {
     final refused =
         v.error?.errorCode == MobileScannerErrorCode.permissionDenied;
     final torchOn = v.torchState == TorchState.on;
+    final wasTorchOn = _torchOn;
     if (running != _running || refused != _refused || torchOn != _torchOn) {
       setState(() {
         _running = running;
@@ -166,9 +187,24 @@ class _ScanPageState extends ConsumerState<ScanPage> {
       // Starting it in `initState` would count the permission dialog and the
       // primer sheet as time spent failing to read a code.
       if (running) {
+        // `F-197`. The first running frame is the start of the clock, and the
+        // scanner's open line. Guarded, because `_sync` fires on every
+        // controller change and a restart must not reset the measurement.
+        if (_sawFirstFrame == null) {
+          _sawFirstFrame = DateTime.now();
+          unawaited(ScanTrace.opened('full'));
+        }
         _armStuck();
       } else {
         _stuckTimer?.cancel();
+      }
+
+      // Recorded from the CONTROLLER's torch state rather than from the button
+      // press — `F-171`'s rule, and it matters here: `toggleTorch()` can fail
+      // on a lens with no torch, and a log of what the user *asked for* would
+      // disagree with the phone.
+      if (torchOn != wasTorchOn) {
+        unawaited(ScanTrace.torch(on: torchOn, msSinceOpen: _msSinceOpen));
       }
     }
   }
@@ -178,7 +214,15 @@ class _ScanPageState extends ConsumerState<ScanPage> {
     _stuckTimer?.cancel();
     if (_stuck) setState(() => _stuck = false);
     _stuckTimer = Timer(_patience, () {
-      if (mounted) setState(() => _stuck = true);
+      if (!mounted) return;
+      setState(() => _stuck = true);
+      // `F-197`. **The low-light and glare signal.** This is the viewfinder
+      // saying it has been looking at something for `_patience` and cannot
+      // read it — which is what *"in low light … there is glare coming from
+      // the backside of the scanners"* looks like from inside the app, and the
+      // only way that complaint becomes a number rather than an argument.
+      unawaited(ScanTrace.stuck(
+          msSinceOpen: _msSinceOpen, torchOn: _torchOn));
     });
   }
 
@@ -251,6 +295,21 @@ class _ScanPageState extends ConsumerState<ScanPage> {
     // "A Timer is still pending" from whichever test ran next rather than
     // from this screen.
     _stuckTimer?.cancel();
+    // `F-197`. Unawaited and before the controller teardown. `dispose` cannot
+    // await, and a scanner opened and abandoned with nothing read is the most
+    // interesting line in the file — it is the one that says whether the
+    // camera is good enough.
+    //
+    // Skipped entirely when the camera never started: a screen closed during
+    // the permission dialog has nothing to report about scanning, and counting
+    // it as an abandonment would make the camera look worse than it is.
+    if (_sawFirstFrame != null) {
+      unawaited(ScanTrace.closed(
+        outcome:
+            _decodedSomething ? ScanOutcome.decoded : ScanOutcome.abandoned,
+        msOpen: _msSinceOpen,
+      ));
+    }
     _controller.removeListener(_sync);
     unawaited(_controller.dispose());
     super.dispose();
@@ -266,6 +325,20 @@ class _ScanPageState extends ConsumerState<ScanPage> {
 
     setState(() => _handling = true);
     await _controller.stop();
+
+    // `F-197`. Before the resolve, so a throw in resolution still leaves a
+    // record that something WAS read — which is the difference between "the
+    // camera could not see it" and "the camera saw it and SWIP fell over".
+    //
+    // `ScanShape.of` is handed the payload and returns counts and enums; the
+    // recorder itself has no parameter a payload could travel through. See
+    // `scan_trace.dart`.
+    _decodedSomething = true;
+    unawaited(ScanTrace.decoded(
+      shape: ScanShape.of(raw),
+      msSinceOpen: _msSinceOpen,
+      torchOn: _torchOn,
+    ));
 
     final resolved = CaptureResolver.resolve(raw);
     final repo = await ref.read(captureRepositoryProvider.future);

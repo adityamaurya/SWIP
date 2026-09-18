@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 
+import '../../core/diagnostics/scan_trace.dart';
 import 'blackbox_page.dart';
 
 /// `F-195` — **one file instead of three.**
@@ -150,11 +151,18 @@ class MasterExport {
   /// records the round where moving them into an enum field made six live
   /// handlers read as dead platform code.
   static Future<String> _dumpOf(Blackbox box) async {
+    // `F-197`. The scan box watches a Flutter widget rather than an Android
+    // subsystem, so it lives in Dart and there is no channel call to make.
+    // Returned before the switch; the case below keeps the switch exhaustive
+    // so a fifth recorder cannot be added without deciding this.
+    if (box == Blackbox.scan) return ScanTrace.dump();
+
     try {
       final call = switch (box) {
         Blackbox.bubble => _channel.invokeMethod<String>('traceDump'),
         Blackbox.tap => _channel.invokeMethod<String>('tapTraceDump'),
         Blackbox.power => _channel.invokeMethod<String>('powerTraceDump'),
+        Blackbox.scan => Future<String?>.value(''),
       };
       return await call.timeout(const Duration(seconds: 4)) ?? '';
     } catch (_) {

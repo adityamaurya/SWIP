@@ -429,8 +429,16 @@ void main() {
       // and `F-194` gave it a sibling that does. Asserting the shape here
       // would make this test fail every time the emphasis rules move, for a
       // reason it does not care about.
-      final button = t.widget<ButtonStyleButton>(
-          find.widgetWithText(ButtonStyleButton, 'View all'));
+      // `bySubtype`, not `byType`. `find.widgetWithText` resolves through
+      // `find.byType`, which matches `runtimeType ==` and therefore finds
+      // NOTHING for an abstract base class — the finder comes back empty and
+      // the failure reads as "the button is missing" rather than "the finder
+      // cannot see subclasses". `bySubtype` is the one that walks the
+      // hierarchy.
+      final button = t.widget<ButtonStyleButton>(find.ancestor(
+        of: find.text('View all'),
+        matching: find.bySubtype<ButtonStyleButton>(),
+      ));
       expect(button.onPressed, isNull);
     });
 
