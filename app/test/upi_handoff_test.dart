@@ -98,12 +98,32 @@ void main() {
       }
     });
 
-    test('a merchant key with a scheme prefix is not an address', () {
-      // `upi:WFMLMH2@ybl` — a real fixture from the sheet's own test file. One
-      // `@`, text either side, no spaces: it passes every obvious check and is
-      // not an address. Composing from it would open a payment app on a payee
-      // no PSP can resolve. A VPA never contains a colon.
-      expect(UpiHandoff.payUriFor(_event(key: 'upi:WFMLMH2@ybl')), isNull);
+    test('the canonical `upi:` merchant key has its prefix stripped', () {
+      // `CaptureResolver` writes `upi:<vpa>` for EVERY UPI capture
+      // (`capture_resolver.dart:76`), so this is not an edge case — it is the
+      // only shape a real row has. Handing it on unchanged would produce
+      // `pa=upi%3Awfmlmh2%40ybl`, which no PSP resolves.
+      expect(UpiHandoff.payUriFor(_event(key: 'upi:WFMLMH2@ybl')),
+          'upi://pay?pa=WFMLMH2%40ybl&cu=INR');
+      expect(UpiHandoff.addressOf('upi:shop@okaxis'), 'shop@okaxis');
+      // Case-insensitively, because the key is written lower-cased and an
+      // import could carry either.
+      expect(UpiHandoff.addressOf('UPI:shop@okaxis'), 'shop@okaxis');
+    });
+
+    test('any other colon is still refused', () {
+      // The prefix is stripped because it is known. A colon SWIP does not
+      // recognise is a string it does not understand, and guessing at one
+      // ends with a payment app open on a payee that does not exist.
+      for (final bad in const [
+        'mailto:shop@okaxis',
+        'shop:1@okaxis',
+        'upi:upi:shop@okaxis',
+        'upi:',
+        'upi:@okaxis',
+      ]) {
+        expect(UpiHandoff.addressOf(bad), isNull, reason: bad);
+      }
     });
 
     test('a raw payload that is junk still composes from a known address', () {

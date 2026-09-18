@@ -74,9 +74,35 @@ class UpiHandoff {
 
     // No original string. Compose from the address if there is one — this is
     // the path a back-filled or imported row takes.
-    final key = event.merchantKey?.trim();
-    if (key == null || !_looksLikeVpa(key)) return null;
+    final key = addressOf(event.merchantKey);
+    if (key == null) return null;
     return compose(payeeAddress: key, payeeName: event.merchantName);
+  }
+
+  /// The payable address inside a stored merchant key, or null.
+  ///
+  /// ## Why this is not just a validator
+  ///
+  /// `CaptureResolver` writes **`upi:<vpa>`**, lower-cased, as the canonical
+  /// key for every UPI capture — `capture_resolver.dart:76`. That prefix is
+  /// deliberate: the key namespaces a merchant across vectors, so a POS
+  /// terminal and a QR for the same shop can be told apart.
+  ///
+  /// It is also not an address. Handing `upi:shop@okaxis` to a payment app as
+  /// `pa=` produces `pa=upi%3Ashop%40okaxis`, which no PSP resolves — a
+  /// payment screen opening on a payee that does not exist, at a counter,
+  /// after the tap.
+  ///
+  /// So the one known prefix is **stripped**, and anything else carrying a
+  /// colon is refused. Rejecting outright would have been safe and would have
+  /// quietly disabled this fallback for every row SWIP itself writes, which is
+  /// the only kind of row it exists for.
+  static String? addressOf(String? merchantKey) {
+    var s = merchantKey?.trim();
+    if (s == null || s.isEmpty) return null;
+    const prefix = 'upi:';
+    if (s.toLowerCase().startsWith(prefix)) s = s.substring(prefix.length);
+    return _looksLikeVpa(s) ? s : null;
   }
 
   /// Whether [payload] is something a UPI app will accept.

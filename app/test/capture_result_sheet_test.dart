@@ -229,8 +229,37 @@ void main() {
       // above deliberately stay on a plain `pump`.
       await t.pumpAndSettle();
 
-      expect(find.widgetWithText(FilledButton, 'View all'), findsOneWidget);
+      // `F-194` changed this, and it is a behaviour change rather than a
+      // stale assertion. `withMcc` carries a merchant key, so this capture is
+      // PAYABLE — *Continue payment* renders and takes the filled slot.
+      //
+      // Two filled buttons is not a stronger call to action, it is an absent
+      // one: the whole information a filled button carries is that the others
+      // are not it. So when the pay action is present it is the only filled
+      // one, and the pair below it are both outlined.
+      expect(find.widgetWithText(FilledButton, 'Continue payment'),
+          findsOneWidget);
+      expect(find.widgetWithText(OutlinedButton, 'View all'), findsOneWidget);
       expect(find.widgetWithText(OutlinedButton, 'Tap POS'), findsOneWidget);
+    });
+
+    testWidgets('a capture with no address offers no payment', (t) async {
+      // The other half, and the one that matters at a counter. `withoutMcc`
+      // has no merchant key and no payload, so there is nothing to hand to a
+      // payment app — and a *Continue payment* button that appeared anyway
+      // would fail AFTER the tap, with somebody waiting.
+      //
+      // Asserting absence, so it is scrolled to first: `CLAUDE.md` records
+      // that a `findsNothing` below the fold passes for the wrong reason. The
+      // footer is pinned and always on screen, which is why `findsNothing`
+      // here is honest — the surface is 800 px and the footer is in it.
+      await surfaced(t, const Size(400, 800));
+      await t.pumpWidget(harness(sheet(withoutMcc, onPos: () {}),
+          surface: const Size(400, 800)));
+      await t.pump();
+
+      expect(find.text('Tap POS'), findsOneWidget); // the footer IS rendered
+      expect(find.text('Continue payment'), findsNothing);
     });
 
     testWidgets('Tap POS actually reaches its callback', (t) async {
@@ -394,8 +423,14 @@ void main() {
       await t.pumpAndSettle();
 
       expect(find.text('View all'), findsOneWidget);
-      final button = t.widget<FilledButton>(
-          find.widgetWithText(FilledButton, 'View all'));
+      // `ButtonStyleButton`, not `FilledButton`. What this test is about is
+      // that the button is DISABLED rather than missing; which of the two
+      // shapes it wears depends on whether a sibling took the filled slot,
+      // and `F-194` gave it a sibling that does. Asserting the shape here
+      // would make this test fail every time the emphasis rules move, for a
+      // reason it does not care about.
+      final button = t.widget<ButtonStyleButton>(
+          find.widgetWithText(ButtonStyleButton, 'View all'));
       expect(button.onPressed, isNull);
     });
 
