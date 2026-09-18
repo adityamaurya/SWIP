@@ -203,7 +203,15 @@ class _BlackboxPageState extends State<BlackboxPage> {
       // channel — it watches a Flutter widget, so it lives in Dart. Returned
       // before the switch rather than as a case in it, because there is no
       // `Future<String?>` from a channel to await.
-      if (widget.box == Blackbox.scan) return ScanTrace.dump();
+      //
+      // `return await`, not `return`. Inside a `try` the two are different:
+      // a bare `return` hands the caller an unresolved future and **leaves
+      // the try block first**, so a failure inside `ScanTrace.dump` lands on
+      // whoever awaits it rather than in the `catch` two lines down — and the
+      // screen shows an exception instead of an empty box. `analyze` catches
+      // this as `unawaited_return_in_try_block`, and it was the only thing
+      // wrong with run 121.
+      if (widget.box == Blackbox.scan) return await ScanTrace.dump();
 
       final call = switch (widget.box) {
         Blackbox.bubble => _channel.invokeMethod<String>('traceDump'),
